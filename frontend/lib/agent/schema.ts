@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 // Keep wire names identical to backend/agent_builder/schema.py.
-// Pipecat message/action payloads and JSON Schema properties pass through as JSON.
+// Unknown AgentConfig/node/edge fields are stripped, matching Python.
+// Nested message/action payloads and JSON Schema properties pass through as JSON.
 const jsonObject = z.record(z.string(), z.json());
 
 export const edgeSchema = z.object({

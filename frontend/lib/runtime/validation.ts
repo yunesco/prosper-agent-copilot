@@ -3,8 +3,12 @@ import type { AgentConfig } from '@/lib/agent/schema';
 
 const validationResult = z.discriminatedUnion('valid', [
   z.object({ valid: z.literal(true) }),
-  z.object({ valid: z.literal(false), error: z.string() }),
+  z.object({ valid: z.literal(false), error: z.string(), errors: z.array(z.string()).optional() }),
 ]);
+export class AgentValidationError extends Error {
+  constructor(readonly errors: string[]) { super(errors.join('\n')); }
+}
+
 export async function validateAgent(agent: AgentConfig, options: { url?: string; fetcher?: typeof fetch } = {}): Promise<void> {
   let response: Response;
   try {
@@ -15,6 +19,6 @@ export async function validateAgent(agent: AgentConfig, options: { url?: string;
   } catch { throw new Error('Validation service unavailable. Your changes were not saved.'); }
   const result = validationResult.safeParse(await response.json().catch(() => null));
   if (!result.success) throw new Error('Invalid validation response. Your changes were not saved.');
-  if (!result.data.valid) throw new Error(result.data.error);
+  if (!result.data.valid) throw new AgentValidationError(result.data.errors ?? [result.data.error]);
   if (!response.ok) throw new Error('Validation service failed. Your changes were not saved.');
 }

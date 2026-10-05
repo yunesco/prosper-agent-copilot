@@ -48,7 +48,7 @@ export function useNodeEdits(agent: AgentConfig, selectedNodeId: string | null, 
       operations.push({ type: 'update_node', node: name, changes: { task_messages: draft.value.task_messages, role_message: draft.value.role_message } });
     }
     draft.value.edges.forEach((edge, index) => {
-      if (!same(edge, committed.edges[index])) operations.push({ type: 'update_edge', node: name, edge_index: index, changes: { description: edge.description, target: edge.target } });
+      if (!same(edge, committed.edges[index])) operations.push({ type: 'update_edge', node: name, function: committed.edges[index].function, changes: { description: edge.description, target: edge.target } });
     });
     inFlight.current = true;
     setSaving(name); setErrors(current => ({ ...current, [name]: '' }));

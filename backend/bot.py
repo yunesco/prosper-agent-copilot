@@ -25,16 +25,18 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from pipecat.runner.types import RunnerArguments
+from pipecat.runner.types import RunnerArguments, SmallWebRTCRunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
+from voice_events import VoiceRTVIProcessor
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
@@ -56,7 +58,11 @@ async def run_bot(
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
 
-    stt = ElevenLabsRealtimeSTTService(api_key=os.environ["ELEVENLABS_API_KEY"])
+    stt = ElevenLabsRealtimeSTTService(
+        api_key=os.environ["ELEVENLABS_API_KEY"],
+        # This clinic demo is English; avoid automatic language guesses on short turns.
+        settings=ElevenLabsRealtimeSTTService.Settings(language=Language.EN),
+    )
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         settings=ElevenLabsTTSService.Settings(voice=config.voice_id),
@@ -83,6 +89,7 @@ async def run_bot(
 
     worker = PipelineWorker(
         pipeline,
+        rtvi_processor=VoiceRTVIProcessor(),
         params=PipelineParams(enable_metrics=True, enable_usage_metrics=True),
         idle_timeout_secs=runner_args.pipeline_idle_timeout_secs,
     )
@@ -116,7 +123,18 @@ async def bot(runner_args: RunnerArguments):
     await run_bot(transport, runner_args, builder)
 
 
-if __name__ == "__main__":
-    from pipecat.runner.run import main
+async def current_agent_bot(runner_args: SmallWebRTCRunnerArguments, builder: AgentBuilder):
+    try:
+        transport = await create_transport(runner_args, transport_params)
+        await run_bot(transport, runner_args, builder)
+    finally:
+        await runner_args.webrtc_connection.disconnect()
 
+
+if __name__ == "__main__":
+    from pipecat.runner.run import app, main
+    from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequestHandler
+    from agent_builder.calls import call_router
+
+    app.include_router(call_router(SmallWebRTCRequestHandler(), current_agent_bot))
     main()

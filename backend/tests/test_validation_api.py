@@ -36,3 +36,16 @@ def test_invalid_json_and_unknown_target():
     response = client.post('/validate', json=data)
     assert response.status_code == 422
     assert 'unknown node' in response.json()['error']
+
+
+def test_returns_full_graph_and_shape_error_lists():
+    data = example()
+    data['model'] = 'not-a-model'
+    data['nodes'][0]['edges'][0]['required'] = ['ghost']
+    response = client.post('/validate', json=data)
+    assert response.status_code == 422
+    errors = response.json()['errors']
+    assert len(errors) == 2
+    assert response.json()['error'] == '\n'.join(errors)
+    malformed = client.post('/validate', json={'nodes': 'bad'}).json()
+    assert len(malformed['errors']) >= 3

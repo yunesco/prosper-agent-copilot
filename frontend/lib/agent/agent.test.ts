@@ -60,7 +60,7 @@ test('instruction and transition edits preserve native data and collection contr
   const messages = node.task_messages.map(message => ({ ...message, content: 'Updated' }));
   const updated = applyAgentOperations(agent, [
     { type: 'update_node', node: node.name, changes: { task_messages: messages } },
-    { type: 'update_edge', node: node.name, edge_index: 0, changes: { description: 'Updated transition', target: 'confirm' } },
+    { type: 'update_edge', node: node.name, function: 'record_details', changes: { description: 'Updated transition', target: 'confirm' } },
   ]);
   expect(updated.nodes[1]).toEqual({ ...node, task_messages: messages, edges: [{ ...node.edges[0], description: 'Updated transition', target: 'confirm' }] });
   expect(agent).toEqual(before);
@@ -68,8 +68,8 @@ test('instruction and transition edits preserve native data and collection contr
 
 test.each([
   { type: 'update_node' as const, node: 'missing', changes: { role_message: 'test' } },
-  { type: 'update_edge' as const, node: 'greeting', edge_index: 99, changes: { target: 'confirm' } },
-  { type: 'update_edge' as const, node: 'greeting', edge_index: 0, changes: { target: 'missing' } },
+  { type: 'update_edge' as const, node: 'greeting', function: 'missing', changes: { target: 'confirm' } },
+  { type: 'update_edge' as const, node: 'greeting', function: 'choose_intent', changes: { target: 'missing' } },
 ])('failed batch is atomic: $type', operation => {
   const agent = loadAgentFixture('original-scheduler');
   const before = structuredClone(agent);
@@ -83,4 +83,20 @@ test('partial instruction patches never insert node defaults or accept empty cha
   const updated = applyAgentOperations(agent, [{ type: 'update_node', node: node.name, changes: { role_message: 'Override' } }]);
   expect(updated.nodes[0]).toEqual({ ...node, role_message: 'Override' });
   expect(() => agentOperationSchema.parse({ type: 'update_node', node: node.name, changes: {} })).toThrow();
+});
+
+test('addresses transitions by function after reordering and rejects ambiguous names atomically', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const node = agent.nodes[0];
+  node.edges.unshift({ ...node.edges[0], function: 'another' });
+  const operation = { type: 'update_edge' as const, node: node.name, function: 'choose_intent', changes: { description: 'Changed' } };
+  const updated = applyAgentOperations(agent, [operation]);
+  expect(updated.nodes[0].edges[0]).toEqual(node.edges[0]);
+  expect(updated.nodes[0].edges[1].description).toBe('Changed');
+  node.edges[0].function = 'choose_intent';
+  const before = structuredClone(agent);
+  expect(() => applyAgentOperations(agent, [{ type: 'update_agent', changes: { name: 'Never saved' } }, operation])).toThrow('exactly one transition');
+  expect(agent).toEqual(before);
+  expect(() => agentOperationSchema.parse({ type: 'update_edge', node: node.name, edge_index: 0, changes: { description: 'Old addressing' } })).toThrow();
+  expect(() => agentOperationSchema.parse({ type: 'update_agent', changes: { model: 'not-a-model' } })).toThrow();
 });

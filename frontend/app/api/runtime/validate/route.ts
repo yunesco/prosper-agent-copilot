@@ -1,5 +1,5 @@
 import { agentSchema } from '@/lib/agent/schema';
-import { validateAgent } from '@/lib/runtime/validation';
+import { AgentValidationError, validateAgent } from '@/lib/runtime/validation';
 
 export async function POST(request: Request) {
   const parsed = agentSchema.safeParse(await request.json().catch(() => null));
@@ -8,6 +8,6 @@ export async function POST(request: Request) {
     await validateAgent(parsed.data, { url: `${process.env.AGENT_RUNTIME_URL ?? 'http://127.0.0.1:7861'}/validate` });
     return Response.json({ valid: true });
   } catch (error) {
-    return Response.json({ valid: false, error: error instanceof Error ? error.message : 'Validation failed.' }, { status: 422 });
+    return Response.json({ valid: false, error: error instanceof Error ? error.message : 'Validation failed.', ...(error instanceof AgentValidationError ? { errors: error.errors } : {}) }, { status: 422 });
   }
 }

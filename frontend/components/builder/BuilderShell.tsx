@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useTestCall } from './use-test-call';
+import { TestCallControls, CallTranscript } from './TestCall';
 import { applyAgentOperations, type AgentOperation } from '@/lib/agent/operations';
 import { validateAgent } from '@/lib/runtime/validation';
 import { stepTitle } from '@/lib/agent/graph';
@@ -13,13 +15,19 @@ import { PaneWorkspace } from '@/components/panes/PaneWorkspace';
 
 export function BuilderShell() {
   const [agent, setAgent] = useState(() => loadAgentFixture('original-scheduler'));
+  const [mode, setMode] = useState<'builder' | 'call'>('builder');
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const call = useTestCall(agent, audioRef);
   const currentAgent = useRef(agent);
+  const revision = useRef(0);
   const save = async (operations: AgentOperation[]) => {
     const base = currentAgent.current;
+    const baseRevision = revision.current;
     const candidate = applyAgentOperations(base, operations);
     await validateAgent(candidate);
-    if (currentAgent.current !== base) throw new Error('The agent changed during validation. Review and save again.');
+    if (revision.current !== baseRevision) throw new Error('The agent changed during validation. Review and save again.');
     currentAgent.current = candidate;
+    revision.current += 1;
     setAgent(candidate);
   };
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -38,17 +46,19 @@ export function BuilderShell() {
       </div>
       <div className="flex shrink-0 items-center gap-3 md:ml-auto">
           <nav aria-label="Agent mode" className="inline-flex items-center gap-1 rounded-full border border-ui-border bg-surface-raised p-1">
-            <Button variant="ghost" size="sm" aria-current="page" className="rounded-full bg-accent-soft text-accent-text"><GitBranch aria-hidden="true" />Builder</Button>
-            <Button variant="ghost" size="sm" className="rounded-full" disabled aria-describedby="call-unavailable"><Phone aria-hidden="true" />Test Call</Button>
+            <Button variant="ghost" size="sm" aria-current={mode === 'builder' ? 'page' : undefined} onClick={() => { if (mode === 'call' && call.active) call.stop(); setMode('builder'); }} className="rounded-full aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent-text"><GitBranch aria-hidden="true" />Builder</Button>
+            <Button variant="ghost" size="sm" className="rounded-full aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent-text" aria-current={mode === 'call' ? 'page' : undefined} onClick={() => setMode('call')}><Phone aria-hidden="true" />Test Call</Button>
           </nav>
-          <p id="call-unavailable" className="text-xs text-text-subtle">Unavailable</p>
+
         </div>
     </header>
+    <audio ref={audioRef} autoPlay />
     <PaneWorkspace
-      workspaceTitle="Workflow"
-      contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{selectedTransitionIndex !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
-      workspace={openContext => <AgentGraph agent={agent} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} />}
-      context={<AgentInspector onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionIndex={selectedTransitionIndex} />}
+      workspaceTitle={mode === 'call' ? 'Test Call' : 'Workflow'}
+      workspaceLabel={mode === 'call' ? 'Call' : 'Graph'}
+      contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{mode === 'call' ? 'Call transcript' : selectedTransitionIndex !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
+      workspace={openContext => <><div className={mode === 'builder' ? 'h-full' : 'hidden'}><AgentGraph agent={agent} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} /></div>{mode === 'call' && <TestCallControls call={call} />}</>}
+      context={<><div className={mode === 'builder' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}><AgentInspector onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionIndex={selectedTransitionIndex} /></div>{mode === 'call' && <CallTranscript call={call} />}</>}
     />
   </main>;
 }

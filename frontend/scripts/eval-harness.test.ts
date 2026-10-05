@@ -13,8 +13,8 @@ test('accepts the synthetic reference trace', () => {
 
 test.each([
   { ...traceData, applied: true },
-  { ...traceData, tool_calls: [traceData.tool_calls[1], traceData.tool_calls[0], traceData.tool_calls[2]] },
-  { ...traceData, tool_calls: traceData.tool_calls.slice(0, 2) },
+  { ...traceData, tool_calls: [traceData.tool_calls[1], traceData.tool_calls[0]] },
+  { ...traceData, tool_calls: traceData.tool_calls.slice(0, 1) },
   { ...traceData, tool_calls: [...traceData.tool_calls, traceData.tool_calls[0]] },
   { ...traceData, tool_calls: [{ ...traceData.tool_calls[0], result: undefined }] },
   { ...traceData, proposed_operations: [{ type: 'update_agent', changes: { name: 'Wrong agent' } }] },
@@ -25,10 +25,10 @@ test.each([
 });
 
 test('reports tool execution failures with the call identity and reason', () => {
-  const tool_calls = traceData.tool_calls.map(call => call.toolName === 'validate_agent'
+  const tool_calls = traceData.tool_calls.map(call => call.toolName === 'propose_agent_patch'
     ? { ...call, result: { type: 'tool-error', error: 'Runtime unavailable' } } : call);
   expect(evaluate(fixture, { ...traceData, tool_calls })).toContain(
-    'Tool validate_agent (synthetic-3) failed: Runtime unavailable',
+    'Tool propose_agent_patch (synthetic-2) failed: Runtime unavailable',
   );
 });
 

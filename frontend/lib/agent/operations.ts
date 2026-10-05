@@ -4,12 +4,12 @@ import { nodeSchema, parseAgent, type AgentConfig } from './schema';
 const nonempty = (changes: object) => Object.keys(changes).length > 0;
 export const agentOperationSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('update_agent'), changes: z.object({
-    name: z.string(), persona: z.string(), voice_id: z.string(), model: z.string(),
+    name: z.string(), persona: z.string(), voice_id: z.string(),
   }).partial().strict().refine(nonempty, 'Empty patch') }).strict(),
   z.object({ type: z.literal('update_node'), node: z.string(), changes: z.object({
     task_messages: nodeSchema.shape.task_messages.removeDefault(), role_message: nodeSchema.shape.role_message.removeDefault(),
   }).partial().strict().refine(nonempty, 'Empty patch') }).strict(),
-  z.object({ type: z.literal('update_edge'), node: z.string(), edge_index: z.number().int().nonnegative(),
+  z.object({ type: z.literal('update_edge'), node: z.string(), function: z.string(),
     changes: z.object({ description: z.string(), target: z.string() }).partial().strict().refine(nonempty, 'Empty patch'),
   }).strict(),
 ]);
@@ -24,10 +24,10 @@ export function applyAgentOperations(agent: AgentConfig, operations: readonly Ag
       const matches = candidate.nodes.filter(node => node.name === operation.node);
       if (matches.length !== 1) throw new Error(`Node must identify exactly one step: ${operation.node}`);
       const source = matches[0];
-      if (operation.type === 'update_edge' && !source.edges[operation.edge_index]) throw new Error('Unknown transition.');
+      if (operation.type === 'update_edge' && source.edges.filter(edge => edge.function === operation.function).length !== 1) throw new Error('Function must identify exactly one transition.');
       candidate = { ...candidate, nodes: candidate.nodes.map(node => node !== source ? node :
         operation.type === 'update_node' ? { ...node, ...operation.changes } : {
-          ...node, edges: node.edges.map((edge, index) => index === operation.edge_index ? { ...edge, ...operation.changes } : edge),
+          ...node, edges: node.edges.map(edge => edge.function === operation.function ? { ...edge, ...operation.changes } : edge),
         }) };
     }
   }

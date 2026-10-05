@@ -26,12 +26,15 @@ for (const width of [1440, 390]) {
     await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Continue once details are complete.');
     await page.screenshot({ path: testInfo.outputPath(`transition-edit-${width}.png`) });
     await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('form', { name: 'Node settings' }).getByRole('alert')).toContainText("'offer_times' is unreachable");
+    await page.getByRole('combobox', { name: 'Target node', exact: true }).selectOption('offer_times');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
-    await page.getByRole('button', { name: '→ confirm' }).click();
+    await page.getByRole('button', { name: '→ offer_times' }).click();
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
     await page.getByRole('button', { name: /^Collect details/ }).click();
     await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('Continue once details are complete.');
-    await expect(page.getByRole('combobox', { name: 'Target node', exact: true })).toHaveValue('confirm');
+    await expect(page.getByRole('combobox', { name: 'Target node', exact: true })).toHaveValue('offer_times');
     await page.getByRole('button', { name: 'General', exact: true }).click();
     await goal.fill('Do not commit an invalid edit');
     await page.route('**/api/runtime/validate', route => route.fulfill({ status: 422, json: { valid: false, error: 'Invalid candidate. Check the transition target.' } }));

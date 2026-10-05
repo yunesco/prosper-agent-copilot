@@ -1,7 +1,9 @@
 # Agent instructions
 
-Read `solution.md`, `README.md`, `TASKS.md`, `EVALS.md`, then the selected slice's
-code/tests. `solution.md` owns scope; this file owns workflow. Keep docs accurate.
+Read `solution.md`, `README.md`, `TASKS.md`, then the selected slice's
+code/tests. `solution.md` owns scope; this file owns workflow. Track slices,
+dependencies, status and acceptance criteria only in `TASKS.md`. Other docs may
+link to it, but must not duplicate the roadmap. Keep docs accurate.
 
 ## Boundaries
 
@@ -17,6 +19,18 @@ code/tests. `solution.md` owns scope; this file owns workflow. Keep docs accurat
 - Use same-origin Copilot APIs; keep models/credentials server-side and voice in Python.
 - Use synthetic `fixtures/` and `backend/example_flow.json` directly; no duplicate sample.
 
+## Root-cause fixes
+
+- Trace bugs to the source and the component that owns the behavior before editing.
+  Fix the cause at that boundary; do not hide it with UI filtering, deduplication,
+  retries, or other downstream workarounds.
+- Reproduce the failure and add a focused regression test at the source. Verify
+  the behavior end to end where applicable. Distinguish confirmed causes from
+  hypotheses; do not claim a root-cause fix from a symptom disappearing.
+- If the cause is in a dependency, preserve required versions and isolate any
+  necessary compatibility fix at that integration boundary. Document its reason
+  and test the failing dependency behavior directly.
+
 ## Changes and data
 
 - `propose_agent_patch` proposes only: preview → Python candidate validation →
@@ -29,7 +43,7 @@ code/tests. `solution.md` owns scope; this file owns workflow. Keep docs accurat
 
 ## UI
 
-- Read `UX.md` and `PRODUCT.md` when relevant. Preserve settled decisions and use
+- Read the workspace interactions in `solution.md` when relevant. Preserve settled decisions and use
   existing components. No mandatory design interview, alternative concepts, skill
   workflow, independent design review, or design-document handoff.
 - **Use Tailwind CSS + shadcn/ui.** Use the standard local shadcn components directly;
@@ -37,7 +51,7 @@ code/tests. `solution.md` owns scope; this file owns workflow. Keep docs accurat
   shared theme tokens, and required library styles. Inline styles only serve dynamic
   geometry/library APIs.
 - Skills are optional: use one only when it materially helps the requested work.
-  Install only dependencies the slice needs. Update `UX.md` when interactions change.
+  Install only dependencies the slice needs. Update `solution.md` when interactions change.
 
 ## Verification
 

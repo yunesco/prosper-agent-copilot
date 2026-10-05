@@ -3,8 +3,18 @@
   "agent_id": "original-scheduler",
   "prompt": "Rename this agent to Demo Clinic Scheduler. Keep its conversation flow unchanged and show me the proposed change before applying it.",
   "expected": {
-    "tools_in_order": ["get_agent", "propose_agent_patch", "validate_agent"],
-    "operations": [{"type": "update_agent", "changes": {"name": "Demo Clinic Scheduler"}}],
+    "tools_in_order": [
+      "get_agent",
+      "propose_agent_patch"
+    ],
+    "operations": [
+      {
+        "type": "update_agent",
+        "changes": {
+          "name": "Demo Clinic Scheduler"
+        }
+      }
+    ],
     "requires_approval": true
   }
 }

@@ -80,7 +80,7 @@ test('transition inspector exposes routing, tool name and collected fields toget
   fireEvent.change(screen.getByRole('combobox', { name: 'Target node' }), { target: { value: 'confirm' } });
   fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Ready to confirm' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-  await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ type: 'update_edge', node: 'collect_details', edge_index: 0, changes: { description: 'Ready to confirm', target: 'confirm' } }]));
+  await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ type: 'update_edge', node: 'collect_details', function: 'record_details', changes: { description: 'Ready to confirm', target: 'confirm' } }]));
   expect(agent.nodes[1].edges[0].target).toBe('offer_times');
 });
 

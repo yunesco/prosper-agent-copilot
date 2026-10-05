@@ -10,9 +10,9 @@ import { parseAgent } from '../lib/agent/schema';
 const backend = fileURLToPath(new URL('../../backend/', import.meta.url));
 const cases: { id: string; input: unknown; accepted: boolean }[] = [
   ...Object.entries(agentFixtures).map(([id, input]) => ({ id, input, accepted: true })),
-  { id: 'defaults', accepted: true, input: { name: 'Defaults', initial_node: 'start', nodes: [{ name: 'start' }] } },
+  { id: 'defaults', accepted: true, input: { name: 'Defaults', initial_node: 'start', nodes: [{ name: 'start', end: true }] } },
   { id: 'native-json-and-edge-defaults', accepted: true, input: {
-    name: 'Native fields', persona: 'Global', voice_id: 'voice', model: 'model', initial_node: 'end', nodes: [{
+    name: 'Native fields', persona: 'Global', voice_id: 'voice', model: 'gpt-4o', initial_node: 'end', nodes: [{
       name: 'end', role_message: 'Override', end: true,
       task_messages: [{ role: 'developer', content: 'Say goodbye', extra: { nested: [true, null, 1] } }],
       pre_actions: [{ type: 'tts_say', text: 'Hello' }], post_actions: [{ type: 'end_conversation' }],
@@ -21,10 +21,17 @@ const cases: { id: string; input: unknown; accepted: boolean }[] = [
   } },
   { id: 'edited-instructions-and-transition', accepted: true, input: applyAgentOperations(loadAgentFixture('original-scheduler'), [
     { type: 'update_node', node: 'collect_details', changes: { task_messages: [{ role: 'system', content: 'Collect name.', metadata: { native: [true, null] } }], role_message: 'Override' } },
-    { type: 'update_edge', node: 'collect_details', edge_index: 0, changes: { description: 'Continue', target: 'confirm' } },
+    { type: 'update_edge', node: 'collect_details', function: 'record_details', changes: { description: 'Continue', target: 'offer_times' } },
   ]) },
+  { id: 'unknown-wrapper-fields-stripped', accepted: true, input: {
+    name: 'Unknown fields', initial_node: 'end', unknown_agent: 'discard', nodes: [{
+      name: 'end', end: true, unknown_node: 'discard',
+      edges: [{ function: 'retry', description: '', target: 'end', unknown_edge: 'discard',
+        properties: { value: { type: 'string', custom: { nested: true } } } }],
+    }],
+  } },
   { id: 'empty-graph', accepted: false, input: { name: 'Empty', initial_node: 'start', nodes: [] } },
-  { id: 'unknown-initial', accepted: false, input: { name: 'Missing initial', initial_node: 'missing', nodes: [{ name: 'start' }] } },
+  { id: 'unknown-initial', accepted: false, input: { name: 'Missing initial', initial_node: 'missing', nodes: [{ name: 'start', end: true }] } },
   { id: 'unknown-target', accepted: false, input: { name: 'Missing target', initial_node: 'start', nodes: [{ name: 'start', edges: [{ function: 'go', description: '', target: 'missing' }] }] } },
 ];
 const resultSchema = z.discriminatedUnion('ok', [

@@ -4,7 +4,7 @@ import { agentOperationSchema, applyAgentOperations } from '../lib/agent/operati
 import { agentFixtures, loadAgentFixture, type AgentFixtureId } from '../lib/fixtures';
 import type { AgentConfig } from '../lib/agent/schema';
 
-const toolName = z.enum(['get_agent', 'propose_agent_patch', 'validate_agent', 'get_call', 'get_calls']);
+const toolName = z.enum(['get_agent', 'propose_agent_patch', 'get_call', 'get_calls']);
 export const evalFixtureSchema = z.object({
   id: z.string().min(1),
   agent_id: z.enum(Object.keys(agentFixtures) as AgentFixtureId[]),

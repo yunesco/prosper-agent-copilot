@@ -11,7 +11,7 @@ import { clampSplit, DEFAULT_SPLIT, MAX_SPLIT, MIN_SPLIT } from './pane-split';
 type Surface = 'workspace' | 'context';
 
 /** Layout only: children keep their identity, scroll positions and local state. */
-export function PaneWorkspace({ workspace, context, workspaceTitle = 'Conversation', contextTitle = 'Agent details' }: { workspace: ReactNode | ((openContext: () => void) => ReactNode); context: ReactNode; workspaceTitle?: ReactNode; contextTitle?: ReactNode }) {
+export function PaneWorkspace({ workspace, context, workspaceTitle = 'Conversation', workspaceLabel = 'Graph', contextTitle = 'Agent details' }: { workspace: ReactNode | ((openContext: () => void) => ReactNode); context: ReactNode; workspaceTitle?: ReactNode; workspaceLabel?: string; contextTitle?: ReactNode }) {
   const container = useRef<HTMLDivElement>(null);
   const workspaceRegion = useRef<HTMLElement>(null);
   const contextRegion = useRef<HTMLElement>(null);
@@ -69,7 +69,7 @@ export function PaneWorkspace({ workspace, context, workspaceTitle = 'Conversati
 
   return <div className="flex min-h-0 flex-1 flex-col">
     <nav aria-label="Workspace surface" className="flex shrink-0 gap-1 border-b border-ui-border bg-surface-raised px-3 py-2 md:hidden">
-      <Button variant="ghost" size="sm" className="aria-pressed:bg-accent-soft aria-pressed:text-accent-text" aria-pressed={mobile === 'workspace'} aria-controls="workspace-pane" onClick={() => show('workspace')}>Graph</Button>
+      <Button variant="ghost" size="sm" className="aria-pressed:bg-accent-soft aria-pressed:text-accent-text" aria-pressed={mobile === 'workspace'} aria-controls="workspace-pane" onClick={() => show('workspace')}>{workspaceLabel}</Button>
       <Button variant="ghost" size="sm" className="aria-pressed:bg-accent-soft aria-pressed:text-accent-text" aria-pressed={mobile === 'context'} aria-controls="context-pane" onClick={() => show('context')}>Details</Button>
     </nav>
     <div ref={container} style={{ '--pane-columns': `${value}fr 8px ${100 - value}fr` } as CSSProperties}

@@ -18,3 +18,10 @@ test.each([true, false])('passes Python acceptance or rejection through: %s', as
   expect((await response.json()).valid).toBe(valid);
   expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(agent);
 });
+
+test('forwards the complete Python error list to the browser', async () => {
+  const errors = ['Duplicate node', 'Undefined required property'];
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ valid: false, error: errors.join('\n'), errors }, { status: 422 })));
+  const response = await POST(new Request('http://localhost/api/runtime/validate', { method: 'POST', body: JSON.stringify(loadAgentFixture('original-scheduler')) }));
+  expect(await response.json()).toEqual({ valid: false, error: errors.join('\n'), errors });
+});

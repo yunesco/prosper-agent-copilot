@@ -1,331 +1,209 @@
-# Prosper Voice Agent Builder — Solution Overview
-
-## Overview
-
-The core problem is not building a graph editor. The graph is just the representation Prosper already uses to run agents.
-
-The real deployment work happens in two places:
-
-1. **Initial deployment** — turning a client's natural-language guidelines into a working voice agent.
-2. **Production iteration** — understanding why calls fail, deciding what should change, and updating the agent safely.
-
-My solution focuses on those two workflows and treats the graph editor as the interface for inspecting and manually adjusting the generated agent.
-
-The product has three connected surfaces:
-
-- **Builder** — a node graph for the current agent.
-- **Test Call** — a live voice call against the current graph.
-- **Copilot** — an AI agent that can inspect the current configuration, create or modify the graph, inspect mocked production calls, and propose fixes.
-
-The demo connects two related workflows through the same Builder, Test Call, and
-Copilot surfaces:
-
-```text
-Workflow A — Initial deployment
-
-client guidelines
-→ Copilot generates agent
-→ inspect / manually adjust
-→ live test call
-```
-
-```text
-Workflow B — Production iteration
-
-existing mocked deployed agent
-+ flagged production call
-→ Copilot diagnoses issue
-→ proposes targeted fix
-→ review + Apply
-→ retest
-```
-
-Workflow B uses the intentionally flawed checked-in `clinic-scheduler` fixture as
-a mocked existing deployed agent. Its Friday failure belongs to that fixture,
-not to the correctly generated cold-start agent from Workflow A. The demo makes
-this context switch explicit while keeping the same editing and testing surfaces.
-
----
-
-## Product decisions
-
-### The Copilot is the main feature
-
-Phase 1 is necessary, but I am deliberately keeping the graph editor minimal. The challenge is more interesting if the deployment engineer spends less time manually constructing graphs in the first place.
-
-The graph still matters because it makes the generated agent visible, inspectable, and editable.
-
-### Workspace and issue discovery
-
-The primary surface is a nodes canvas with a pill-shaped Builder / Test Call switch
-in the top header for now. Switching to Test Call replaces the main workspace with the live call
-view. The right contextual pane follows that view: editing forms for nodes and
-transcripts during calls.
-
-Copilot supports initial creation and editing, then refinement from both client
-flags and problems it surfaces from call data. Finding those problems is part of
-the burden the product should remove. For the demo, Copilot inspects the supplied
-mocked calls and presents suspected issues with transcript evidence for human
-review. This does not add production ingestion, background monitoring, or autonomous
-changes. Proposed fixes still require preview, validation, and explicit Apply.
-
-### The AI edits the same agent the human edits
-
-There should not be a separate "AI-generated" representation.
-
-Manual edits and approved Copilot proposals both modify the current `AgentConfig` through `applyAgentOperations()`. Proposed changes are visible for review before they affect product state.
-
-### Changes are proposed as structured operations
-
-The Copilot should not return a blob of JSON and ask the UI to replace the whole agent.
-
-Instead it proposes explicit operations such as:
-
-```text
-add_node
-update_node
-delete_node
-add_edge
-update_edge
-delete_edge
-update_agent
-```
-
-Those operations can be shown to the user before they are applied.
-
-This gives the interaction the useful part of a coding agent workflow:
-
-```text
-inspect → understand → propose → preview → validate candidate → explicit human Apply
-```
-
-rather than behaving like a generic chatbot beside the graph.
-
-### Human approval stays in the loop
-
-For the demo, the Copilot can diagnose and prepare changes, but meaningful edits are applied explicitly by the deployment engineer.
-
-That keeps the interaction understandable and makes the before/after change easy to demonstrate.
-
----
-
-## Scope
-
-### Build
-
-- node graph editor;
-- node and transition editing;
-- live browser test call;
-- Copilot integrated into the builder;
-- natural-language agent creation;
-- natural-language agent modification;
-- mocked production call history / flagged issues;
-- Copilot diagnosis of a problematic call;
-- proposed agent changes with an explicit Apply step.
-
-### Mock
-
-- production call history;
-- client-reported issues;
-- a few realistic successful and failed calls;
-- scheduling / backend behavior where a real integration is unnecessary for the demo.
-
-### Intentionally leave out
-
-- authentication and organizations;
-- database infrastructure;
-- real production analytics pipelines;
-- clustering thousands of calls;
-- EHR integrations;
-- deployment/versioning infrastructure;
-- autonomous production changes;
-- a large evaluation framework;
-- a general healthcare rules engine.
-
-These are real production concerns, but they do not help prove the main product idea within an 8–12 hour take-home.
-
----
-
-## Architecture
-
-I keep Prosper's existing Python/Pipecat voice runtime rather than rewriting it.
-
-```text
-┌──────────────────── Next.js / React ────────────────────┐
-│                                                         │
-│  React Flow builder        Context panel                │
-│          │                       │                      │
-│          └────── AgentConfig ────┘                      │
-│                    ↑                                    │
-│                    │                                    │
-│             Copilot / AI SDK                            │
-│                    │                                    │
-│          structured agent operations                    │
-│                                                         │
-│               Test Call UI                              │
-│                    │                                    │
-└────────────────────┼────────────────────────────────────┘
-                     │ WebRTC
-                     ▼
-┌──────────────── Existing Python / Pipecat ──────────────┐
-│                                                         │
-│  AgentConfig JSON → AgentBuilder → Pipecat Flow         │
-│                                      │                  │
-│                              STT → LLM → TTS             │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Frontend
-
-- **Next.js + TypeScript** — application shell and Copilot API.
-- **React Flow** — graph visualization and editing.
-- **Vercel AI SDK** — streaming Copilot UI, tool calls, and structured AI interactions.
-- **Plain React state** — enough for the current scope; no separate state library unless the implementation actually becomes complex enough to justify one.
-- **Tailwind / shadcn** — only where useful for moving quickly.
-
-### Voice runtime
-
-The supplied Python backend remains responsible for:
-
-- Pipecat;
-- WebRTC voice session;
-- ElevenLabs STT/TTS;
-- LLM execution;
-- compiling `AgentConfig` into a runnable Pipecat Flow.
-
-The main backend change is simply allowing the UI's current agent configuration to be used for a test call instead of relying on a fixed example JSON file.
-
----
-
-## State and mutations
-
-The canonical product state is intentionally small:
-
-```text
-agent
-selectedNodeId
-mode
-```
-
-AI SDK manages the conversational/tool-call state. React owns the product state.
-
-The important abstraction is one shared mutation path:
-
-```ts
-applyAgentOperations(agent, operations) => updatedAgent
-```
-
-Both the manual editor and approved Copilot proposals use it. The Copilot path is:
-
-```text
-Copilot
-→ propose_agent_patch
-→ preview
-→ validate candidate
-→ explicit human Apply
-→ applyAgentOperations()
-→ AgentConfig
-```
-
-Candidate construction uses the same pure operations without committing product
-state. The completed candidate is validated before the user clicks Apply; only
-then are the approved operations committed. There is no second AI-specific
-mutation path.
-
----
-
-## Copilot tools
-
-The Copilot gets a deliberately small set of capabilities.
-
-### `get_agent`
-
-Reads the current `AgentConfig` so the model can reason about the actual implementation before proposing changes.
-
-### `propose_agent_patch`
-
-Produces one or more structured proposed agent operations. The tool does not mutate product state directly.
-
-Example:
-
-> Existing patients should skip insurance collection.
-
-The Copilot may propose:
-
-```text
-- update the patient-type transition
-- route existing patients directly to scheduling
-- keep insurance collection only on the new-patient path
-```
-
-The UI shows the proposal, validates the completed candidate, and waits for the user to explicitly click **Apply**. `applyAgentOperations()` commits the approved operations to the current agent.
-
-### `validate_agent`
-
-Checks that the completed candidate is structurally runnable before Apply. The current agent is validated again before a test call.
-
-### `get_call`
-
-Returns a mocked production call with transcript, outcome, graph path, and optional client feedback.
-
-This gives the Copilot enough context to connect a production problem back to the current agent configuration.
-
-### `get_calls`
-
-Reads the small set of mocked calls so Copilot can surface suspected problems and
-repeated failure patterns, including calls not already flagged by a client. Findings
-must identify the relevant calls and evidence; discovery does not mutate the agent.
-
----
-
-## Demo flow
-
-The demo proves both workflows with shared clinic guidelines and the same builder
-surfaces, while clearly identifying which agent is current.
-
-### Workflow A — Initial deployment
-
-Paste clinic instructions such as:
-
-> Collect name and DOB. New patients also need insurance. Dr. Smith only sees new patients Monday and Wednesday.
-
-The Copilot proposes the initial graph through structured operations. The user
-previews the proposal, validates the completed candidate, and clicks **Apply**.
-
-The user can inspect the nodes and manually adjust the agent if needed, then
-switch to Call mode and place a live test call against that generated agent.
-
-### Workflow B — Production iteration
-
-Explicitly switch to the intentionally flawed checked-in `clinic-scheduler`,
-labeled as a **mocked existing deployed agent**. Open its mocked flagged call,
-where a new patient was incorrectly offered a Friday appointment. This call did
-not come from the agent generated in Workflow A.
-
-Ask the Copilot why it failed. The Copilot inspects the call, the current fixture
-agent, and the clinic guideline, identifies the missing scheduling restriction,
-and highlights the relevant part of the graph.
-
-The Copilot proposes a targeted fix through `propose_agent_patch`. The user
-reviews the preview, the completed candidate is validated, and the user clicks
-**Apply**. `applyAgentOperations()` commits the approved operations and the graph
-updates immediately.
-
-Run another live test call against the corrected fixture agent to show that it
-now follows the intended rule.
-
----
-
-## Why this scope
-
-The highest-value demo is not a feature-complete builder. It is showing that a deployment engineer can go from:
-
-```text
-Initial deployment: guidelines → generated agent → live test call
-Production iteration: mocked deployed agent + flagged call → reviewed fix → retest
-```
-
-with substantially less manual graph editing and debugging.
-
-Everything in the implementation is chosen to support these connected workflows. Anything that does not materially strengthen it is intentionally deferred.
+# Prosper Voice Agent Builder
+
+## Product and scope
+
+Copilot is the main feature. The graph makes its work inspectable and manually
+editable; Test Call runs the saved agent through Prosper's existing Python voice
+stack. The Copilot demo proves two workflows:
+
+- **A — Initial deployment:** clinic guidelines → generated graph → review and
+  Apply → inspect/manual adjustment → live call.
+- **B — Production iteration:** explicitly switch to the labelled mocked deployed
+  `clinic-scheduler` → inspect flagged Friday call → evidence-backed diagnosis →
+  targeted proposal → review and Apply → live retest.
+
+Workflow B's call evidence belongs to the checked-in flawed fixture, never to
+Workflow A's generated agent. Copilot can also inspect the supplied mocked calls
+for unflagged issues, with transcript evidence and human review.
+
+Build graph inspection/editing, browser calls, embedded Copilot, generation, and
+mocked call diagnosis. Mock scheduling/backend behavior and production history.
+Exclude auth, organizations, databases, EHR, production ingestion/analytics,
+deployment/versioning, autonomous changes, and a general healthcare rules engine.
+
+`solution.md` owns architecture and scope. `TASKS.md` is the sole source for slices, dependencies, status and acceptance
+criteria. `AGENTS.md` owns engineering workflow; `README.md` owns setup
+and verification procedures. Workspace interaction decisions live below.
+
+## Architecture and ownership
+
+- Next.js App Router and strict TypeScript; thin pages and HTTP handlers.
+- React Flow for the canvas; Tailwind CSS and standard local shadcn/ui components.
+- AI SDK for chat, streaming and tool state. React hooks own product state; no
+  additional state library.
+- `backend/agent_builder/` owns runtime validation and Pipecat compilation.
+  Preserve `backend/bot.py`'s voice stack, provider versions and interruption defaults.
+  `backend/voice_events.py` isolates the pinned RTVI observer compatibility fix:
+  interruption discards queued, unplayed text before another response can emit it.
+- `frontend/lib/agent/` owns the TS wire contract and immutable atomic mutations.
+- `frontend/lib/runtime/` owns runtime HTTP clients, with matching Python endpoints.
+  Browser traffic uses same-origin APIs; credentials remain server-side.
+- `frontend/lib/copilot/` will own the model, prompt, tools and bounded execution
+  loop. Export one `run()` entry point, with the Python validator injected. The app
+  route adapts its stream to HTTP; the eval adapter captures the same execution.
+  No separate eval implementation or scoring expectations in the model context.
+
+Use the existing synthetic `fixtures/` and `backend/example_flow.json` directly.
+The supplied `/client` still runs the example file; it does not accept builder edits.
+
+## Contract and Python validation
+
+Wire fields remain snake_case with Python/TS defaults preserved. Unknown fields
+on the agent, node and edge objects are discarded by both parsers. Nested native
+message/action payloads and property-schema JSON are preserved; this is not a
+promise to retain arbitrary unknown top-level fields.
+
+Python is authoritative. It reports all discovered graph/compilation errors as
+an `errors: string[]` alongside the joined `error` message, including duplicate
+step names, duplicate function names within a step, invalid tool names, missing
+references, undefined required properties, unreachable steps, and missing paths
+to call-ending nodes. Cycles with exits are allowed. Explicit post-actions retain
+precedence over `end`; an overridden end flag alone is not a call ending.
+Every step is compiled during validation, including downstream steps.
+
+The demo supports the existing runtime model `gpt-4o`; arbitrary model values are
+rejected in Python, and `update_agent` cannot change `model`. This allowlist is a
+project constraint, not a claim about every model the provider supports.
+TypeScript checks shape and mutation preconditions, not a duplicate Python graph
+validator. Validation runs before commit and again before voice allocation.
+
+## State, addressing and commit boundary
+
+React owns `agent`, `selectedNodeId`, `mode`, and a monotonically increasing
+revision outside runtime JSON. Graph positions, pane state and highlights are
+presentation data. Increment the revision on every successful manual save,
+proposal Apply and agent switch; failed/dismissed edits do not increment it.
+
+Transitions are addressed by `(node, function)`, never by list position. Missing
+or ambiguous names fail atomically. Structural batches may have invalid
+intermediate states; validate only the completed candidate. A function rename
+uses its current name as the address; subsequent operations use the new
+name. Deleting a referenced/start step requires repairing references in that batch.
+
+All changes use `applyAgentOperations(agent, operations)`. It is pure, immutable
+and atomic. Manual editing constructs a candidate, validates it in Python and
+commits on explicit Save only if the base revision still matches. A manual draft
+spans multiple steps and transitions so additions, connections and reference
+repairs after deletion can be saved together. Cancel and validation/commit failures
+preserve the saved agent. Selection and draft addresses remain coherent after
+transition deletion or function renaming.
+
+Copilot's proposal lifecycle is:
+
+1. Read a request's saved-agent snapshot and base revision.
+2. `propose_agent_patch` parses operations, constructs the candidate through the
+   shared mutations and calls the injected Python validator.
+3. Return validation errors to the model for repair, or a validated proposal
+   containing operations, base revision, summary and affected graph references.
+4. Show the concrete preview and validation status. Only explicit human **Apply**
+   may commit the operations through the same mutation function.
+5. Reject Apply when the current revision differs. A stale proposal must be
+   regenerated against the current agent. Dismissal/failure leaves state unchanged.
+
+Validation happens inside the proposal tool; there is no separate `validate_agent`
+model tool. Invalid attempts can be displayed with errors but cannot be applied.
+The UI enables Apply only for a successful validated tool result tied to the
+request snapshot and revision; assistant prose cannot authorize a commit.
+
+## Copilot architecture
+
+Use the OpenAI AI SDK provider (`@ai-sdk/openai`),
+with server-only `OPENAI_API_KEY` in `frontend/.env.local`. Start with `gpt-4o` as
+the Copilot model, configured in the server module. Voice keeps its separate
+backend environment. Deterministic tests inject a fake model/validator and need no
+credentials; live evals use the actual provider. Never expose keys in public env,
+logs, tool results or traces.
+
+Each chat request carries `{ messages, agent, revision }`: the current **saved**
+agent, excluding drafts, and a nonnegative revision. Parse this untrusted input.
+Tools close over that request snapshot; `get_agent` returns it, not an imagined
+server-side current agent. Bind proposals/results to that revision even when a
+manual edit occurs while generation streams. Repeated repair attempts start from
+the same snapshot, not from earlier unapproved proposals.
+
+Keep `useChat` mounted in `BuilderShell`. Its state survives node selection,
+pane visibility and Builder/Test Call mode changes. Put **Details / Copilot**
+tabs inside the existing context pane so the selected step remains visible as
+context while chatting. Do not add a separate chat sidebar. Agent switches
+start a new conversation context and invalidate old proposals; pane changes do not.
+
+Tools: `get_agent`, `propose_agent_patch`, and read-only `get_call`/`get_calls`. Bound model steps and duration; surface malformed/empty proposals,
+validation unavailability, provider errors and stale Apply failures.
+
+Diagnosis and proposal results carry `affected: { nodes: string[], edges:
+{ node: string, function: string }[] }`. Resolve these names against the current
+agent and render graph highlights outside runtime JSON. Ignore missing references
+with visible feedback; never highlight a different agent using stale references.
+
+## Workflow-specific decisions
+
+**Workflow A:** start from a valid one-step agent:
+name `New clinic agent`, initial node `start`, one `start` node with `end: true`
+and a goodbye task message.
+Use normal defaults. Manual authoring and generation adds/connects steps,
+updates the initial node and removes or repurposes the seed atomically. Never start
+with zero nodes. Both the manually built and generated results collect name/DOB,
+branch for patient type, collect insurance only for new patients, and limit
+Dr. Smith's new patients to
+Monday/Wednesday. Include clarification, missing data, short valid answers,
+corrections and early-supplied information in generation instructions.
+
+**Workflow B:** provide an explicit labelled switch to `clinic-scheduler`
+(mocked existing deployed agent) using the fixture loader. Warn before discarding
+unsaved work, end any active call, reset selection/drafts and increment revision.
+Calls/issues are scoped to that fixture.
+
+**Workflow B fix scope:** repair `offer_times` instructions
+and, if needed, its `select_time` description to enforce Monday/Wednesday for new patients while
+preserving existing-patient scheduling. Do not add a patient-type/insurance branch
+in this targeted Friday fix. The fixture already instructs conditional insurance
+collection in persona/collect_details but has no explicit branch; preserve that
+behavior and test that existing patients are not asked for insurance. Workflow A
+supports the full branching structure through both manual authoring and generation. Do not claim the Friday patch repairs all possible weaknesses in the deployed fixture.
+
+## Workspace interactions
+
+Preserve the existing light graphite/white theme with teal selection, compact
+headers, thin borders and system fonts. Use the local shadcn components and shared
+theme tokens. No navigation rail, separate chat sidebar, extra state/layout
+library, decorative motion or unsupported runtime settings.
+
+- The header identifies the agent and holds the Builder / Test Call pill. Builder
+  shows the graph with a collapsible/resizable context pane, roughly 70/30 on desktop.
+  Keep graph and inspector mounted across pane/mode changes. Below 768px, Graph
+  (or Call) / Details switches surfaces without losing state.
+- Closing context preserves selection; selecting a node/transition reopens it.
+  Clearing selection returns to agent context. Preserve the viewport while inspecting
+  targets. Graph nodes support Enter/Space selection; Escape/canvas click clears it.
+  Positions are deterministic presentation data, with pan/zoom/Fit and no drag-to-connect.
+- The divider supports pointer/keyboard resizing: arrows change 2 percentage points,
+  Shift+arrow 10, Home/End bounds, double-click restores 70%, Escape cancels a drag.
+  Reserve 320px for desktop details and restore focus when reopening the pane.
+- The inspector's General/Transitions section persists between nodes. Show exact
+  IDs, start/end badges, native actions, tool names and collected-field schemas.
+  Start is the initial-node badge, not a separate runtime node. Voice/model are
+  agent-wide read-only values; avoid unsupported per-node controls.
+- Manual authoring supports agent name/instructions, adding/deleting steps and
+  transitions, start/end behavior, function renaming, collected fields and required
+  fields. Runtime voice/model settings stay read-only; preserve native payloads.
+- Goals, role overrides and transition descriptions are inline fields; routing uses
+  a target select with Open target. Use agent instructions clears the role override.
+  Native structured payloads remain accessible through disclosures.
+- A sticky Save/Cancel footer shows dirty, pending, saved and error states.
+  Multi-step drafts survive selection/tab/pane changes; deletions and renames keep transition selection
+  and draft addresses coherent. Cmd/Ctrl+Enter saves; Cancel/Escape restores
+  committed values. Pending validation blocks resubmission. Refresh resets this
+  session-only workspace to its fixture.
+- Test Call replaces the canvas with controls and context with the live transcript.
+  Returning to Builder ends the call; mobile Details does not. Cancel/end/unmount
+  release microphone resources, including late permission results. Disconnected
+  WebRTC may recover; failed/closed connections expose a recoverable error.
+  Transcript uses final user text and playback-confirmed assistant segment progress,
+  updating each segment in place. Generated but unplayed text stays hidden; playback
+  timing may still differ slightly from what the caller hears. It persists until the next call or refresh.
+- `ChatPresentation` stays controlled by the AI SDK adapter; it owns only draft,
+  clipboard feedback and scroll-following. Enter sends, Shift+Enter inserts a line,
+  composition does not submit, and busy/blank submission is blocked. Preserve reading
+  position; Jump to latest resumes following. Stop/error states expose Retry.
+  Activity shows observed events only. Disable raw HTML, unsafe links and remote
+  images; contain wide Markdown locally. Copy failure permits text selection.
