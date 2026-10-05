@@ -7,7 +7,7 @@ import Home from './page';
 afterEach(cleanup);
 
 test('renders the accessible application shell', () => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
   render(<Home />);
   expect(screen.getByRole('button', { name: 'Test Call' })).toBeDisabled();

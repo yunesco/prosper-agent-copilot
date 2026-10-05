@@ -1,7 +1,7 @@
 # Implementation slices
 
 Follow `solution.md` for product scope and `AGENTS.md` for workflow.
-Implement remaining slices **02 → 03 → 04 → 05 → 06 → 07 → 08**.
+Implement remaining slices **03 → 04 → 05 → 06 → 07 → 08**.
 Pending work only. Statuses: `ready`, `blocked`, `in progress`. Remove completed
 items after their required checks pass. Do not append history or verification logs.
 
@@ -14,27 +14,9 @@ Python leaves the current agent unchanged. Validate again before a voice session
 Extend contract tests for serialization/defaults/preservation; do not duplicate
 Python's graph validator in TypeScript.
 
-## 02 — Inspect the existing agent
-
-Status: ready.
-
-- Use the completed shell and contextual pane without redesigning them.
-- Load `original-scheduler` through `loadAgentFixture` into React state.
-- Render every node/transition with React Flow. Use node names as IDs; distinguish
-  initial/terminal nodes. Keep positions and selection outside `AgentConfig`.
-- Select a node to show all task messages and outgoing transitions read-only.
-  Follow transition targets; clear selection to return to agent context.
-- Add pan, zoom, Fit, and keyboard selection. Preserve viewport and selection through
-  pane navigation. No graph editing or working Copilot.
-- Test mapping, branching, stable IDs, structured/empty messages, and runtime-data
-  preservation. Browser: select `collect_details`, see instructions and
-  `record_details` → `offer_times`, follow the target, and inspect a terminal node.
-- Finish: `make verify`, `make e2e`, inspect the graph at desktop/narrow widths with
-  no console errors. Do not claim runtime validation from rendering.
-
 ## 03 — Edit instructions and existing transitions
 
-Status: blocked on 02.
+Status: ready.
 
 - Edit selected-node instructions and an existing transition's description/target.
   Preserve node/tool names, collected fields, and native message/action data.
@@ -97,7 +79,7 @@ Status: blocked on 05.
 
 ## 07 — Inspect mocked calls and a flagged issue
 
-Status: blocked on 02. Implement after 06.
+Status: blocked on 06.
 
 - Display successful/failed calls and the flagged issue from fixture loaders.
 - Show transcript, outcome, graph path, and feedback. Opening the issue selects its

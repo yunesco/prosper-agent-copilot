@@ -25,4 +25,4 @@ proposals to turn clinic guidelines and mocked call evidence into reviewed chang
 ## Constraints
 `solution.md` is authoritative for product scope; `AGENTS.md` owns engineering
 workflow and `TASKS.md` owns slice boundaries. This file is a design-context pointer,
-not a competing specification. Slice 01 establishes the UI foundation; Slice 02 adds read-only graph inspection.
+not a competing specification. The UI foundation and read-only graph inspection are implemented; Slice 03 adds editing.

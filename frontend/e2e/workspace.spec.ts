@@ -36,7 +36,7 @@ for (const [width, height] of [[1440, 900], [390, 844]]) {
   });
 }
 
-test('pane keyboard, pointer cancellation, bounds, reset, expansion and focus retention', async ({ page }) => {
+test('pane keyboard, pointer cancellation, bounds, reset and focus retention', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/preview/ui');
   const note = page.getByLabel('Workspace note');
@@ -49,14 +49,7 @@ test('pane keyboard, pointer cancellation, bounds, reset, expansion and focus re
   await page.getByRole('button', { name: 'Open details', exact: true }).click();
   await expect(draft).toHaveValue('Keep this draft');
   await expect(draft).toBeFocused();
-  await page.getByRole('button', { name: 'Expand details', exact: true }).click();
-  await expect(note).toBeHidden();
-  await expect(draft).toBeFocused();
-  await page.getByRole('button', { name: 'Restore details', exact: true }).click();
-  await expect(note).toHaveValue('Keep this note');
-  await page.getByRole('button', { name: 'Expand workspace', exact: true }).click();
-  await expect(draft).toBeHidden();
-  await page.getByRole('button', { name: 'Restore workspace', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Expand workspace|Expand details/ })).toHaveCount(0);
   const divider = page.getByRole('separator', { name: 'Resize panes' });
   await divider.focus();
   await divider.press('Home');
@@ -112,7 +105,6 @@ test('mobile panes retain drafts and focus; resizing across breakpoint retains c
   await page.setViewportSize({ width: 1024, height: 768 });
   await expect(note).toBeVisible();
   await expect(draft).toBeVisible();
-  await page.getByRole('button', { name: 'Expand workspace', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(draft).toBeFocused();
   await noOverflow(page);
@@ -152,8 +144,8 @@ test('chat preview states, streaming chunks, send, stop, retry, activity and ind
   const workspace = page.locator('[data-pane-content="workspace"]');
   expect(await workspace.evaluate(element => element.scrollTop)).toBe(0);
   await workspace.evaluate(element => { element.scrollTop = 300; });
-  await page.getByRole('button', { name: 'Expand details', exact: true }).click();
-  await page.getByRole('button', { name: 'Restore details', exact: true }).click();
+  await page.getByRole('button', { name: 'Close details', exact: true }).click();
+  await page.getByRole('button', { name: 'Open details', exact: true }).click();
   expect(await workspace.evaluate(element => element.scrollTop)).toBe(300);
   await noOverflow(page);
 });

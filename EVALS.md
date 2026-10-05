@@ -52,7 +52,10 @@ Mock remote providers/voice transport; exercise real app state and routes.
 The browser build sets `UI_PREVIEW=1` to exercise `/preview/ui`; normal builds
 reject that route. Workspace checks cover desktop and mobile sizes, pane retention and
 focus, pointer/keyboard resizing, Markdown overflow, and deterministic chat states.
-These are presentation checks, not Copilot or voice evidence.
+Graph checks cover keyboard selection, clickable transition detail panes, transition
+targets, terminal nodes, removed expansion controls, reopening on selection, clearing
+selection, and viewport/selection retention across desktop and mobile pane changes.
+These checks are not evidence of runtime validation, Copilot, or voice behavior.
 
 For layout changes, use the desktop/mobile captures from `frontend/e2e/workspace.spec.ts`.
 Inspect the affected screen; additional captures are optional when diagnosing a failure.

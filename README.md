@@ -7,7 +7,8 @@ Read [`AGENTS.md`](AGENTS.md) for engineering rules, [`TASKS.md`](TASKS.md) for
 current status and acceptance criteria, and [`EVALS.md`](EVALS.md) for verification.
 See [`UX.md`](UX.md) for implemented pane behavior, shared controls, visual rules,
 and the planned agent interactions.
-The workspace shell is implemented; agent loading and graph inspection are next.
+The builder loads the original scheduler for read-only graph and instruction inspection.
+Instruction and transition editing are next.
 
 ## Local setup
 
@@ -41,13 +42,12 @@ npm run dev
 
 | Service | URL | Current behavior |
 | --- | --- | --- |
-| Frontend | http://localhost:3000 | Builder shell with responsive panes; no agent loaded |
+| Frontend | http://localhost:3000 | Original scheduler graph with read-only node details |
 | Voice backend | http://localhost:7860/client | Existing scheduler with microphone/WebRTC |
 
 Open the voice client, connect, allow microphone access, and talk. It loads
 `backend/example_flow.json`; calls use the configured OpenAI and ElevenLabs accounts.
-The frontend and backend run together but are **not integrated yet**. The graph,
-current-agent Test Call, and Copilot arrive in later slices. Test Call is explicitly
+The frontend and backend run together but are **not integrated yet**. Current-agent Test Call and Copilot arrive in later slices. Test Call is explicitly
 unavailable in the builder shell.
 
 Press **Ctrl+C** to stop both services. If either process exits, the other is stopped.
