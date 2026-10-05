@@ -24,7 +24,7 @@ class Edge:
     target: str              # node to transition to (by name)
     # Fields to collect on this edge, as JSON-schema properties.
     properties: dict = field(default_factory=dict)
-    required: list = field(default_factory=list)
+    required: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "Edge":
@@ -42,11 +42,11 @@ class Node:
     """A single conversational state. Fields mirror Pipecat Flows' NodeConfig."""
 
     name: str
-    task_messages: list = field(default_factory=list)   # this node's objectives
+    task_messages: list[dict] = field(default_factory=list)   # this node's objectives
     role_message: Optional[str] = None                  # overrides the global persona
-    edges: list = field(default_factory=list)           # list[Edge]; transitions out
-    pre_actions: list = field(default_factory=list)
-    post_actions: list = field(default_factory=list)
+    edges: list[Edge] = field(default_factory=list)           # list[Edge]; transitions out
+    pre_actions: list[dict] = field(default_factory=list)
+    post_actions: list[dict] = field(default_factory=list)
     end: bool = False                                   # terminal -> ends the call
 
     @classmethod
@@ -68,7 +68,7 @@ class AgentConfig:
 
     name: str
     initial_node: str
-    nodes: list                          # list[Node]
+    nodes: list[Node]                    # list[Node]
     persona: str = ""                    # global role_message, applied to every node
     voice_id: str = DEFAULT_VOICE_ID
     model: str = DEFAULT_MODEL

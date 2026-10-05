@@ -25,7 +25,7 @@ for (const width of [1440, 390]) {
     const viewport = page.locator('.react-flow__viewport');
     const transform = await viewport.getAttribute('style');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Agent details', exact: true }).locator('p').filter({ hasText: /Collect the caller's full name/ })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Message 1 instructions' })).toHaveValue(/Collect the caller's full name/);
     await page.getByRole('button', { name: 'Transitions (1)', exact: true }).click();
     await expect(page.getByText('record_details', { exact: true }).last()).toBeVisible();
     await page.getByRole('button', { name: '→ offer_times' }).click();

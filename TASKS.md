@@ -1,7 +1,7 @@
 # Implementation slices
 
 Follow `solution.md` for product scope and `AGENTS.md` for workflow.
-Implement remaining slices **03 → 04 → 05 → 06 → 07 → 08**.
+Implement remaining slices **04 → 05 → 06 → 07 → 08**.
 Pending work only. Statuses: `ready`, `blocked`, `in progress`. Remove completed
 items after their required checks pass. Do not append history or verification logs.
 
@@ -14,22 +14,9 @@ Python leaves the current agent unchanged. Validate again before a voice session
 Extend contract tests for serialization/defaults/preservation; do not duplicate
 Python's graph validator in TypeScript.
 
-## 03 — Edit instructions and existing transitions
-
-Status: ready.
-
-- Edit selected-node instructions and an existing transition's description/target.
-  Preserve node/tool names, collected fields, and native message/action data.
-- Add the required `update_node` / `update_edge` fields to `applyAgentOperations`.
-- Implement a thin Python validation endpoint using `AgentBuilder` and its frontend
-  client. On Save, validate the candidate before committing; display errors.
-- Test field preservation, unknown-target rejection, transport failure, and atomicity.
-  Browser: save an edit, change selection, verify persistence; show an invalid-edit error.
-- Finish: `make verify`, `make e2e`, inspect UI; extend boundary/contract cases.
-
 ## 04 — Call the current agent
 
-Status: blocked on 03.
+Status: ready.
 
 - Implement a Python endpoint accepting the current `AgentConfig` for a test session.
   Reuse validation; preserve the voice pipeline and runner. Isolate each session's config.
@@ -42,7 +29,7 @@ Status: blocked on 03.
 
 ## 05 — Copilot proposal and Apply
 
-Status: blocked on 03. Implement after 04.
+Status: blocked on 04.
 
 - Add embedded AI SDK chat and a server route with `get_agent`, `propose_agent_patch`,
   and `validate_agent`. Use the shared operations from 03 and chat presentation from 01.

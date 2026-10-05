@@ -6,9 +6,10 @@
     "node": ">=24 <27"
   },
   "scripts": {
-    "dev": "concurrently --kill-others --names web,voice --prefix-colors blue,magenta \"npm:dev:web\" \"npm:dev:voice\"",
+    "dev": "concurrently --kill-others --names web,voice,validation --prefix-colors blue,magenta,green \"npm:dev:web\" \"npm:dev:voice\" \"npm:dev:validation\"",
     "dev:web": "npm --prefix frontend run dev",
-    "dev:voice": "uv run --locked --directory backend python bot.py"
+    "dev:voice": "uv run --locked --directory backend python bot.py",
+    "dev:validation": "uv run --locked --directory backend uvicorn agent_builder.api:app --host 127.0.0.1 --port 7861"
   },
   "devDependencies": {
     "concurrently": "9.2.4"

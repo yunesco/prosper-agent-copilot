@@ -2,7 +2,7 @@
 
 The graph is the primary workspace for one current agent. `solution.md` owns
 product scope. This document records the implemented foundation and planned agent interactions.
-The shell and read-only agent inspection are implemented. Continue directly from the existing components and settled direction.
+The shell, agent inspection, and validated instruction/transition editing are implemented. Continue directly from the existing components and settled direction.
 
 ## Direction contract — final workspace
 
@@ -24,7 +24,7 @@ The shell and read-only agent inspection are implemented. Continue directly from
 ## Shell and navigation
 
 Slice 01 establishes the UI system, shell, navigation, panes, and reusable chat
-presentation. The original scheduler is connected to the graph and inspector; Slice 03 adds editing.
+presentation. The original scheduler is connected to the graph and inspector; Instructions and existing transitions support explicit editing.
 
 - The header identifies the current agent. A pill-shaped Builder / Test Call switch
   sits in the top header for now. Builder is active; Test Call is unavailable until Slice 04.
@@ -45,8 +45,10 @@ presentation. The original scheduler is connected to the graph and inspector; Sl
 - Default pane shows agent persona, runtime metadata, and a compact node index.
 - Select a graph node or index item to see all task messages and outgoing
   transitions. Node cards show an icon, humanized title, and two-line preview from actual task messages.
-  General shows the conversation goal with one Advanced details disclosure for
-  exact node IDs, role inheritance, agent-wide model/voice, actions and native payloads; Transitions shows descriptions, targets, and exact tool names.
+  General shows the editable conversation goal, role instructions/inheritance,
+  agent-wide voice/model, and entry/completion actions as visible sections. Exact
+  node IDs and initial/terminal markers appear above the tabs. Transitions exposes
+  descriptions, target selection, tool names, and collected fields together.
   The selected section persists between conversation nodes.
 - Black transition pills display the backend tool description. Clicking a pill opens
   its own inspector with source/target navigation, function-call type, description,
@@ -64,7 +66,7 @@ presentation. The original scheduler is connected to the graph and inspector; Sl
   never enters runtime JSON. Pane content scrolls independently.
 - Below 768px, Graph / Details switches surfaces without discarding their state.
 - Builder is active. Test Call is disabled and explicitly labeled unavailable.
-  There is no fake call UI, chat input, editing action, or Apply button.
+  There is no fake call UI, chat input, or Copilot Apply button.
 
 ### Backend-supported reference adaptation
 
@@ -81,7 +83,33 @@ Role inheritance/overrides and full native message payloads remain accessible.
 Model and voice are agent-wide read-only values. There are no unsupported
 per-node overrides, LLM-condition routing modes, edge priority controls, knowledge
 base, tests, or turn-taking settings. Transition descriptions are tool descriptions,
-not a separate condition engine. This slice still does not edit or validate via HTTP.
+not a separate condition engine. Saves validate through the Python HTTP boundary before committing.
+
+## Instruction and transition editing — implemented
+
+- Conversation goals are directly editable where they appear, without an Edit
+  button or duplicated read-only preview. Text message roles/metadata, structured
+  messages, actions, collected fields, node names, and tool names are preserved.
+- Role instructions appear directly below the goal, showing the inherited agent
+  persona. Typing creates a step override; Use agent instructions restores inheritance.
+  Voice/model settings and entry/completion actions remain visible and read-only.
+  Disclosures contain only raw native message/action payloads or full field schemas.
+- Transition descriptions are inline text fields. Target node uses a native select
+  with readable step names and a separate Open target button. Function names and
+  collected fields stay visible in both the transition pane and the transition list.
+- A sticky footer keeps Save and Cancel available while scrolling. It indicates
+  unsaved changes, validation in progress, success, or a recoverable inline error.
+  Save commits all draft edits for the selected step atomically through
+  `applyAgentOperations` after Python candidate validation. Editing and resubmission
+  are blocked while validation is pending; concurrent saves cannot overwrite edits.
+- Drafts survive node, tab, and pane changes. Cancel or Escape restores the selected
+  step's committed values. Cmd/Ctrl+Enter saves without introducing an editing mode.
+  Saving continues if selection changes. Saved edits and drafts are session-only;
+  a page refresh reloads the original fixture. Graph positions remain UI-only.
+- Reviewed against the live ElevenLabs workflow inspector and the Emil Kowalski
+  design-engineering skill: direct fields, visible behavioral settings, restrained
+  typography, no decorative editing animations, persistent draft context, and
+  explicit asynchronous save feedback. Unsupported ElevenLabs controls are omitted.
 
 ## Preserve when adding later slices
 
@@ -104,7 +132,7 @@ not a separate condition engine. This slice still does not edit or validate via 
 layout, spacing, typography, states and responsive behavior; compose shadcn/ui
 components for generic controls. Keep CSS limited to Tailwind setup, shared theme
 tokens and required library base styles. No standalone component stylesheets.
-The stock shadcn/ui Base Nova Button and Textarea use the shared theme through standard semantic token mappings.
+The stock shadcn/ui Base Nova Button, Textarea, and Native Select use the shared theme through standard semantic token mappings.
 
 React Flow is already installed and owns graph interaction (outside the curated
 Pick UI Library list). `clsx` is the curated choice for conditional classes.

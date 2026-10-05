@@ -51,3 +51,36 @@ test('a targeted rename preserves every other field, including non-default setti
   const updated = applyAgentOperations(agent, [{ type: 'update_agent', changes: { name: 'Renamed' } }]);
   expect(updated).toEqual({ ...agent, name: 'Renamed' });
 });
+
+test('instruction and transition edits preserve native data and collection contracts', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const node = agent.nodes[1];
+  node.task_messages[0].extra = { nested: [true, null] };
+  const before = structuredClone(agent);
+  const messages = node.task_messages.map(message => ({ ...message, content: 'Updated' }));
+  const updated = applyAgentOperations(agent, [
+    { type: 'update_node', node: node.name, changes: { task_messages: messages } },
+    { type: 'update_edge', node: node.name, edge_index: 0, changes: { description: 'Updated transition', target: 'confirm' } },
+  ]);
+  expect(updated.nodes[1]).toEqual({ ...node, task_messages: messages, edges: [{ ...node.edges[0], description: 'Updated transition', target: 'confirm' }] });
+  expect(agent).toEqual(before);
+});
+
+test.each([
+  { type: 'update_node' as const, node: 'missing', changes: { role_message: 'test' } },
+  { type: 'update_edge' as const, node: 'greeting', edge_index: 99, changes: { target: 'confirm' } },
+  { type: 'update_edge' as const, node: 'greeting', edge_index: 0, changes: { target: 'missing' } },
+])('failed batch is atomic: $type', operation => {
+  const agent = loadAgentFixture('original-scheduler');
+  const before = structuredClone(agent);
+  expect(() => applyAgentOperations(agent, [{ type: 'update_agent', changes: { name: 'Must not commit' } }, operation])).toThrow();
+  expect(agent).toEqual(before);
+});
+
+test('partial instruction patches never insert node defaults or accept empty changes', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const node = agent.nodes[0];
+  const updated = applyAgentOperations(agent, [{ type: 'update_node', node: node.name, changes: { role_message: 'Override' } }]);
+  expect(updated.nodes[0]).toEqual({ ...node, role_message: 'Override' });
+  expect(() => agentOperationSchema.parse({ type: 'update_node', node: node.name, changes: {} })).toThrow();
+});

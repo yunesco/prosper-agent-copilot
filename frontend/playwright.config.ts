@@ -11,11 +11,16 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
+  webServer: [{
+    command: '../backend/.venv/bin/python ../backend/tests/serve_validation.py',
+    url: 'http://127.0.0.1:7862/openapi.json',
+    reuseExistingServer: false,
+    timeout: 60_000,
+  }, {
     command: 'npm run build && npm run start -- --hostname 127.0.0.1 --port 3100',
     url: 'http://127.0.0.1:3100/api/health',
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { NEXT_TELEMETRY_DISABLED: '1', UI_PREVIEW: '1' },
-  },
+    env: { NEXT_TELEMETRY_DISABLED: '1', UI_PREVIEW: '1', AGENT_RUNTIME_URL: 'http://127.0.0.1:7862' },
+  }],
 });

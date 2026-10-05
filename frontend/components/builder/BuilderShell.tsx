@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { applyAgentOperations, type AgentOperation } from '@/lib/agent/operations';
+import { validateAgent } from '@/lib/runtime/validation';
 import { stepTitle } from '@/lib/agent/graph';
 import { loadAgentFixture } from '@/lib/fixtures';
 import { AgentGraph } from './AgentGraph';
@@ -10,7 +12,16 @@ import { Button } from '@/components/ui/Button';
 import { PaneWorkspace } from '@/components/panes/PaneWorkspace';
 
 export function BuilderShell() {
-  const [agent] = useState(() => loadAgentFixture('original-scheduler'));
+  const [agent, setAgent] = useState(() => loadAgentFixture('original-scheduler'));
+  const currentAgent = useRef(agent);
+  const save = async (operations: AgentOperation[]) => {
+    const base = currentAgent.current;
+    const candidate = applyAgentOperations(base, operations);
+    await validateAgent(candidate);
+    if (currentAgent.current !== base) throw new Error('The agent changed during validation. Review and save again.');
+    currentAgent.current = candidate;
+    setAgent(candidate);
+  };
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedTransitionIndex, setSelectedTransitionIndex] = useState<number | null>(null);
   const selectNode = (id: string | null) => { setSelectedNodeId(id); setSelectedTransitionIndex(null); };
@@ -37,7 +48,7 @@ export function BuilderShell() {
       workspaceTitle="Workflow"
       contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{selectedTransitionIndex !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
       workspace={openContext => <AgentGraph agent={agent} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} />}
-      context={<AgentInspector agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionIndex={selectedTransitionIndex} />}
+      context={<AgentInspector onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionIndex={selectedTransitionIndex} />}
     />
   </main>;
 }

@@ -7,8 +7,8 @@ Read [`AGENTS.md`](AGENTS.md) for engineering rules, [`TASKS.md`](TASKS.md) for
 current status and acceptance criteria, and [`EVALS.md`](EVALS.md) for verification.
 See [`UX.md`](UX.md) for implemented pane behavior, shared controls, visual rules,
 and the planned agent interactions.
-The builder loads the original scheduler for read-only graph and instruction inspection.
-Instruction and transition editing are next.
+The builder loads the original scheduler for graph inspection and validated instruction/transition editing.
+Edits stay in memory for the current page session.
 
 ## Local setup
 
@@ -38,19 +38,21 @@ deterministic checks do not need provider keys.
 npm run dev
 ```
 
-`concurrently` starts both services with labeled logs:
+`concurrently` starts all three services with labeled logs:
 
 | Service | URL | Current behavior |
 | --- | --- | --- |
-| Frontend | http://localhost:3000 | Original scheduler graph with read-only node details |
+| Frontend | http://localhost:3000 | Scheduler graph with validated node/transition editing |
+| Validation API | http://localhost:7861/docs | Python candidate validation (no voice session) |
 | Voice backend | http://localhost:7860/client | Existing scheduler with microphone/WebRTC |
 
 Open the voice client, connect, allow microphone access, and talk. It loads
 `backend/example_flow.json`; calls use the configured OpenAI and ElevenLabs accounts.
-The frontend and backend run together but are **not integrated yet**. Current-agent Test Call and Copilot arrive in later slices. Test Call is explicitly
+The frontend validates edits through a same-origin API backed by Python on port 7861.
+Set server-only `AGENT_RUNTIME_URL` to override that address. Current-agent Test Call and Copilot arrive in later slices. Test Call is explicitly
 unavailable in the builder shell.
 
-Press **Ctrl+C** to stop both services. If either process exits, the other is stopped.
+Press **Ctrl+C** to stop all three services. If any process exits, the others are stopped.
 `make dev` is an alias for the same combined command.
 
 To run only one service:
@@ -58,6 +60,7 @@ To run only one service:
 ```bash
 npm run dev:web       # frontend only
 npm run dev:voice     # voice backend only (also: make run)
+npm run dev:validation # validation only; needed to save builder edits
 ```
 
 If startup reports a port in use, stop the existing server and retry. To use a
@@ -77,7 +80,7 @@ make help             # all Make commands
 Linux browser setup: `cd frontend && npx playwright install --with-deps chromium`.
 Stop the frontend dev server before production build/e2e checks; run build/e2e
 sequentially with typecheck because they share `.next` output. Browser tests own
-their server and do not require `npm run dev` or live provider calls.
+their frontend and Python validation servers (ports 3100 and 7862) and do not require `npm run dev` or live provider calls.
 
 `make eval-copilot` is reserved for live model checks once the real adapter exists;
 keys alone do not enable it. See [`EVALS.md`](EVALS.md) for detailed verification.

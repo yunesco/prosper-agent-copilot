@@ -3,6 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { agentFixtures } from '../lib/fixtures';
+import { applyAgentOperations } from '../lib/agent/operations';
+import { loadAgentFixture } from '../lib/fixtures';
 import { parseAgent } from '../lib/agent/schema';
 
 const backend = fileURLToPath(new URL('../../backend/', import.meta.url));
@@ -17,6 +19,10 @@ const cases: { id: string; input: unknown; accepted: boolean }[] = [
       edges: [{ function: 'retry', description: 'Cycle', target: 'end' }],
     }],
   } },
+  { id: 'edited-instructions-and-transition', accepted: true, input: applyAgentOperations(loadAgentFixture('original-scheduler'), [
+    { type: 'update_node', node: 'collect_details', changes: { task_messages: [{ role: 'system', content: 'Collect name.', metadata: { native: [true, null] } }], role_message: 'Override' } },
+    { type: 'update_edge', node: 'collect_details', edge_index: 0, changes: { description: 'Continue', target: 'confirm' } },
+  ]) },
   { id: 'empty-graph', accepted: false, input: { name: 'Empty', initial_node: 'start', nodes: [] } },
   { id: 'unknown-initial', accepted: false, input: { name: 'Missing initial', initial_node: 'missing', nodes: [{ name: 'start' }] } },
   { id: 'unknown-target', accepted: false, input: { name: 'Missing target', initial_node: 'start', nodes: [{ name: 'start', edges: [{ function: 'go', description: '', target: 'missing' }] }] } },

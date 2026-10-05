@@ -46,7 +46,7 @@ changes in those behaviors.
 
 ## Browser checks
 
-Playwright owns a production server on port 3100 and does not reuse other servers.
+Playwright owns a production server on port 3100 and a validation-only Python server on port 7862 and does not reuse other servers.
 Mock remote providers/voice transport; exercise real app state and routes.
 
 The browser build sets `UI_PREVIEW=1` to exercise `/preview/ui`; normal builds
@@ -55,7 +55,11 @@ focus, pointer/keyboard resizing, Markdown overflow, and deterministic chat stat
 Graph checks cover keyboard selection, clickable transition detail panes, transition
 targets, terminal nodes, removed expansion controls, reopening on selection, clearing
 selection, and viewport/selection retention across desktop and mobile pane changes.
-These checks are not evidence of runtime validation, Copilot, or voice behavior.
+Editing checks save through the real Python validation endpoint, verify inline fields,
+draft retention and saved persistence after selection changes, and exercise keyboard
+save/cancel and validation/transport failures without committing. Unit/contract
+checks reject unknown targets; the UI target picker offers existing nodes only. These checks
+are not evidence of Copilot or voice behavior.
 
 For layout changes, use the desktop/mobile captures from `frontend/e2e/workspace.spec.ts`.
 Inspect the affected screen; additional captures are optional when diagnosing a failure.
