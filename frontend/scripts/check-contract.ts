@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
+import { agentFixtures } from '../lib/fixtures';
+import { parseAgent } from '../lib/agent/schema';
+
+const backend = fileURLToPath(new URL('../../backend/', import.meta.url));
+const cases: { id: string; input: unknown; accepted: boolean }[] = [
+  ...Object.entries(agentFixtures).map(([id, input]) => ({ id, input, accepted: true })),
+  { id: 'defaults', accepted: true, input: { name: 'Defaults', initial_node: 'start', nodes: [{ name: 'start' }] } },
+  { id: 'native-json-and-edge-defaults', accepted: true, input: {
+    name: 'Native fields', persona: 'Global', voice_id: 'voice', model: 'model', initial_node: 'end', nodes: [{
+      name: 'end', role_message: 'Override', end: true,
+      task_messages: [{ role: 'developer', content: 'Say goodbye', extra: { nested: [true, null, 1] } }],
+      pre_actions: [{ type: 'tts_say', text: 'Hello' }], post_actions: [{ type: 'end_conversation' }],
+      edges: [{ function: 'retry', description: 'Cycle', target: 'end' }],
+    }],
+  } },
+  { id: 'empty-graph', accepted: false, input: { name: 'Empty', initial_node: 'start', nodes: [] } },
+  { id: 'unknown-initial', accepted: false, input: { name: 'Missing initial', initial_node: 'missing', nodes: [{ name: 'start' }] } },
+  { id: 'unknown-target', accepted: false, input: { name: 'Missing target', initial_node: 'start', nodes: [{ name: 'start', edges: [{ function: 'go', description: '', target: 'missing' }] }] } },
+];
+const resultSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), agent: z.json() }),
+  z.object({ ok: z.literal(false), error: z.string() }),
+]);
+const actual = z.array(resultSchema).parse(JSON.parse(execFileSync(`${backend}.venv/bin/python`, ['tests/export_contract.py'], {
+  cwd: backend,
+  input: JSON.stringify(cases.map(item => item.input)),
+  encoding: 'utf8',
+  timeout: 30_000,
+  env: { ...process.env, PYTHONPATH: backend },
+})));
+assert.equal(actual.length, cases.length, 'Python bridge returned the wrong number of results');
+let failed = false;
+for (const [index, item] of cases.entries()) {
+  try {
+    let expected;
+    try { expected = { ok: true as const, agent: parseAgent(item.input) }; }
+    catch (error) { expected = { ok: false as const, error: String(error) }; }
+    const python = actual[index];
+    assert.equal(expected.ok, item.accepted, `TypeScript acceptance: ${JSON.stringify(expected)}`);
+    assert.equal(python.ok, item.accepted, `Python acceptance: ${JSON.stringify(python)}`);
+    if (expected.ok && python.ok) {
+      // Compare Python JSON directly: re-parsing it with Zod could hide drift.
+      assert.deepEqual(python.agent, expected.agent, 'Normalized wire JSON differs');
+      assert.deepEqual(parseAgent(python.agent), expected.agent, 'Python → TypeScript round trip differs');
+    }
+    console.log(`PASS contract ${item.id}`);
+  } catch (error) {
+    failed = true;
+    console.error(`FAIL contract ${item.id}`);
+    console.error(error); // Keep assertion actual/expected and stack, not just its message.
+  }
+}
+if (failed) process.exitCode = 1;
+else console.log(`Contract parity: ${cases.length} cases passed against the real Python builder.`);

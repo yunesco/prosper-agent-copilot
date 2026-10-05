@@ -1,0 +1,7 @@
+{
+  "id": "friday-restriction",
+  "call_id": "new-patient-friday",
+  "guideline_id": "demo-clinic",
+  "summary": "New patient booked with Dr. Smith on Friday instead of Monday or Wednesday.",
+  "node_name": "offer_times"
+}

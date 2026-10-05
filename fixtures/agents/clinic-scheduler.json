@@ -1,0 +1,28 @@
+{
+  "name": "Demo Clinic Scheduler",
+  "persona": "You are a clinic scheduling assistant. Collect name and DOB. Ask whether the caller is a new patient; collect insurance only for new patients. Keep spoken replies brief.",
+  "initial_node": "collect_details",
+  "nodes": [
+    {
+      "name": "collect_details",
+      "task_messages": [{"role": "developer", "content": "Collect name, DOB, patient type, and insurance when needed."}],
+      "edges": [{
+        "function": "record_details",
+        "description": "Continue after collecting required details.",
+        "target": "offer_times",
+        "properties": {"patient_type": {"type": "string", "enum": ["new", "existing"]}},
+        "required": ["patient_type"]
+      }]
+    },
+    {
+      "name": "offer_times",
+      "task_messages": [{"role": "developer", "content": "Offer Dr. Smith's available appointments: Monday at 10 AM or Friday at 2 PM."}],
+      "edges": [{"function": "select_time", "description": "Record the selected slot.", "target": "confirm", "properties": {"slot": {"type": "string"}}, "required": ["slot"]}]
+    },
+    {
+      "name": "confirm",
+      "task_messages": [{"role": "developer", "content": "Confirm the selected appointment, thank the caller, and say goodbye."}],
+      "end": true
+    }
+  ]
+}

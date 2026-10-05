@@ -1,0 +1,14 @@
+{
+  "id": "new-patient-friday",
+  "agent_id": "clinic-scheduler",
+  "outcome": "failed",
+  "graph_path": ["collect_details", "offer_times", "confirm"],
+  "transcript": [
+    {"role": "assistant", "text": "May I have your name and date of birth?"},
+    {"role": "user", "text": "Alex Example, January 1, 1990. I'm a new patient and have Demo Insurance."},
+    {"role": "assistant", "text": "Dr. Smith is available Monday at 10 AM or Friday at 2 PM."},
+    {"role": "user", "text": "Friday works."},
+    {"role": "assistant", "text": "You're booked for Friday at 2 PM. Goodbye."}
+  ],
+  "client_feedback": "A new patient was offered Friday, which is not allowed for Dr. Smith."
+}

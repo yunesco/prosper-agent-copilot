@@ -1,20 +1,55 @@
-# Prosper Challenge — run everything from the repo root.
-# Dependencies are managed with uv (https://docs.astral.sh/uv/).
+# Run from the repository root. Install dependencies once before offline checks.
+PYTHON := backend/.venv/bin/python
+RUFF := backend/.venv/bin/ruff
+NPM := npm --prefix frontend
 
-PROJECT := backend
+.PHONY: help install dev run verify lint typecheck test contract eval-check eval-copilot e2e browser-install build clean
 
-.PHONY: help install run clean
+help: ## Show available commands
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+install: ## Install dev launcher and both stacks from lockfiles (network required)
+	npm ci
+	uv sync --locked --directory backend
+	$(NPM) ci
 
-install: ## Create the venv and install dependencies (from uv.lock)
-	uv sync --directory $(PROJECT)
+dev: ## Start frontend and voice backend together
+	npm run dev
 
-run: ## Run the voice agent (then open http://localhost:7860/client)
-	uv run --directory $(PROJECT) python bot.py
+run: ## Run the existing Pipecat voice agent (requires backend/.env)
+	uv run --locked --directory backend python bot.py
 
-clean: ## Remove the venv and Python caches
-	rm -rf $(PROJECT)/.venv
-	find $(PROJECT) -type d -name __pycache__ -prune -exec rm -rf {} +
+verify: lint typecheck test contract eval-check ## Canonical offline engineering gate (no model keys/browser required)
+
+lint: ## Lint Python and TypeScript
+	$(RUFF) check backend
+	$(NPM) run lint
+
+typecheck: ## Check TypeScript and Python syntax without starting the runtime
+	$(NPM) run typecheck
+	$(PYTHON) -m compileall -q backend/agent_builder backend/bot.py backend/tests
+
+test: ## Deterministic backend and frontend unit/integration tests
+	cd backend && .venv/bin/python -m pytest
+	$(NPM) test
+
+contract: ## Compare TypeScript normalization/validation to the real Python builder
+	$(NPM) run check:contract
+
+eval-check: ## Validate eval fixtures/scoring with synthetic recorded traces (offline)
+	$(NPM) run eval:check
+
+eval-copilot: ## Model-dependent evals; requires a real COPILOT_EVAL_ADAPTER
+	$(NPM) run eval:copilot
+
+browser-install: ## Install Chromium for e2e (network required)
+	cd frontend && npx playwright install chromium
+
+e2e: ## Build and test the app in Chromium (no model or voice services)
+	$(NPM) run test:e2e
+
+build: ## Build production Next.js without network fonts or provider keys
+	NEXT_TELEMETRY_DISABLED=1 $(NPM) run build
+
+clean: ## Remove generated build/test outputs; preserve installed dependencies
+	rm -rf frontend/.next frontend/playwright-report frontend/test-results evals/results

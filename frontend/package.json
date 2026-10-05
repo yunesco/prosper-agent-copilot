@@ -1,0 +1,56 @@
+{
+  "name": "prosper-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:contract": "node --import tsx scripts/check-contract.ts",
+    "eval:check": "node --import tsx scripts/run-evals.ts --recorded",
+    "eval:copilot": "node --import tsx scripts/run-evals.ts --live"
+  },
+  "dependencies": {
+    "@ai-sdk/react": "4.0.130",
+    "@xyflow/react": "12.12.0",
+    "ai": "7.0.127",
+    "clsx": "2.1.1",
+    "lucide-react": "1.39.0",
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.8",
+    "jsdom": "30.1.2",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "unrs-resolver@1.12.2": true
+  }
+}

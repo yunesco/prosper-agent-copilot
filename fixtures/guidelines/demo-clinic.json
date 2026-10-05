@@ -1,0 +1,5 @@
+{
+  "id": "demo-clinic",
+  "agent_id": "clinic-scheduler",
+  "text": "Collect name and DOB. New patients also need insurance. Existing patients should skip insurance collection. Dr. Smith only sees new patients Monday and Wednesday."
+}

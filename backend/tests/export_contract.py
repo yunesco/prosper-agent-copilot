@@ -1,0 +1,20 @@
+"""JSON stdin/stdout bridge used by the cross-language contract check."""
+import json
+import sys
+from dataclasses import asdict
+from unittest.mock import patch
+
+# Pipecat downloads tokenizer data at import; contract tests do not tokenize speech.
+# Suppress only that side effect; test the real builder and Flows classes.
+with patch("nltk.download", return_value=False):
+    from agent_builder import AgentBuilder
+
+results = []
+for data in json.load(sys.stdin):
+    try:
+        builder = AgentBuilder.from_dict(data)
+        builder.build_initial_node()
+        results.append({"ok": True, "agent": asdict(builder.config)})
+    except (ValueError, KeyError, TypeError) as error:
+        results.append({"ok": False, "error": f"{type(error).__name__}: {error}"})
+json.dump(results, sys.stdout)

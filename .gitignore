@@ -31,3 +31,13 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Generated verification / research artifacts
+.firecrawl/
+*.tsbuildinfo
+next-env.d.ts
+playwright-report/
+test-results/
+evals/results/
+.coverage
+htmlcov/

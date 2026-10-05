@@ -19,3 +19,14 @@ dependencies = [
 # This is an application (flat modules: bot.py + agent_builder/), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-socket>=0.7,<1", "ruff>=0.15,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --disable-socket --allow-unix-socket"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

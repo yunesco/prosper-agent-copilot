@@ -1,0 +1,9 @@
+{
+  "tool_calls": [
+    {"toolCallId": "synthetic-1", "toolName": "get_agent", "input": {}, "result": {"type": "tool-result", "output": {"fixture": "original-scheduler"}}},
+    {"toolCallId": "synthetic-2", "toolName": "propose_agent_patch", "input": {"operations": [{"type": "update_agent", "changes": {"name": "Demo Clinic Scheduler"}}]}, "result": {"type": "tool-result", "output": {"proposed": true}}},
+    {"toolCallId": "synthetic-3", "toolName": "validate_agent", "input": {"proposal": "synthetic-2"}, "result": {"type": "tool-result", "output": {"valid": true}}}
+  ],
+  "proposed_operations": [{"type": "update_agent", "changes": {"name": "Demo Clinic Scheduler"}}],
+  "applied": false
+}

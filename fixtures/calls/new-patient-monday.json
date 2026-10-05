@@ -1,0 +1,13 @@
+{
+  "id": "new-patient-monday",
+  "agent_id": "clinic-scheduler",
+  "outcome": "successful",
+  "graph_path": ["collect_details", "offer_times", "confirm"],
+  "transcript": [
+    {"role": "assistant", "text": "May I have your name and date of birth?"},
+    {"role": "user", "text": "Sam Example, January 2, 1990. I'm new and have Demo Insurance."},
+    {"role": "assistant", "text": "Dr. Smith is available Monday at 10 AM or Friday at 2 PM."},
+    {"role": "user", "text": "Monday at 10 AM, please."},
+    {"role": "assistant", "text": "You're booked for Monday at 10 AM. Goodbye."}
+  ]
+}
