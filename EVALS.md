@@ -13,6 +13,19 @@ Run from the repository root after `make install`.
 | `make eval-copilot` | Actual Copilot against eval fixtures; requires adapter, credentials, network |
 | `make run` | Voice runtime for manual calls; requires backend credentials and microphone |
 
+## When to run checks
+
+- Code changes: `make verify` once at the end.
+- UI behavior changes: also `make e2e`; it already includes the production build.
+- Layout changes: inspect one desktop and one mobile capture.
+- Docs-only changes: review the diff; no test run needed.
+- Failures: fix the cause and rerun affected checks, without repeating passed gates
+  unless new changes affect them.
+
+No mandatory Impeccable workflow, independent design review, design-document
+handoff, or four-viewport capture matrix. Live model/voice checks apply only to
+changes in those behaviors.
+
 ## Deterministic tests
 
 - Colocate frontend `*.test.ts(x)`. Use `// @vitest-environment jsdom` for component
@@ -36,8 +49,13 @@ Run from the repository root after `make install`.
 Playwright owns a production server on port 3100 and does not reuse other servers.
 Mock remote providers/voice transport; exercise real app state and routes.
 
-Attach a named full-page PNG with `testInfo.outputPath` / `testInfo.attach`, following
-`frontend/e2e/smoke.spec.ts`. Open it and inspect the affected screen before finishing.
+The browser build sets `UI_PREVIEW=1` to exercise `/preview/ui`; normal builds
+reject that route. Workspace checks cover desktop and mobile sizes, pane retention and
+focus, pointer/keyboard resizing, Markdown overflow, and deterministic chat states.
+These are presentation checks, not Copilot or voice evidence.
+
+For layout changes, use the desktop/mobile captures from `frontend/e2e/workspace.spec.ts`.
+Inspect the affected screen; additional captures are optional when diagnosing a failure.
 Failure traces/screenshots are retained; CI uploads evidence on success and failure.
 
 ```bash
@@ -67,7 +85,7 @@ completed candidate validation → explicit human Apply → `applyAgentOperation
   `{ model: { provider, id, settings }, trace }`. Record actual non-secret settings.
 
 Add `evals/fixtures/<name>.json`, a synthetic reference in `evals/traces/<name>.json`,
-and a regression test. Run `make eval-check` and `make verify`.
+and a regression test. Run `make verify` (which includes `make eval-check`).
 
 The rename reference is hand-written with schematic tool payloads. It checks the
 harness, not model quality or actual approval enforcement. With the real Copilot,
@@ -99,6 +117,6 @@ Add corrected-behavior expectations with the relevant slice.
 ## Voice checks
 
 Call the running agent at `http://localhost:7860/client`. Record the scenario,
-expected/observed behavior, and result in `TASKS.md`. For current-agent integration,
+expected/observed behavior, and result in the final reply. For current-agent integration,
 call again after an edit. Browser mocks and structural validation do not prove
 spoken behavior. Missing live credentials/services leave that criterion incomplete.

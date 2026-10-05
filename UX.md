@@ -1,9 +1,8 @@
 # Builder UX
 
 The graph is the primary workspace for one current agent. `solution.md` owns
-product scope. This document records the planned interaction design. Slice 01
-has not been implemented. The selected build path is code-led; no mockup round
-is required before the next authorized implementation session.
+product scope. This document records the implemented foundation and planned agent interactions.
+Slice 01 establishes the shell and presentation components. Continue directly from the existing components and settled direction.
 
 ## Direction contract — final workspace
 
@@ -14,7 +13,7 @@ is required before the next authorized implementation session.
   alongside clinic documents in ordinary office lighting.
 - **Story:** Identify the current agent, follow its path, select a step, read its
   task and follow an outgoing transition without leaving the agent.
-- **First viewport:** Compact identity/mode header; graph occupies roughly 70% of
+- **First viewport:** Compact identity header with the Builder / Test Call pill; graph occupies roughly 70% of
   the workspace, inspector the remainder. Four compact nodes in a vertical path,
   labeled connectors, zoom/fit at bottom left once Slice 02 connects the agent.
   Slice 01 establishes those regions with honest empty content. No app navigation rail.
@@ -22,16 +21,16 @@ is required before the next authorized implementation session.
   primitives. Signature interaction: selection connects a
   highlighted node/path to its detail pane without moving the canvas. Immediate
   state changes; short color feedback only, no staged entrance animation.
-- **Finish:** unreviewed and undocumented is unfinished; this build ends with the
-  finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
 ## Shell and navigation
 
 Slice 01 establishes the UI system, shell, navigation, panes, and reusable chat
 presentation. Slice 02 connects the agent and graph; Slice 03 adds editing.
 
-- The header identifies the current agent and contains Builder / Test Call mode
-  navigation. Builder is active; Test Call is unavailable until Slice 04.
+- The header identifies the current agent. A pill-shaped Builder / Test Call switch
+  sits in the top header for now. Builder is active; Test Call is unavailable until Slice 04.
+- The right pane follows the workspace: node editing forms in Builder, live transcripts
+  in Test Call. Copilot supports initial creation/editing and subsequent refinement.
 - Pane controls resize, expand/restore, and close/reopen context. Closing context
   preserves the selected node; clearing selection returns to agent-level context.
 - On narrow screens, Graph / Details switches the visible surface while preserving
@@ -77,7 +76,7 @@ presentation. Slice 02 connects the agent and graph; Slice 03 adds editing.
 layout, spacing, typography, states and responsive behavior; compose shadcn/ui
 components for generic controls. Keep CSS limited to Tailwind setup, shared theme
 tokens and required library base styles. No standalone component stylesheets.
-shadcn/ui integration is planned, not installed or wired in this preparation pass.
+The stock shadcn/ui Base Nova Button and Textarea use the shared theme through standard semantic token mappings.
 
 React Flow is already installed and owns graph interaction (outside the curated
 Pick UI Library list). `clsx` is the curated choice for conditional classes.
@@ -95,86 +94,66 @@ routing, persistent layout stores, account navigation, and backend chat persiste
 Product reference: [ElevenLabs Agent Workflows](https://elevenlabs.io/docs/eleven-agents/customization/agent-workflows).
 Use its flow clarity and progressive disclosure, not a visual clone.
 
-## Local preparation completed
+## Reusable foundation
 
-Local primitives are prepared but not yet wired into the application:
+The shell uses these local components:
 
-| Local file | Reuse / adaptation |
+| File | Responsibility |
 | --- | --- |
-| `frontend/components/panes/PaneHeader.tsx` | Header, title, and action slot; direct `clsx` import removes the external formatting dependency |
-| `frontend/components/panes/PaneDivider.tsx` | Pointer capture, arrow-key resizing, bounds, reset, and cancel behavior |
-| `frontend/components/panes/pane-split.ts` | Pure split bounds/clamping only; no persistence store |
-| `frontend/components/ui/Button.tsx` | Reference for sizing, focus, pending and disabled behavior; reconcile with shadcn/ui Button before use |
-| `frontend/components/ui/focus.ts` | Shared focus outline and reduced-motion-aware press treatment |
-| `frontend/components/ui/theme.css` | Light semantic tokens, elevation and timing; no dark theme or animated effects |
+| `components/builder/BuilderShell.tsx` | Identity, current Builder mode, unavailable Test Call, honest empty content |
+| `components/panes/PaneWorkspace.tsx` | 70/30 split, expansion, close/reopen, mobile switching, scroll and focus retention |
+| `components/panes/PaneDivider.tsx` | Pointer capture, cancellation, keyboard resize, bounds and reset |
+| `components/ui/Button.tsx` | Stock shadcn/ui Base Nova Button; no custom button wrapper or API |
+| `components/ui/textarea.tsx` | Stock shadcn/ui Base Nova Textarea |
+| `components/ui/theme.css` | Light semantic tokens shared through Tailwind |
+| `components/chat/ChatPresentation.tsx` | Controlled messages/status/callbacks, local draft and scroll-following only |
 
-`clsx` and `lucide-react` are direct, locked dependencies for these primitives.
-The theme is intentionally not imported yet. No page, graph, inspector, mode
-control, or product behavior has changed. The current split defaults are generic;
-set the graph/inspector proportions during implementation and verify their bounds.
+The divider uses Left/Right (2 percentage points), Shift + Left/Right (10),
+Home/End (bounds), double-click (70% default), and Escape/pointer cancellation
+(restore the pre-drag split). Details reserves at least 320px at desktop widths;
+the default split adjusts to that minimum. Both panes remain mounted when hidden.
+Expansion/close/reopen restores the most recently focused content control, falling
+back to the pane itself. Focus restores in the React commit, without delayed focus
+stealing from the next keyboard action. Below 768px, Graph / Details switches the
+visible surface. Layout state stays local and never enters runtime JSON.
 
-## Additional components planned
+## Chat presentation
 
-- Pane workspace composition: split, expand/restore, close/reopen, responsive
-  switching, and retained component identity. Adapt it to one agent and one
-  contextual companion; do not import an unrelated resource-routing controller.
-- Chat presentation: conversation scrolling/jump-to-latest, composer/send/stop,
-  streaming Markdown, copy/retry states, and collapsible activity/status display.
-  Preserve required license notices; adapt generic controls to shadcn/ui.
-- Activity must describe actual events from the Copilot tools, with honest pending,
-  completed, and failed states. Use supported public summaries; do not invent a
-  reasoning transcript or tool execution evidence.
-- Extract presentation from domain-specific cards, saved history, attachments,
-  account/session persistence, and unrelated tools. Use the existing AI SDK for
-  Copilot state/transport in Slice 05. Preparing reusable files does not implement
-  or expose working Copilot in Slice 01; synthetic presentation previews stay in
-  an isolated development/test surface.
+`ChatPresentation` accepts messages, activity entries, a status, and send/stop/retry
+callbacks. The future AI SDK adapter owns conversation and tool state. The component
+owns only its draft, clipboard feedback, and scrolling. Enter sends trimmed text;
+Shift + Enter adds a line; composition events never submit. Blank input and sending
+while busy are blocked; a draft remains editable during streaming.
 
-## Slice 01 implementation plan — not executed
+Markdown uses `react-markdown` and `remark-gfm`, with raw HTML disabled, unsafe URLs
+filtered, remote images omitted, and wide code/tables locally scrollable. This task
+is outside Pick UI Library's curated list. CVA supplies typed control variants;
+`clsx` and `tailwind-merge` compose Tailwind classes. No motion or state library was added.
 
-1. Follow the required Impeccable and Emil skill workflows. Set up shadcn/ui in
-   the existing Tailwind stack. Reconcile local buttons, tokens, and focus rules.
-2. Build a thin App Router shell with identity/content slots and Builder / Test Call
-   navigation. Use honest empty content; Test Call remains disabled. No fixture
-   loading, graph projection, agent editor, calls, or AI integration in this slice.
-3. Adapt the reusable pane composition for a primary workspace and contextual
-   companion: resize, expand/restore, close/reopen, narrow-screen switching,
-   independent scrolling, mounted-content retention, and predictable focus.
-   Keep layout state local; do not introduce domain routing or persistence.
-4. Prepare the reusable chat presentation in an isolated development/test preview:
-   composer, streaming Markdown, scroll-to-latest, copy, send/stop, retry/error,
-   and collapsible working/tool-status components. Drive it with labeled synthetic
-   events; provider transport and actual tools belong to Slice 05.
-5. Verify the shell and component states, then document the actual reviewed visual
-   system in `DESIGN.md`. Do not implement Slice 02 as part of this work.
+When reading older messages, updates do not move the reader. Jump to latest resumes
+following. Activity expands inline and describes supplied events only; it never
+invents private reasoning. Errors and stopped responses expose Retry. Copy failures
+provide a text-selection fallback.
 
-## Verification by slice
+The opt-in `/preview/ui` route exercises empty, pending, streaming, stopped, failed,
+and complete states with synthetic messages. The manual Next chunk control makes
+streaming deterministic. Demo data / Worst case injects long names, multilingual
+text, unbroken addresses, Markdown tables/code, and a long independently scrolling
+workspace through ordinary props. It is outside product navigation and returns 404
+unless `UI_PREVIEW=1` is set when building or starting development. No provider calls,
+agent fixtures, mutations, saved chats, or session persistence are connected.
 
-For Slice 01:
+## Verification
 
-- Test pane resizing bounds, pointer cancellation, expand/restore, close/reopen,
-  content retention, keyboard focus, navigation, and unavailable Test Call.
-- Preview empty, pending, streaming, stopped, failed, and completed chat presentation
-  states using deterministic events. Check long content and reduced-motion behavior.
-- Capture and inspect 1440×900, 1280×800, 1024×768, and 390×844. Check pane minimum
-  sizes, independent scrolling, focus visibility, and horizontal overflow.
-- Run `make verify` and `make e2e`, inspect diagnostics/traces, follow the bounded
-  design review, and report verification in the final reply. Keep previews out of product flow.
+Follow `AGENTS.md`: `make verify` for code, `make e2e` for UI behavior, and one
+desktop/mobile visual check for layout changes. Keep regression coverage for pane
+retention, keyboard/focus, resize/cancel, unavailable Test Call, chat recovery, and
+overflow. No mandatory skill workflow, external design review, or DESIGN.md handoff.
 
-For Slice 02:
+## Visual rules
 
-- Test pure projection of all four nodes/three transitions, stable identities,
-  branching, initial/terminal flags, structured/empty messages, and unchanged runtime
-  JSON. Positions/selection never enter `AgentConfig`.
-- Select `collect_details`, read its full messages and `record_details` →
-  `offer_times`, follow the target, inspect the terminal node, and clear selection.
-- Verify keyboard selection, pan/zoom/Fit, viewport retention across pane actions,
-  desktop/narrow layouts, and no console errors. Run both verification gates again.
-
-For both, review diffs for duplication, unnecessary abstractions, contract drift,
-secrets, locks, and later-slice behavior. Screenshot capture alone is not review.
-
-`DESIGN.md` is deferred until a rendered system has been reviewed. The intended
-rules are restrained graphite surfaces, teal focus/selection, compact system-font
-UI text, thin dividers, and modest corner radii. They remain design intent until
-verified in the actual interface.
+Use the existing light semantic tokens in `components/ui/theme.css`: graphite text,
+white companion pane, near-white workspace, teal selection/focus, system-font UI
+text, and thin dividers. Use stock shadcn/ui controls and standard token mappings;
+selection-specific classes belong to the consuming surface. Pane changes are
+immediate. No extra motion or state library, navigation rail, or shipping raster assets.

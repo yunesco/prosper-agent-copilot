@@ -5,18 +5,19 @@ import {
   clampSplit,
   DEFAULT_SPLIT,
   MIN_SPLIT,
-  MAX_SPLIT,
 } from "./pane-split";
 
 export function PaneDivider({
   container,
   value,
   controls,
+  max,
   onResize,
   onCommit,
 }: {
   container: RefObject<HTMLDivElement | null>;
   value: number;
+  max: number;
   controls: string;
   onResize: (value: number) => void;
   onCommit: (value: number) => void;
@@ -35,10 +36,10 @@ export function PaneDivider({
       aria-controls={controls}
       aria-orientation="vertical"
       aria-valuemin={MIN_SPLIT}
-      aria-valuemax={MAX_SPLIT}
+      aria-valuemax={Math.round(max)}
       aria-valuenow={Math.round(value)}
       aria-valuetext={`${Math.round(value)} percent left pane`}
-      onDoubleClick={() => onCommit(DEFAULT_SPLIT)}
+      onDoubleClick={() => onCommit(clampSplit(DEFAULT_SPLIT, MIN_SPLIT, max))}
       onKeyDown={(event) => {
         if (event.key === "Escape" && drag.current) {
           event.preventDefault();
@@ -51,11 +52,11 @@ export function PaneDivider({
           ArrowLeft: value - step,
           ArrowRight: value + step,
           Home: MIN_SPLIT,
-          End: MAX_SPLIT,
+          End: max,
         }[event.key];
         if (next === undefined) return;
         event.preventDefault();
-        onCommit(clampSplit(next));
+        onCommit(clampSplit(next, MIN_SPLIT, max));
       }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
@@ -73,7 +74,7 @@ export function PaneDivider({
         const bounds = container.current?.getBoundingClientRect();
         if (!bounds || bounds.width <= 8) return;
         const next = clampSplit(
-          ((event.clientX - bounds.left - 4) / (bounds.width - 8)) * 100,
+          ((event.clientX - bounds.left - 4) / (bounds.width - 8)) * 100, MIN_SPLIT, max,
         );
         drag.current.latest = next;
         onResize(next);
@@ -88,9 +89,9 @@ export function PaneDivider({
       }}
       onPointerCancel={cancel}
       onLostPointerCapture={cancel}
-      className="group col-start-2 row-start-1 hidden cursor-col-resize touch-none items-center justify-center outline-none lg:flex"
+      className="group col-start-2 row-start-1 hidden cursor-col-resize touch-none items-center justify-center outline-none md:flex"
     >
-      <span className="h-12 w-0.5 rounded-full bg-ui-border group-hover:bg-text-muted group-focus-visible:bg-primary" />
+      <span className="h-12 w-1 rounded-full bg-ui-border group-hover:bg-text-muted group-focus-visible:bg-accent" />
     </div>
   );
 }

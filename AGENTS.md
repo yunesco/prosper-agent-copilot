@@ -27,33 +27,30 @@ code/tests. `solution.md` owns scope; this file owns workflow. Keep docs accurat
 - Lock npm/uv dependencies; preserve voice-stack versions. Avoid unused abstractions.
 - Never expose keys in `NEXT_PUBLIC_*`, logs, fixtures, traces, or commits.
 
-## UI — required for every feature
+## UI
 
-- Follow [Impeccable new-work](https://impeccable.style/docs/new-work/) and the relevant
-  [Emil Kowalski skills](https://github.com/emilkowalski/skills). Read and execute their
-  instructions, including context, craft floor, and review; report missing skills.
-- Read `UX.md`, `PRODUCT.md`, and `DESIGN.md` when present. Preserve settled decisions;
-  show materially different directions before implementation. Slice 01 is code-led.
-- **All styling uses Tailwind CSS + shadcn/ui.** Reuse/adapt local primitives within
-  that system. No competing component kit, CSS Modules, CSS-in-JS, or component CSS.
-  CSS files only hold Tailwind setup, shared theme tokens, and required library styles;
-  inline styles only serve dynamic geometry/library APIs.
-- Use `pick-ui-library` for dependencies and applicable motion/resilience/mobile skills.
-  Install only what the slice needs. Keep interactions in `UX.md` and reviewed visual
-  rules in `DESIGN.md`. Planning-only requests do not authorize UI implementation.
+- Read `UX.md` and `PRODUCT.md` when relevant. Preserve settled decisions and use
+  existing components. No mandatory design interview, alternative concepts, skill
+  workflow, independent design review, or design-document handoff.
+- **Use Tailwind CSS + shadcn/ui.** Use the standard local shadcn components directly;
+  do not build parallel button APIs or wrappers. CSS files only hold Tailwind setup,
+  shared theme tokens, and required library styles. Inline styles only serve dynamic
+  geometry/library APIs.
+- Skills are optional: use one only when it materially helps the requested work.
+  Install only dependencies the slice needs. Update `UX.md` when interactions change.
 
 ## Verification
 
-1. Check git status, preserve unrelated edits, read acceptance criteria, mark the slice
-   in progress, and implement only its scope with behavioral/negative-path tests.
-2. Run `make verify`. Deterministic tests use injected fakes; never start providers/bot.
-3. UI: run `make e2e`; inspect rendered screenshots at desktop/narrow widths, overflow,
-   keyboard/focus, and relevant states. Follow the bounded design review/fix process.
-4. Copilot: update evals and run live `make eval-copilot`. Voice: deterministic tests
-   plus an actual call. Missing services/keys leave live criteria incomplete;
-   synthetic traces are not live evidence.
-5. Inspect failures/diagnostics/traces, fix causes, rerun affected checks and final gate.
-   Never weaken or skip failing checks.
-6. Review working/staged diffs and untracked files for scope, secrets, contract drift,
-   duplication, dead code, locks, and artifacts. Report verification in the final reply.
-   Keep `TASKS.md` pending-only: remove completed work; never append logs or history.
+1. Check git status, preserve unrelated edits, and implement the requested slice with
+   focused behavioral and negative-path tests.
+2. Run `make verify` once after code changes. For UI behavior changes, also run
+   `make e2e`. For layout changes, inspect one desktop and one mobile screenshot.
+   No mandatory four-viewport matrix or separate review agents.
+3. If a check fails, fix the cause and rerun affected checks. Repeat the full gate
+   only when subsequent changes affect it. Docs-only changes need a diff review.
+4. For Copilot or voice behavior changes, run the relevant live eval or actual call.
+   Deterministic tests use injected fakes; never start providers/bot for unit tests.
+   Missing live services leave live criteria incomplete; mocks are not live evidence.
+5. Review the diff for scope, secrets, contract drift, and unintended dependency changes.
+   Report checks concisely. Keep `TASKS.md` pending-only: remove completed work;
+   never append logs or history.

@@ -5,8 +5,9 @@ AI Copilot. [`solution.md`](solution.md) defines the product and architecture.
 
 Read [`AGENTS.md`](AGENTS.md) for engineering rules, [`TASKS.md`](TASKS.md) for
 current status and acceptance criteria, and [`EVALS.md`](EVALS.md) for verification.
-See [`UX.md`](UX.md) for the planned builder interaction, local primitives, library
-choices, and Slice 01 UI-foundation plan. The builder UI is not implemented yet.
+See [`UX.md`](UX.md) for implemented pane behavior, shared controls, visual rules,
+and the planned agent interactions.
+The workspace shell is implemented; agent loading and graph inspection are next.
 
 ## Local setup
 
@@ -40,13 +41,14 @@ npm run dev
 
 | Service | URL | Current behavior |
 | --- | --- | --- |
-| Frontend | http://localhost:3000 | Basic placeholder page; UI foundation is planned |
+| Frontend | http://localhost:3000 | Builder shell with responsive panes; no agent loaded |
 | Voice backend | http://localhost:7860/client | Existing scheduler with microphone/WebRTC |
 
 Open the voice client, connect, allow microphone access, and talk. It loads
 `backend/example_flow.json`; calls use the configured OpenAI and ElevenLabs accounts.
 The frontend and backend run together but are **not integrated yet**. The graph,
-current-agent Test Call, and Copilot arrive in later slices.
+current-agent Test Call, and Copilot arrive in later slices. Test Call is explicitly
+unavailable in the builder shell.
 
 Press **Ctrl+C** to stop both services. If either process exits, the other is stopped.
 `make dev` is an alias for the same combined command.
@@ -79,6 +81,15 @@ their server and do not require `npm run dev` or live provider calls.
 
 `make eval-copilot` is reserved for live model checks once the real adapter exists;
 keys alone do not enable it. See [`EVALS.md`](EVALS.md) for detailed verification.
+
+## UI presentation preview
+
+For isolated component QA, run `UI_PREVIEW=1 npm run dev:web` and open
+`http://localhost:3000/preview/ui`. Stop any existing frontend first.
+This preview uses labeled synthetic messages, manual streaming chunks, activity
+states, and a Demo data / Worst case switch. It does not call providers or edit an
+agent. Normal builds return 404 for this route; the browser suite explicitly
+opts in during its build. Do not enable this flag for a normal product build.
 
 ## Code map
 

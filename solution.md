@@ -55,6 +55,20 @@ Phase 1 is necessary, but I am deliberately keeping the graph editor minimal. Th
 
 The graph still matters because it makes the generated agent visible, inspectable, and editable.
 
+### Workspace and issue discovery
+
+The primary surface is a nodes canvas with a pill-shaped Builder / Test Call switch
+in the top header for now. Switching to Test Call replaces the main workspace with the live call
+view. The right contextual pane follows that view: editing forms for nodes and
+transcripts during calls.
+
+Copilot supports initial creation and editing, then refinement from both client
+flags and problems it surfaces from call data. Finding those problems is part of
+the burden the product should remove. For the demo, Copilot inspects the supplied
+mocked calls and presents suspected issues with transcript evidence for human
+review. This does not add production ingestion, background monitoring, or autonomous
+changes. Proposed fixes still require preview, validation, and explicit Apply.
+
 ### The AI edits the same agent the human edits
 
 There should not be a separate "AI-generated" representation.
@@ -257,9 +271,11 @@ Returns a mocked production call with transcript, outcome, graph path, and optio
 
 This gives the Copilot enough context to connect a production problem back to the current agent configuration.
 
-### Optional: `get_calls`
+### `get_calls`
 
-If time allows, this can expose a small set of mocked calls so the Copilot can identify a repeated failure pattern. It is not required for the core demo.
+Reads the small set of mocked calls so Copilot can surface suspected problems and
+repeated failure patterns, including calls not already flagged by a client. Findings
+must identify the relevant calls and evidence; discovery does not mutate the agent.
 
 ---
 

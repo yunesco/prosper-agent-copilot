@@ -1,7 +1,7 @@
 # Implementation slices
 
 Follow `solution.md` for product scope and `AGENTS.md` for workflow.
-Implement **01 → 02 → 03 → 04 → 05 → 06 → 07 → 08**.
+Implement remaining slices **02 → 03 → 04 → 05 → 06 → 07 → 08**.
 Pending work only. Statuses: `ready`, `blocked`, `in progress`. Remove completed
 items after their required checks pass. Do not append history or verification logs.
 
@@ -14,33 +14,9 @@ Python leaves the current agent unchanged. Validate again before a voice session
 Extend contract tests for serialization/defaults/preservation; do not duplicate
 Python's graph validator in TypeScript.
 
-## 01 — UI/UX foundation, shell, navigation, and panes
-
-Status: ready. Implementation has not started.
-
-- Follow Impeccable new-work and applicable Emil skills as required by `AGENTS.md`.
-- Establish Tailwind CSS + shadcn/ui: shared tokens, typography, spacing, controls,
-  focus, and state treatments. Reconcile local controls; no parallel component kit.
-- Build the final shell: current-agent identity slot, Builder / Test Call navigation,
-  primary workspace, and one contextual companion pane. Test Call is unavailable.
-  Use honest empty states until agent content is connected in 02.
-- Adapt the pane workspace: resize, expand/restore, close/reopen, independent scrolling,
-  and narrow-screen workspace/context switching. Retain mounted content and focus.
-- Prepare reusable chat presentation: composer, streaming message rendering,
-  scroll-to-latest, pending/error/retry states, and collapsible activity/tool status.
-  Exercise these in an isolated development/test preview using labeled synthetic data;
-  do not expose a fake functioning Copilot or add provider calls, persistence, or tools.
-- No graph projection, agent loading, editing, calls, issues, or AI behavior yet.
-  No account navigation, unrelated routes, or generic multi-resource framework.
-- Test pane state/focus retention, keyboard/pointer controls, navigation, disabled
-  states, and preview content overflow. Capture and inspect 1440×900, 1280×800,
-  1024×768, and 390×844. Keep preview scaffolding outside the production user flow.
-- Finish: `make verify`, `make e2e`, rendered design review, `DESIGN.md` with actual
-  reusable rules. Hand off the stable foundation to 02.
-
 ## 02 — Inspect the existing agent
 
-Status: blocked on 01.
+Status: ready.
 
 - Use the completed shell and contextual pane without redesigning them.
 - Load `original-scheduler` through `loadAgentFixture` into React state.
@@ -136,13 +112,16 @@ Status: blocked on 02. Implement after 06.
 
 Status: blocked on 04, 05, 07. Implement after 06.
 
+- Add read-only `get_calls` over the supplied mocked calls so Copilot can surface
+  suspected issues with call/transcript evidence, including unflagged calls. Keep
+  human review; no production ingestion or background monitoring.
 - Continue Workflow B with `get_call`. Give Copilot the failed Friday call, the
   current mocked deployed `clinic-scheduler` agent, and guideline.
   Explain the missing restriction with evidence and identify `offer_times`.
 - Propose the smallest correction through `propose_agent_patch`, preview, completed
   candidate validation in Python, and explicit human Apply, then commit through
   `applyAgentOperations`. Preserve unrelated and existing-patient behavior.
-- Add evals for diagnosis evidence, relevant change, approval, and preservation.
+- Add evals for issue discovery/evidence, diagnosis, relevant change, approval, and preservation.
 - Finish: `make verify`, mocked `make e2e`, live `make eval-copilot`, and a real
   post-fix call demonstrating the restriction.
 - Demo both connected workflows: guidelines → creation → inspection / manual
