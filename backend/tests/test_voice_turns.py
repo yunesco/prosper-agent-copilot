@@ -20,24 +20,20 @@ with patch('nltk.download', return_value=False):
         TurnAnalyzerUserTurnStopStrategy,
     )
     from pipecat.utils.asyncio.task_manager import TaskManager, TaskManagerParams
-    from voice_turns import voice_turn_strategies
 
 
 @asynccontextmanager
 async def replay(stop=None, timeout=5):
     stop = stop or BaseUserTurnStopStrategy()
 
-    async def confirmed():
-        await aggregator.broadcast_interruption()
-
+    context = LLMContext()
     with patch('pipecat.turns.user_turn_strategies.default_user_turn_stop_strategies',
                return_value=[stop]) as default_stop:
-        strategies = voice_turn_strategies(confirmed)
+        # Match bot.py: use the original Pipecat start strategies unchanged.
+        aggregator = LLMUserAggregator(context, params=LLMUserAggregatorParams(
+            user_turn_stop_timeout=timeout,
+        ))
         default_stop.assert_called_once_with()
-    context = LLMContext()
-    aggregator = LLMUserAggregator(context, params=LLMUserAggregatorParams(
-        user_turn_strategies=strategies, user_turn_stop_timeout=timeout,
-    ))
     aggregator.broadcast_frame = AsyncMock()
     aggregator.broadcast_interruption = AsyncMock()
     aggregator.push_frame = AsyncMock()
@@ -60,37 +56,9 @@ async def replay(stop=None, timeout=5):
         await aggregator.cleanup()
 
 
-def test_vad_empty_finals_and_stale_interims_leave_reply_playing_after_timeout():
-    async def run():
-        async with replay(timeout=0.02) as (aggregator, context, stop, send):
-            reply = asyncio.get_running_loop().create_future()
-            aggregator.broadcast_interruption.side_effect = reply.cancel
-            stopped = asyncio.Event()
-
-            async def on_stopped(*args):
-                stopped.set()
-
-            aggregator.add_event_handler('on_user_turn_stopped', on_stopped)
-            await send(BotStartedSpeakingFrame())
-            await send(VADUserStartedSpeakingFrame())
-            await send(TranscriptionFrame('', '', ''))
-            await send(TranscriptionFrame('   ', '', ''))
-            await send(InterimTranscriptionFrame('Old committed words.', '', ''))
-            await send(VADUserStoppedSpeakingFrame())
-            await asyncio.wait_for(stopped.wait(), timeout=1)
-            assert not reply.cancelled()
-            aggregator.broadcast_interruption.assert_not_awaited()
-            assert context.messages == []
-            aggregator.push_frame.assert_not_awaited()
-            # Timeout must not prevent the next real answer from interrupting.
-            await send(TranscriptionFrame('Yes.', '', ''))
-            assert reply.cancelled()
-    asyncio.run(run())
-
-
 @pytest.mark.parametrize('playing', [False, True])
-@pytest.mark.parametrize('vad', [False, True])
-def test_final_interrupts_once_before_inference_and_preserves_answers(playing, vad):
+@pytest.mark.parametrize('signal', ['vad', 'interim', 'final'])
+def test_original_start_signals_interrupt_before_turn_completion(playing, signal):
     async def run():
         async with replay() as (aggregator, context, stop, send):
             for answer in ['Yes.', 'Yes.', 'Checkup.', 'Actually, my name is Sam.']:
@@ -99,22 +67,35 @@ def test_final_interrupts_once_before_inference_and_preserves_answers(playing, v
                 before = aggregator.broadcast_interruption.await_count
                 if playing:
                     await send(BotStartedSpeakingFrame())
-                if vad:
+                if signal == 'vad':
                     await send(VADUserStartedSpeakingFrame())
-                await send(InterimTranscriptionFrame(answer, '', ''))
-                assert not reply.cancelled()
-                await send(TranscriptionFrame(answer, '', ''))
+                elif signal == 'interim':
+                    # Speech missed by VAD still interrupts before finalization.
+                    await send(InterimTranscriptionFrame(answer, '', ''))
+                else:
+                    await send(TranscriptionFrame(answer, '', ''))
                 assert reply.cancelled()
-                await send(VADUserStartedSpeakingFrame())
-                await send(TranscriptionFrame('Please.', '', ''))
+                if signal != 'final':
+                    await send(TranscriptionFrame(answer, '', ''))
+                await send(InterimTranscriptionFrame(answer, '', ''))
                 assert aggregator.broadcast_interruption.await_count == before + 1
                 await stop.trigger_user_turn_stopped()
-                await send(InterimTranscriptionFrame(answer, '', ''))
-                assert aggregator.broadcast_interruption.await_count == before + 1
             assert [m['content'] for m in context.messages] == [
-                'Yes. Please.', 'Yes. Please.', 'Checkup. Please.',
-                'Actually, my name is Sam. Please.',
+                'Yes.', 'Yes.', 'Checkup.', 'Actually, my name is Sam.',
             ]
+    asyncio.run(run())
+
+
+def test_original_defaults_also_interrupt_on_late_partial():
+    # Baseline limitation, not a claim that stale-partial protection is retained.
+    async def run():
+        async with replay() as (aggregator, context, stop, send):
+            await send(TranscriptionFrame('Book please.', '', ''))
+            await stop.trigger_user_turn_stopped()
+            aggregator.broadcast_interruption.reset_mock()
+            await send(InterimTranscriptionFrame('Book please.', '', ''))
+            aggregator.broadcast_interruption.assert_awaited_once()
+            assert context.messages == [{'role': 'user', 'content': 'Book please.'}]
     asyncio.run(run())
 
 

@@ -29,15 +29,12 @@ from pipecat.runner.types import RunnerArguments, SmallWebRTCRunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
-from pipecat.transcriptions.language import Language
+from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-from voice_events import VoiceRTVIProcessor
-from voice_llm import create_voice_llm
-from voice_turns import voice_turn_strategies
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
@@ -59,27 +56,17 @@ async def run_bot(
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
 
-    stt = ElevenLabsRealtimeSTTService(
-        api_key=os.environ["ELEVENLABS_API_KEY"],
-        # This clinic demo is English; avoid automatic language guesses on short turns.
-        settings=ElevenLabsRealtimeSTTService.Settings(language=Language.EN),
-    )
+    stt = ElevenLabsRealtimeSTTService(api_key=os.environ["ELEVENLABS_API_KEY"])
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         settings=ElevenLabsTTSService.Settings(voice=config.voice_id),
     )
-    llm = create_voice_llm(api_key=os.environ["OPENAI_API_KEY"], model=config.model)
-
-    async def on_confirmed_speech():
-        await context_aggregator.user().broadcast_interruption()
+    llm = OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"], model=config.model)
 
     context = LLMContext()
     context_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer(),
-            user_turn_strategies=voice_turn_strategies(on_confirmed_speech),
-        ),
+        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
     )
 
     pipeline = Pipeline(
@@ -96,7 +83,6 @@ async def run_bot(
 
     worker = PipelineWorker(
         pipeline,
-        rtvi_processor=VoiceRTVIProcessor(),
         params=PipelineParams(enable_metrics=True, enable_usage_metrics=True),
         idle_timeout_secs=runner_args.pipeline_idle_timeout_secs,
     )

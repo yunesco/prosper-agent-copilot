@@ -33,14 +33,9 @@ and verification procedures. Workspace interaction decisions live below.
   additional state library.
 - `backend/agent_builder/` owns runtime validation and Pipecat compilation.
   Preserve `backend/bot.py`'s voice stack and provider versions.
-  `backend/voice_turns.py` starts turns from VAD or final transcripts, preventing
-  stale ElevenLabs interims from cancelling replies. VAD alone never cancels a
-  reply: the first nonempty final transcript per turn broadcasts interruption,
-  before turn completion can trigger inference. Intentional interruptions wait
-  for finalization, including single-word answers and speech missed by VAD.
-  Smart Turn and VAD thresholds remain unchanged.
-  `backend/voice_events.py` isolates the pinned RTVI observer compatibility fix:
-  interruption discards queued, unplayed text before another response can emit it.
+  Turn starts use Pipecat's original defaults: VAD, interim transcripts, or final
+  transcripts can interrupt. Smart Turn and VAD thresholds remain unchanged.
+  STT language detection and RTVI transcript events use the provider/library defaults.
 - `frontend/lib/agent/` owns the TS wire contract and immutable atomic mutations.
 - `frontend/lib/runtime/` owns runtime HTTP clients, with matching Python endpoints.
   Browser traffic uses same-origin APIs; credentials remain server-side.

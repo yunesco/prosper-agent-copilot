@@ -10,7 +10,7 @@ with patch("nltk.download", return_value=False):
     from agent_builder import AgentBuilder
     from pipecat.adapters.schemas.tools_schema import ToolsSchema
     from pipecat.processors.aggregators.llm_context import LLMContext
-    from voice_llm import create_voice_llm
+    from pipecat.services.openai.llm import OpenAILLMService
 
 
 def test_original_voice_request_preserves_flow_tools_without_reasoning_override():
@@ -22,8 +22,8 @@ def test_original_voice_request_preserves_flow_tools_without_reasoning_override(
     )
     create = AsyncMock(return_value=object())
     client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
-    with patch("voice_llm.OpenAILLMService.create_client", return_value=client):
-        llm = create_voice_llm(api_key="test-key", model=builder.config.model)
+    with patch.object(OpenAILLMService, "create_client", return_value=client):
+        llm = OpenAILLMService(api_key="test-key", model=builder.config.model)
     asyncio.run(llm.get_chat_completions(context))
     params = create.call_args.kwargs
     assert params["model"] == "gpt-4o"

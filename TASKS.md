@@ -14,12 +14,13 @@ live criteria. Follow the verification procedures in [README.md](README.md#verif
 
 ## Voice interruption live acceptance
 
-Status: actual calls pending.
+Status: live comparison against the original voice pipeline pending.
 
 - Run actual browser calls with the updated backend: silent headphone listening,
   intentional interruption, and a paused multi-part answer. Capture interruption
   timing, verify complete questions during silence, and verify no inference during
-  the incomplete pause. Final-transcript gating deliberately adds interruption latency.
+  the incomplete pause. Check for false interruptions from VAD and stale partials
+  with the restored defaults, and interrupted/unplayed text in transcript events.
 - Preserve attempt evidence under ignored `evals/results/`. Synthetic microphone
   silence alone does not establish the real headphone/microphone scenario.
 
