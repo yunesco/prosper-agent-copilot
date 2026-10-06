@@ -1,9 +1,12 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { AgentConfig, AgentNode } from './schema';
 
-export type StepData = { label: string; initial: boolean; terminal: boolean; endsConversation: boolean; description: string; onAdd?: () => void; onDelete?: () => void; pending?: boolean };
+export type StepData = { label: string; initial: boolean; terminal: boolean; endsConversation: boolean; description: string; outgoing: { id: string }[]; incoming: { id: string; source: string }[]; onAdd?: () => void; onDelete?: () => void; connecting?: boolean; pending?: boolean };
 export type StepNode = Node<StepData, 'step'>;
 export const stepTitle = (name: string) => name.replaceAll('_', ' ').replace(/^./, char => char.toUpperCase());
+// React Flow interpolates handle IDs into quoted CSS selectors without escaping.
+// Encode the tuple at this presentation boundary; runtime addresses stay native.
+const connectionId = (source: string, name: string, index: number) => encodeURIComponent(JSON.stringify([source, name, index]));
 
 export function nodeDescription(node: AgentNode): string {
   const text = node.task_messages.flatMap(message => {
@@ -16,7 +19,7 @@ export function nodeDescription(node: AgentNode): string {
 }
 
 /** Presentation only. Runtime objects are neither mutated nor embedded in graph state. */
-export function agentGraph(agent: AgentConfig): { nodes: StepNode[]; edges: Edge[] } {
+export function agentGraph(agent: AgentConfig): { nodes: StepNode[]; edges: Edge<{ function: string }>[] } {
   const depths = new Map<string, number>([[agent.initial_node, 0]]);
   const queue = [agent.initial_node];
   for (let i = 0; i < queue.length; i++) {
@@ -35,10 +38,13 @@ export function agentGraph(agent: AgentConfig): { nodes: StepNode[]; edges: Edge
       const column = rows.get(depth) ?? 0;
       rows.set(depth, column + 1);
       return { id: node.name, type: 'step', position: { x: column * 410, y: depth * 225 },
-        data: { label: node.name, initial: node.name === agent.initial_node, terminal: node.end, endsConversation: node.end && node.post_actions.length === 0, description: nodeDescription(node) } };
+        data: { label: node.name, initial: node.name === agent.initial_node, terminal: node.end, endsConversation: node.end && node.post_actions.length === 0, description: nodeDescription(node), outgoing: node.edges.map((edge, index) => ({ id: connectionId(node.name, edge.function, index) })), incoming: agent.nodes.flatMap(source => source.edges.flatMap((edge, index) => edge.target === node.name ? [{ id: connectionId(source.name, edge.function, index), source: source.name }] : [])) } };
     }),
     edges: agent.nodes.flatMap(node => node.edges.map((edge, index) => ({
-      id: JSON.stringify([node.name, edge.function, index]), source: node.name, target: edge.target,
+      id: connectionId(node.name, edge.function, index), source: node.name, target: edge.target,
+      sourceHandle: connectionId(node.name, edge.function, index),
+      targetHandle: connectionId(node.name, edge.function, index),
+      data: { function: edge.function },
       label: edge.description.trim() || 'Set condition', type: 'condition',
     }))),
   };

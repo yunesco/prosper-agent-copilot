@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { agentFixtures } from '../lib/fixtures';
+import { editCollectedField } from '../lib/agent/collected-fields';
 import { createStepOperations } from '../lib/agent/authoring';
 import { applyAgentOperations } from '../lib/agent/operations';
 import { loadAgentFixture } from '../lib/fixtures';
@@ -10,6 +11,7 @@ import { parseAgent } from '../lib/agent/schema';
 
 const backend = fileURLToPath(new URL('../../backend/', import.meta.url));
 const cases: { id: string; input: unknown; accepted: boolean }[] = [
+  { id: 'visual-slot-schema', accepted: true, input: applyAgentOperations(loadAgentFixture('original-scheduler'), [{ type: 'update_edge', node: 'offer_times', function: 'select_time', changes: editCollectedField(loadAgentFixture('original-scheduler').nodes[2].edges[0], { originalKey: 'slot', key: 'slot', kind: 'choice', description: 'The chosen appointment slot.', options: ['Tuesday 10 AM', 'Thursday 2 PM'], required: true, error: '' }) }]) },
   ...Object.entries(agentFixtures).map(([id, input]) => ({ id, input, accepted: true })),
   { id: 'generated-step-identifiers', accepted: true, input: applyAgentOperations(loadAgentFixture('original-scheduler'), createStepOperations(loadAgentFixture('original-scheduler'), 'Collect insurance — تأمين', 'collect_details', true, 'The caller needs insurance help.', 'Ask for insurance.').operations) },
   { id: 'defaults', accepted: true, input: { name: 'Defaults', initial_node: 'start', nodes: [{ name: 'start', end: true }] } },

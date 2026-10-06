@@ -8,7 +8,7 @@ import { validateAgent } from '@/lib/runtime/validation';
 import { stepTitle } from '@/lib/agent/graph';
 import { loadAgentFixture } from '@/lib/fixtures';
 import { useNodeEdits } from './use-node-edits';
-import { createStepOperations } from '@/lib/agent/authoring';
+import { connectStepOperations, createStepOperations } from '@/lib/agent/authoring';
 import { AgentGraph } from './AgentGraph';
 import { AgentInspector } from './AgentInspector';
 import { GitBranch, MessageCircle, Phone } from 'lucide-react';
@@ -41,6 +41,7 @@ export function BuilderShell() {
     const { nodeId, operations } = createStepOperations(editor.agent, name, source, end, condition, goal);
     editor.operate(operations);
     selectNode(nodeId);
+    return nodeId;
   };
   const deleteStep = (name: string) => {
     const incoming: AgentOperation[] = editor.agent.nodes.flatMap(node => node.edges.filter(edge => edge.target === name && node.name !== name).map(edge => ({ type: 'delete_edge' as const, node: node.name, function: edge.function })));
@@ -70,7 +71,17 @@ export function BuilderShell() {
       workspaceTitle={mode === 'call' ? 'Test Call' : 'Workflow'}
       workspaceLabel={mode === 'call' ? 'Call' : 'Graph'}
       contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{mode === 'call' ? 'Call transcript' : selectedTransitionFunction !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
-      workspace={openContext => <><div className={mode === 'builder' ? 'h-full' : 'hidden'}><AgentGraph agent={editor.agent} pending={editor.pending} onAddStep={(name, source, end, condition, goal) => { addStep(name, source, end, condition, goal); openContext(); }} onDeleteStep={name => { deleteStep(name); openContext(); }} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} /></div>{mode === 'call' && <TestCallControls call={call} />}</>}
+      workspace={openContext => <><div className={mode === 'builder' ? 'h-full' : 'hidden'}><AgentGraph selectedTransitionFunction={selectedTransitionFunction} agent={editor.agent} pending={editor.pending}
+        onConnectSteps={(source, target) => {
+          const operations = connectStepOperations(editor.agent, source, target);
+          editor.operate(operations);
+          setSelectedNodeId(source);
+          const added = operations[0];
+          if (added.type === 'add_edge') setSelectedTransitionFunction(added.value.function);
+          openContext();
+        }}
+        onReconnectStep={(source, name, nextSource, target) => { if (editor.reconnect(source, name, nextSource, target)) { setSelectedNodeId(nextSource); setSelectedTransitionFunction(name); } openContext(); }}
+        onAddStep={(name, source, end, condition, goal) => { const id = addStep(name, source, end, condition, goal); openContext(); return id; }} onDeleteStep={name => { deleteStep(name); openContext(); }} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} /></div>{mode === 'call' && <TestCallControls call={call} />}</>}
       context={<><div className={mode === 'builder' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}><AgentInspector editor={editor} onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionFunction={selectedTransitionFunction} onRenameTransition={setSelectedTransitionFunction} /></div>{mode === 'call' && <CallTranscript call={call} />}</>}
     />
   </main>;

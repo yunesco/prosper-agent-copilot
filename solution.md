@@ -180,7 +180,23 @@ subtle, keyboard actions stay immediate, and reduced motion disables movement.
 - Closing context preserves selection; selecting a node/transition reopens it.
   Clearing selection returns to agent context. Preserve the viewport while inspecting
   targets. Graph nodes support Enter/Space selection; Escape/canvas click clears it.
-  Positions are deterministic presentation data, with pan/zoom/Fit and no drag-to-connect.
+  Positions start from a deterministic layout and remain presentation data, with
+  pan/zoom/Fit. Drag cards freely; connections follow and edits preserve positions.
+  Drag a step's bottom + onto another card to connect, or drag either end of an existing arrow onto a card to change its source or target
+  without changing its condition or fields. Rewire adjacent connections to move a
+  step earlier or later; moving cards changes layout only. Both incoming and outgoing
+  arrows have separate attachment points. Source moves carry unfinished field drafts
+  to the new address and reject conflicting function names. Delete transition removes
+  the arrow explicitly; dropping an existing endpoint on empty canvas cancels the gesture.
+  Incoming arrows attach at separate points so converging connections can be grabbed
+  individually. Cards highlight as drop targets. Dropping a new connection on empty canvas opens
+  Add step there; creation places the connected step at that location. Dismissal
+  leaves the agent unchanged. Dropping an existing arrow on empty canvas cancels
+  rerouting. Clicking + still opens Add step and keyboard authoring remains available
+  in the inspector. New canvas connections default to “When this step is complete.”
+  and open the condition for editing. Connecting an ending step clears its end flag
+  while preserving native post-actions. All connection gestures stage the shared
+  draft; Python validation and explicit Save still gate runtime changes.
   The graph displays the shared manual draft. A canvas plus button adds a standalone
   step; users enter a readable step name and code generates unique IDs. A plus on each node adds a connected conversation or ending step. A trash
   icon beside the selected node deletes it and its incident transitions in the same
@@ -188,8 +204,8 @@ subtle, keyboard actions stay immediate, and reduced motion disables movement.
   Creation asks for a readable name and conversation goal; the goal becomes the
   step instructions immediately and is previewed on its card. Connections shows
   incoming and outgoing links separately, including steps with no next step yet.
-  Connecting steps asks for a plain-language transition condition and generates a
-  unique tool name. Condition badges stay compact; internal function names are
+  Inspector connection creation asks for a plain-language condition. All connection
+  creation generates a unique tool name. Condition badges stay compact; internal function names are
   editable under Function details, never used as the graph label. Existing empty
   descriptions show Set condition so they can be repaired explicitly.
   These controls follow the graph-adjacent interaction in the ElevenLabs reference;
@@ -212,6 +228,23 @@ subtle, keyboard actions stay immediate, and reduced motion disables movement.
   helper text. Closing Add step restores trigger focus and preserves selection.
 - Goals, role overrides and transition descriptions are inline fields; routing uses
   a target select with Open target. Use agent instructions clears the role override.
+  Transitions expose Information to collect as compact, clickable rows with readable
+  names derived from property keys, descriptions, answer kinds and Required labels.
+  String enums appear as Choice with individual option labels. Opening a row expands
+  its editor in place; Add information opens the same editor for a new field.
+  Text, Choice, Number, Whole number and Yes / No write only native properties and
+  required. New names generate snake_case keys; existing keys change only through
+  explicit editing. No extra title or UI schema is generated. Choice options use
+  individual add/remove controls. Blank/duplicate keys or options show inline errors;
+  switching away from Choice requires explicitly removing its options first.
+  Done stages the field through the shared update_edge mutation; Save still requires
+  Python validation. Rename/removal repairs required atomically. Native constraints,
+  nested schemas and metadata are preserved. Unsupported schemas show Custom schema
+  and remain editable in collapsed Advanced JSON; Function details is also collapsed.
+  Unfinished field edits live in the editor hook, addressed by source and function,
+  survive pane/selection changes and block Save until completed or canceled. Advanced
+  JSON stays synchronized; invalid text is retained without replacing the last valid
+  schema and blocks Save. There is no caller form or additional preview screen.
   Native structured payloads remain accessible through disclosures.
 - A sticky Save/Cancel footer shows dirty, pending, saved and error states.
   Multi-step drafts survive selection/tab/pane changes; deletions and renames keep transition selection

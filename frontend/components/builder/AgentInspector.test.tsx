@@ -83,7 +83,7 @@ test('transition inspector exposes routing, tool name and collected fields toget
   render(<AgentInspector agent={agent} selectedNodeId="collect_details" selectedTransitionFunction="record_details" onSelect={onSelect} onSave={onSave} />);
   fireEvent.click(screen.getByText('Function details'));
   expect(screen.getByLabelText('Function name')).toHaveValue('record_details');
-  expect(screen.getByText('full_name', { exact: true })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Collect Full name' })).toBeVisible();
   expect(screen.getByRole('combobox', { name: 'Target node' })).toHaveValue('offer_times');
   fireEvent.change(screen.getByRole('combobox', { name: 'Target node' }), { target: { value: 'confirm' } });
   fireEvent.change(screen.getByLabelText('Transition condition'), { target: { value: 'Ready to confirm' } });
@@ -91,6 +91,35 @@ test('transition inspector exposes routing, tool name and collected fields toget
   await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
   expect(applyAgentOperations(agent, onSave.mock.calls[0][0]).nodes[1].edges[0]).toEqual({ ...agent.nodes[1].edges[0], description: 'Ready to confirm', target: 'confirm' });
   expect(agent.nodes[1].edges[0].target).toBe('offer_times');
+});
+
+test('collect information with readable fields, preserving native schemas and atomic cancellation', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  agent.nodes[1].edges[0].properties.full_name = { type: 'string', description: 'Name', native: { keep: [true] } };
+  agent.nodes[1].edges[0].properties.custom = { type: 'object', properties: { nested: { type: 'string' } } };
+  const before = structuredClone(agent);
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(<AgentInspector agent={agent} selectedNodeId="collect_details" selectedTransitionFunction="record_details" onSelect={vi.fn()} onSave={onSave} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add information' }));
+  fireEvent.change(screen.getByLabelText('Information name'), { target: { value: 'Insurance provider' } });
+  expect(screen.getByLabelText('Required')).toBeChecked();
+  fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'Ask who provides the caller’s insurance.' } });
+  fireEvent.click(screen.getByLabelText('Required'));
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Full name/ }));
+  fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'Ask for their full name.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const edge = applyAgentOperations(agent, onSave.mock.calls[0][0]).nodes[1].edges[0];
+  expect(edge.properties.insurance_provider).toEqual({ type: 'string', description: 'Ask who provides the caller’s insurance.' });
+  expect(edge.required).not.toContain('insurance_provider');
+  expect(edge.properties.full_name).toEqual({ type: 'string', description: 'Ask for their full name.', native: { keep: [true] } });
+  expect(edge.properties.custom).toEqual(before.nodes[1].edges[0].properties.custom);
+  expect(agent).toEqual(before);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Full name' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.getByRole('region', { name: 'Collect Full name' })).toBeVisible();
 });
 
 test('empty goals accept continuous typing without losing focus', () => {
@@ -157,7 +186,7 @@ test('one save includes agent and multiple step edits; invalid collection JSON s
   rerender(<AgentInspector {...props} selectedNodeId="greeting" />);
   fireEvent.change(screen.getByLabelText('Message 1 instructions'), { target: { value: 'Welcome' } });
   rerender(<AgentInspector {...props} selectedNodeId="collect_details" selectedTransitionFunction="record_details" />);
-  fireEvent.click(screen.getByText('Edit collected fields'));
+  fireEvent.click(screen.getByText('Advanced JSON'));
   fireEvent.change(screen.getByLabelText('Collected fields JSON'), { target: { value: '{broken' } });
   rerender(<AgentInspector {...props} selectedNodeId="confirm" />);
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -190,4 +219,51 @@ test('deleting a selected transition returns to its step and later updates addre
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
   expect(applyAgentOperations(agent, onSave.mock.calls[0][0]).nodes[0].edges).toEqual([{ ...agent.nodes[0].edges[1], description: 'Surviving transition' }]);
+});
+
+
+test('scheduler field summaries distinguish choices and text, and unfinished edits follow their transition', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const props = { agent, onSave: vi.fn(), onSelect: vi.fn() };
+  const { rerender } = render(<AgentInspector {...props} selectedNodeId="greeting" selectedTransitionFunction="choose_intent" />);
+  expect(screen.getByRole('button', { name: /^Intent Choice/ })).toBeVisible();
+  rerender(<AgentInspector {...props} selectedNodeId="collect_details" selectedTransitionFunction="record_details" />);
+  expect(screen.getByRole('button', { name: /^Full name Text/ })).toBeVisible();
+  expect(screen.getByRole('button', { name: /^Reason Text/ })).toBeVisible();
+  rerender(<AgentInspector {...props} selectedNodeId="offer_times" selectedTransitionFunction="select_time" />);
+  fireEvent.click(screen.getByRole('button', { name: /^Slot Choice/ }));
+  expect(screen.getByLabelText('Answer type')).toHaveValue('choice');
+  fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'Monday 9 AM' } });
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Function name'), { target: { value: 'new_time' } });
+  rerender(<AgentInspector {...props} selectedNodeId="confirm" />);
+  fireEvent.submit(screen.getByRole('form'));
+  expect(props.onSave).not.toHaveBeenCalled();
+  rerender(<AgentInspector {...props} selectedNodeId="offer_times" selectedTransitionFunction="new_time" />);
+  expect(screen.getByLabelText('Option 1')).toHaveValue('Monday 9 AM');
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel field' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Slot Choice/ }));
+  expect(screen.getByLabelText('Option 1')).not.toHaveValue('Monday 9 AM');
+});
+
+test('visual Slot creation stages exact JSON only after Done and reports invalid input inline', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  agent.nodes[2].edges[0].properties = {};
+  agent.nodes[2].edges[0].required = [];
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(<AgentInspector agent={agent} onSave={onSave} onSelect={vi.fn()} selectedNodeId="offer_times" selectedTransitionFunction="select_time" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Add information' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(screen.getByText('Enter a field key.')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Information name'), { target: { value: 'Slot' } });
+  fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'The chosen appointment slot.' } });
+  fireEvent.change(screen.getByLabelText('Answer type'), { target: { value: 'choice' } });
+  for (const [index, option] of ['Tuesday 10 AM', 'Thursday 2 PM'].entries()) {
+    fireEvent.click(screen.getByRole('button', { name: 'Add option' }));
+    fireEvent.change(screen.getByLabelText(`Option ${index + 1}`), { target: { value: option } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(JSON.parse((screen.getByLabelText('Collected fields JSON') as HTMLTextAreaElement).value)).toEqual({ properties: { slot: { type: 'string', description: 'The chosen appointment slot.', enum: ['Tuesday 10 AM', 'Thursday 2 PM'] } }, required: ['slot'] });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
 });

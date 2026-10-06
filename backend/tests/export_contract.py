@@ -15,6 +15,11 @@ for data in json.load(sys.stdin):
     try:
         builder = AgentBuilder(TypeAdapter(AgentConfig).validate_json(json.dumps(data), strict=True))
         builder.build_initial_node()
+        for node in builder.config.nodes:
+            compiled = builder._make_node(node)
+            for function, edge in zip(compiled.get("functions", []), node.edges, strict=True):
+                assert function.properties == edge.properties
+                assert function.required == edge.required
         results.append({"ok": True, "agent": asdict(builder.config)})
     except (ValueError, KeyError, TypeError) as error:
         results.append({"ok": False, "error": f"{type(error).__name__}: {error}"})

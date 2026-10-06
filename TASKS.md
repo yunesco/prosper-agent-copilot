@@ -26,29 +26,12 @@ Status: live comparison against the original voice pipeline pending.
 
 ## 05 — Complete manual agent authoring
 
-Status: ready.
+Status: implementation complete; actual-call acceptance pending.
 
-- Support creation from the valid one-step seed in `solution.md`, agent name and
-  instructions, add/delete steps and transitions, start/end behavior, function
-  renaming, goals, role overrides, routing, collected fields and required fields.
-- Extend shared immutable operations as needed. Use named transition addressing;
-  define sequential rename/delete behavior in atomic batches. Keep runtime
-  voice/model settings read-only and preserve native payloads.
-- Add controls in the existing inspector. No layout redesign, drag-to-connect or
-  editor extras. A draft must span multiple steps so adding connections and
-  repairing references after deletion can be saved together.
-- Explicit Save Python-validates the completed candidate and commits atomically
-  only at the current revision. Deletion must repair incoming transitions/start
-  reference in the same batch or fail unchanged. Cancel and failures preserve the
-  saved agent. Selection and drafts remain correctly addressed after transition
-  deletion or renaming, including across selection/tab/pane changes.
-- Test deletion followed by updates in the same batch, missing/duplicate addresses,
-  invalid names/required fields, reachability/endings, stale Save, atomic failure
-  and native JSON preservation. Maintain all-step compilation/multi-error regressions.
-- Browser tests cover creation, agent and step editing, connection, deletion,
-  renaming, multi-step Save, cancellation and validation failures. Verify an actual
-  call through a manually inserted insurance step plus a saved route change.
-  Use the original scheduler in session; preserve the flawed clinic fixture.
+- Verify an actual call through a manually inserted insurance step plus a saved
+  route change and confirm collection of the configured information, including
+  the selected choice value. Use the original scheduler in session; preserve the
+  flawed clinic fixture.
 - Verify an actual voice call after restoring the original model configuration:
   greet once, wait through caller silence, ask for missing details, and wait for
   the caller to select a slot before confirming. Compare model behavior with the

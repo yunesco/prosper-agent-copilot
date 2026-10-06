@@ -28,7 +28,7 @@ test('create, connect and repair a multi-step agent in one draft', async ({ page
   await page.getByLabel('Function name', { exact: true }).fill('record_insurance');
   await page.getByLabel('Target node', { exact: true }).selectOption('insurance');
   await page.getByLabel('Transition condition', { exact: true }).fill('After the caller gives their insurance.');
-  await page.getByText('Edit collected fields', { exact: true }).click();
+  await page.getByText('Advanced JSON', { exact: true }).click();
   await page.getByLabel('Collected fields JSON').fill(JSON.stringify({ properties: { insurance: { type: 'string', description: 'Insurance provider', native: { retained: true } } }, required: ['missing'] }));
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('undefined property');

@@ -11,6 +11,7 @@ import { createTransitionOperation } from '@/lib/agent/authoring';
 import { nodeDescription, stepTitle } from '@/lib/agent/graph';
 import { type AgentEditor, type SaveOperations } from './use-node-edits';
 import { cn } from '@/lib/utils';
+import { CollectedFieldsEditor } from './CollectedFieldsEditor';
 
 function Payload({ value }: { value: unknown }) {
   return <pre className="max-w-full overflow-x-auto rounded-md bg-workspace p-3 text-xs leading-5">{JSON.stringify(value, null, 2)}</pre>;
@@ -58,8 +59,8 @@ function Actions({ node }: { node: AgentNode }) {
   </section>;
 }
 
-function TransitionFields({ agent, edge, onChange, onSelect, editable, collection, onCollection }: {
-  agent: AgentConfig; edge: AgentEdge; onChange: (changes: Partial<AgentEdge>) => void; onSelect: (id: string) => void; editable: boolean; collection?: { text: string; error: string }; onCollection: (text: string) => void;
+function TransitionFields({ agent, edge, onChange, onSelect, editable, collection, onCollection, editor, source }: {
+  editor: AgentEditor; source: string; agent: AgentConfig; edge: AgentEdge; onChange: (changes: Partial<AgentEdge>) => void; onSelect: (id: string) => void; editable: boolean; collection?: { text: string; error: string }; onCollection: (text: string) => void;
 }) {
   const id = useId();
   return <div className="space-y-5">
@@ -75,11 +76,12 @@ function TransitionFields({ agent, edge, onChange, onSelect, editable, collectio
         <Button type="button" variant="outline" size="icon" className="size-10" aria-label={`→ ${edge.target}`} title={`Open ${stepTitle(edge.target)}`} onClick={() => onSelect(edge.target)}><ArrowRight aria-hidden="true" /></Button>
       </div>
     </div>
+    {editable && <CollectedFieldsEditor draft={editor.fieldEdits[source + '\0' + edge.function]} onDraft={draft => editor.fieldEdit(source, edge.function, draft)} onDone={() => editor.finishField(source, edge.function)} edge={edge} disabled={!!collection?.error} onChange={fields => onCollection(JSON.stringify(fields, null, 2))} />}
     <details className="border-t border-ui-border pt-4"><summary className="cursor-pointer text-xs text-text-muted">Function details</summary>
       <label className="mt-3 block space-y-2 text-xs">Function name<Input aria-label="Function name" className="font-mono text-xs" readOnly={!editable} value={edge.function} onChange={event => onChange({ function: event.target.value })} /></label>
     </details>
-    {editable && <details><summary className="cursor-pointer text-xs text-text-subtle">Edit collected fields</summary><p className="my-2 text-xs text-text-muted">Edit properties as JSON Schema and required as a list of field names.</p><Textarea aria-label="Collected fields JSON" className="min-h-40 font-mono text-xs" value={collection?.text ?? JSON.stringify({ properties: edge.properties, required: edge.required }, null, 2)} onChange={event => onCollection(event.target.value)} />{collection?.error && <p role="alert" className="text-xs text-destructive">{collection.error}</p>}</details>}
-    <CollectedFields edge={edge} />
+    {editable && <details><summary className="cursor-pointer text-xs text-text-subtle">Advanced JSON</summary><p className="my-2 text-xs text-text-muted">Edit properties as JSON Schema and required as a list of field names.</p><Textarea disabled={!!editor.fieldEdits[source + '\0' + edge.function]} aria-label="Collected fields JSON" className="min-h-40 font-mono text-xs" value={collection?.text ?? JSON.stringify({ properties: edge.properties, required: edge.required }, null, 2)} onChange={event => onCollection(event.target.value)} />{collection?.error && <p role="alert" className="text-xs text-destructive">{collection.error}</p>}</details>}
+    {!editable && <CollectedFields edge={edge} />}
   </div>;
 }
 
@@ -122,7 +124,7 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
       </>}
     </div>
     <fieldset disabled={editor.pending} className="min-w-0 flex-1 space-y-6 p-5">
-      {edge ? <TransitionFields agent={agent} edge={edge} collection={editor.collections[node.name + '\0' + edge.function]} onCollection={text => editor.collection(node.name, edge.function, text)} editable={!!onSave} onSelect={onSelect} onChange={changes => updateEdge(node.edges.indexOf(edge), changes)} /> : section === 'general' ? <>
+      {edge ? <TransitionFields editor={editor} source={node.name} agent={agent} edge={edge} collection={editor.collections[node.name + '\0' + edge.function]} onCollection={text => editor.collection(node.name, edge.function, text)} editable={!!onSave} onSelect={onSelect} onChange={changes => updateEdge(node.edges.indexOf(edge), changes)} /> : section === 'general' ? <>
         <section className="space-y-3">
           <h3 className="font-medium">Conversation goal</h3>
           {node.task_messages.length === 0 && !onSave && <p className="text-text-muted">No task messages.</p>}
@@ -153,7 +155,7 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
 
         {node.edges.length === 0 && <p className="text-text-muted">{node.end && !node.post_actions.length ? 'The call ends here.' : 'No next step connected.'}</p>}
         {node.edges.map((item, index) => <section key={index} aria-label={`Transition ${index + 1}`} className="border-b border-ui-border pb-6 last:border-0 last:pb-0">
-          <TransitionFields agent={agent} edge={item} collection={editor.collections[node.name + '\0' + item.function]} onCollection={text => editor.collection(node.name, item.function, text)} editable={!!onSave} onSelect={onSelect} onChange={changes => updateEdge(index, changes)} />
+          <TransitionFields editor={editor} source={node.name} agent={agent} edge={item} collection={editor.collections[node.name + '\0' + item.function]} onCollection={text => editor.collection(node.name, item.function, text)} editable={!!onSave} onSelect={onSelect} onChange={changes => updateEdge(index, changes)} />
           {onSave && <Button type="button" variant="ghost" className="mt-3" onClick={() => deleteEdge(item.function)}>Delete transition</Button>}
         </section>)}
       </>}
@@ -177,13 +179,14 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
   </div>
     </fieldset>}
     {onSave && <div className="sticky bottom-0 z-10 space-y-2 border-t border-ui-border bg-surface-raised px-5 py-3">
+      {editor.unfinishedField && <p role="alert" className="text-xs text-text-muted">Finish or cancel field edits before saving.</p>}
       {editor.invalidCollection && <p role="alert" className="text-xs text-destructive">Fix collected fields JSON before saving.</p>}
       {editor.error && <p role="alert" className="break-words text-xs leading-5 text-destructive">{editor.error}</p>}
       <div className="flex items-center justify-between gap-2">
         <p role="status" className={cn("flex items-center gap-1.5 text-xs", editor.saved && !editor.dirty ? "text-accent-text" : "text-text-subtle", !editor.pending && !editor.dirty && !editor.saved && "sr-only")}>{editor.saved && !editor.dirty && <Check aria-hidden="true" className="size-3.5" />}{editor.pending ? 'Validating changes…' : editor.dirty ? 'Unsaved changes' : editor.saved ? 'Changes saved' : 'No changes'}</p>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <Button type="button" variant="ghost" size="sm" className="transition-colors" disabled={!editor.dirty || editor.pending} onClick={() => { cancel(); focusField(); }}>Cancel</Button>
-          <Button type="submit" size="sm" className="min-w-16 bg-accent-text text-white hover:bg-accent-text/90 transition-[background-color,scale] duration-150 ease-snappy active:not-focus-visible:scale-[0.98] motion-reduce:transition-none" disabled={!editor.dirty || editor.pending || editor.invalidCollection}>Save</Button>
+          <Button type="submit" size="sm" className="min-w-16 bg-accent-text text-white hover:bg-accent-text/90 transition-[background-color,scale] duration-150 ease-snappy active:not-focus-visible:scale-[0.98] motion-reduce:transition-none" disabled={!editor.dirty || editor.pending || editor.invalidCollection || editor.unfinishedField}>Save</Button>
         </div>
       </div>
     </div>}

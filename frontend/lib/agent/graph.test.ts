@@ -36,3 +36,14 @@ test('node previews use native text blocks with a clear fallback, without modify
   expect(nodes[1].data.description).toBe('No text instructions. Select to inspect this step.');
   expect(agent).toEqual(before);
 });
+
+test('converging transitions have separately addressed target handles', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  agent.nodes[0].edges.push({ ...agent.nodes[0].edges[0], function: 'finish_early', target: 'confirm' });
+  const before = structuredClone(agent);
+  const graph = agentGraph(agent);
+  const incoming = graph.edges.filter(edge => edge.target === 'confirm');
+  expect(new Set(incoming.map(edge => edge.targetHandle)).size).toBe(2);
+  expect(graph.nodes.find(node => node.id === 'confirm')?.data.incoming.map(item => item.id)).toEqual(incoming.map(edge => edge.targetHandle));
+  expect(agent).toEqual(before);
+});
