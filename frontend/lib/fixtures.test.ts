@@ -3,7 +3,8 @@ import { readdirSync } from 'node:fs';
 import { agentFixtures, loadAgentFixture, loadDemoContext, type AgentFixtureId } from './fixtures';
 
 test('loads independent fixtures and resolves every call, guideline and issue reference', () => {
-  for (const id of Object.keys(agentFixtures) as AgentFixtureId[]) expect(loadAgentFixture(id).nodes.length).toBeGreaterThan(0);
+  for (const id of Object.keys(agentFixtures) as AgentFixtureId[])
+    expect(loadAgentFixture(id).nodes.length).toBeGreaterThan(0);
   const { calls, guidelines, issues } = loadDemoContext();
   for (const call of calls) {
     expect(Object.keys(agentFixtures)).toContain(call.agent_id);
@@ -13,7 +14,11 @@ test('loads independent fixtures and resolves every call, guideline and issue re
       const node = agent.nodes.find(node => node.name === name);
       expect(node, `${call.id}: missing node ${name}`).toBeDefined();
       const next = call.graph_path[index + 1];
-      if (next) expect(node?.edges.map(edge => edge.target), `${call.id}: ${name} → ${next}`).toContain(next);
+      if (next)
+        expect(
+          node?.edges.map(edge => edge.target),
+          `${call.id}: ${name} → ${next}`,
+        ).toContain(next);
     }
     expect(call.transcript.length, call.id).toBeGreaterThan(0);
   }
@@ -38,8 +43,37 @@ test('every fixture is registered exactly once with a unique filename-matching I
   };
   for (const [directory, ids] of Object.entries(registries)) {
     const files = readdirSync(new URL(`../../fixtures/${directory}/`, import.meta.url))
-      .filter(file => file.endsWith('.json')).map(file => file.slice(0, -5)).sort();
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.slice(0, -5))
+      .sort();
     expect([...ids].sort(), directory).toEqual(files);
     expect(new Set(ids).size, directory).toBe(ids.length);
   }
+});
+
+test('historical calls stay isolated and preserve the reported failure', async () => {
+  const { callsForAgent } = await import('./fixtures');
+  expect(callsForAgent('generated-agent')).toEqual([]);
+  const calls = callsForAgent('clinic-scheduler');
+  expect(calls).toHaveLength(5);
+  expect(
+    calls.find(call => call.id === 'new-patient-monday')?.transcript.some(turn => /Friday/.test(turn.text)),
+  ).toBe(false);
+  expect(calls.find(call => call.id === 'new-patient-friday')?.client_feedback).toBeTruthy();
+  const existing = calls.find(call => call.id === 'existing-patient-booking')!;
+  expect(existing.transcript.some(turn => /existing patient/.test(turn.text))).toBe(true);
+  expect(existing.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
+    false,
+  );
+  // The unflagged call is evidence only: successful, no feedback, and the existing patient is asked for insurance.
+  const unflagged = calls.find(call => call.id === 'existing-patient-insurance')!;
+  expect(unflagged.outcome).toBe('successful');
+  expect(unflagged.client_feedback).toBeUndefined();
+  expect(unflagged.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
+    true,
+  );
+  const before = JSON.stringify(calls);
+  const agent = loadAgentFixture('clinic-scheduler');
+  agent.nodes[1].task_messages = [{ role: 'developer', content: 'Repaired local draft' }];
+  expect(JSON.stringify(callsForAgent('clinic-scheduler'))).toBe(before);
 });

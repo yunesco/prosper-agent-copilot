@@ -9,8 +9,18 @@ export const edgeSchema = z.object({
   function: z.string(),
   description: z.string(),
   target: z.string(),
-  properties: jsonObject.default({}),
-  required: z.array(z.string()).default([]),
+  // Descriptions reach the model through tool schemas, so they state the contract Python enforces.
+  properties: jsonObject
+    .default({})
+    .describe(
+      'JSON-schema definitions of the values the model collects when taking this transition, keyed by field name, e.g. {"insurance_provider": {"type": "string"}}. Leave {} if nothing is collected.',
+    ),
+  required: z
+    .array(z.string())
+    .default([])
+    .describe(
+      'Field names that must be provided to take this transition. Every name MUST also be a key of properties; otherwise the graph is invalid. Leave [] if nothing is collected.',
+    ),
 });
 
 export const nodeSchema = z.object({

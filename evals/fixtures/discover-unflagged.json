@@ -1,0 +1,14 @@
+{
+  "id": "discover-unflagged",
+  "agent_id": "clinic-scheduler",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "Review the recent calls and tell me whether anything looks wrong. Compare each transcript with the saved guidelines, including calls that succeeded or were not reported. Cite evidence, and propose the smallest fix if you find a problem.",
+  "expected": {
+    "tools_in_order": ["get_agent", "get_calls", "get_call", "propose_agent_patch"],
+    "must_read_calls": ["existing-patient-insurance"],
+    "answer_cites": [{ "call_id": "existing-patient-insurance", "turns": [3, 4] }],
+    "patch_touches": ["collect_details"],
+    "requires_approval": true
+  }
+}

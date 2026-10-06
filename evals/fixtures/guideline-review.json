@@ -1,0 +1,12 @@
+{
+  "id": "guideline-review",
+  "agent_id": "clinic-scheduler",
+  "intent": "review",
+  "live_only": true,
+  "prompt": "Compare saved guidelines with the saved configuration. Show a few grounded findings without proposing or changing the agent.",
+  "expected": {
+    "tools_in_order": ["get_agent"],
+    "operations": [],
+    "requires_approval": true
+  }
+}

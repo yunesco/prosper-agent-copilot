@@ -19,6 +19,11 @@ test.each([
 
 test('preserves every Python validation error for proposal repair', async () => {
   const errors = ['Duplicate function', 'Unknown target'];
-  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ valid: false, error: errors.join('\n'), errors }, { status: 422 }));
-  await expect(validateAgent(loadAgentFixture('original-scheduler'), { fetcher })).rejects.toMatchObject({ errors, message: errors.join('\n') });
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(Response.json({ valid: false, error: errors.join('\n'), errors }, { status: 422 }));
+  await expect(validateAgent(loadAgentFixture('original-scheduler'), { fetcher })).rejects.toMatchObject({
+    errors,
+    message: errors.join('\n'),
+  });
 });

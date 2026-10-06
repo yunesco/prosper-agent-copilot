@@ -7,10 +7,21 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  width: 'device-width', initialScale: 1, viewportFit: 'cover',
-  interactiveWidget: 'resizes-content', themeColor: '#ffffff', colorScheme: 'light',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+  themeColor: '#ffffff',
+  colorScheme: 'light',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body className="m-0 bg-workspace font-sans text-base-content antialiased overscroll-none [scrollbar-color:var(--ui-border-strong)_transparent] selection:bg-accent-soft selection:text-base-content">{children}</body></html>;
+  // The workspace scrolls inside panes: contain root overscroll and prevent landscape text inflation.
+  return (
+    <html lang="en" className="overscroll-none [-webkit-text-size-adjust:100%] [text-size-adjust:100%]">
+      <body className="m-0 bg-workspace font-sans text-base-content antialiased overscroll-none [scrollbar-color:var(--ui-border-strong)_transparent] selection:bg-accent-soft selection:text-base-content">
+        {children}
+      </body>
+    </html>
+  );
 }

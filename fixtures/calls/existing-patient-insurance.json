@@ -1,0 +1,42 @@
+{
+  "id": "existing-patient-insurance",
+  "agent_id": "clinic-scheduler",
+  "title": "Existing-patient Monday booking",
+  "duration_seconds": 83,
+  "outcome": "successful",
+  "graph_path": [
+    "collect_details",
+    "offer_times",
+    "confirm"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "May I have your name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Priya Example, July 7, 1978. I've been coming here for years."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Priya. Could I also get your insurance provider and member ID?"
+    },
+    {
+      "role": "user",
+      "text": "I think it's Demo Insurance, same as last time. I don't remember the member ID."
+    },
+    {
+      "role": "assistant",
+      "text": "No problem, I'll note Demo Insurance. Dr. Smith is available Monday at 10 AM or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Monday at 10 works."
+    },
+    {
+      "role": "assistant",
+      "text": "You're booked for Monday at 10 AM. Goodbye."
+    }
+  ]
+}

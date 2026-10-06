@@ -1,0 +1,12 @@
+{
+  "id": "sop-create-agent",
+  "agent_id": "new-agent",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "Build the complete agent from this synthetic clinic SOP. Use the existing start step to collect name, DOB and whether the patient is new or existing. New patients must go through a new collect_insurance step; existing patients must bypass insurance and go directly to a new offer_times step. Offer simulated appointments: Dr. Smith sees new patients Monday and Wednesday only; existing patients can also book Friday. Collect the chosen eligible appointment, then go to a new confirm step to confirm and end the call. Ask for missing information, clarify ambiguous answers, accept short valid answers and corrections, and remember details already supplied. Keep these exact step names so reviewers can identify the branches. Preserve voice/model settings. Propose the entire connected workflow in one validated operation batch for preview; do not apply or save it.",
+  "expected": {
+    "tools_in_order": ["get_agent", "propose_agent_patch"],
+    "added_nodes": ["collect_insurance", "offer_times", "confirm"],
+    "requires_approval": true
+  }
+}

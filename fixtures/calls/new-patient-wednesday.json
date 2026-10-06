@@ -1,0 +1,42 @@
+{
+  "id": "new-patient-wednesday",
+  "agent_id": "clinic-scheduler",
+  "title": "Wednesday booking",
+  "duration_seconds": 71,
+  "outcome": "successful",
+  "graph_path": [
+    "collect_details",
+    "offer_times",
+    "confirm"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "May I have your name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Jordan Example, May 5, 1992. I am a new patient."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Jordan. Do you have insurance? If so, who is your provider?"
+    },
+    {
+      "role": "user",
+      "text": "Yes, Demo Insurance."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith is available Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Wednesday please."
+    },
+    {
+      "role": "assistant",
+      "text": "You're booked for Wednesday at 2 PM. Goodbye."
+    }
+  ]
+}

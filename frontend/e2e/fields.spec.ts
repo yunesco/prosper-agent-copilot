@@ -1,13 +1,17 @@
 import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => { await seedOriginal(page); });
+test.beforeEach(async ({ page }) => {
+  await seedOriginal(page);
+});
 
 for (const width of [1440, 390]) {
   test(`choice editing survives selection and pane changes at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    await page.getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true })
+      .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     const row = page.getByRole('button', { name: 'Slot Choice Required', exact: true });
     await expect(row).toBeVisible();
@@ -17,7 +21,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await page.getByRole('button', { name: 'Inspect greeting', exact: true }).click();
-    await page.getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true })
+      .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(page.getByLabel('Option 1', { exact: true })).toHaveValue('Monday 9 AM');
     await page.screenshot({ path: testInfo.outputPath(`slot-editor-${width}.png`) });
@@ -28,6 +34,8 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
-    await expect(page.getByRole('button', { name: 'Appointment slot Choice Required', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Appointment slot Choice Required', exact: true }),
+    ).toBeVisible();
   });
 }

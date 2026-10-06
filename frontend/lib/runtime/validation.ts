@@ -6,17 +6,26 @@ const validationResult = z.discriminatedUnion('valid', [
   z.object({ valid: z.literal(false), error: z.string(), errors: z.array(z.string()).optional() }),
 ]);
 export class AgentValidationError extends Error {
-  constructor(readonly errors: string[]) { super(errors.join('\n')); }
+  constructor(readonly errors: string[]) {
+    super(errors.join('\n'));
+  }
 }
 
-export async function validateAgent(agent: AgentConfig, options: { url?: string; fetcher?: typeof fetch } = {}): Promise<void> {
+export async function validateAgent(
+  agent: AgentConfig,
+  options: { url?: string; fetcher?: typeof fetch } = {},
+): Promise<void> {
   let response: Response;
   try {
     response = await (options.fetcher ?? fetch)(options.url ?? '/api/runtime/validate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(agent),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(agent),
       signal: AbortSignal.timeout(15_000),
     });
-  } catch { throw new Error('Validation service unavailable. Your changes were not saved.'); }
+  } catch {
+    throw new Error('Validation service unavailable. Your changes were not saved.');
+  }
   const result = validationResult.safeParse(await response.json().catch(() => null));
   if (!result.success) throw new Error('Invalid validation response. Your changes were not saved.');
   if (!result.data.valid) throw new AgentValidationError(result.data.errors ?? [result.data.error]);

@@ -3,7 +3,7 @@ PYTHON := backend/.venv/bin/python
 RUFF := backend/.venv/bin/ruff
 NPM := npm --prefix frontend
 
-.PHONY: help install dev run verify lint typecheck test contract eval-check eval-copilot e2e browser-install build clean
+.PHONY: help install dev run verify format lint typecheck test contract eval-check eval-copilot e2e browser-install build clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -21,8 +21,12 @@ run: ## Run the existing Pipecat voice agent (requires backend/.env)
 
 verify: lint typecheck test contract eval-check ## Canonical offline engineering gate (no model keys/browser required)
 
-lint: ## Lint Python and TypeScript
+format: ## Format the frontend with Prettier
+	$(NPM) run format
+
+lint: ## Check formatting and lint Python and TypeScript
 	$(RUFF) check backend
+	$(NPM) run format:check
 	$(NPM) run lint
 
 typecheck: ## Check TypeScript and Python syntax without starting the runtime

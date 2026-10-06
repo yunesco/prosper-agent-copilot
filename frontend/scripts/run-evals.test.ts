@@ -14,10 +14,13 @@ beforeEach(async () => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(async () => { await rm(root, { recursive: true, force: true }); });
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
+});
 
 const json = (path: string, value: unknown) => writeFile(join(root, path), JSON.stringify(value));
-const report = async (mode: string) => JSON.parse(await readFile(join(root, `evals/results/${mode}.json`), 'utf8'));
+const report = async (mode: string) =>
+  JSON.parse(await readFile(join(root, `evals/results/${mode}.json`), 'utf8'));
 
 test('records malformed fixtures and missing traces, then continues to later cases', async () => {
   await writeFile(join(root, 'evals/fixtures/01-broken.json'), '{');
@@ -26,7 +29,11 @@ test('records malformed fixtures and missing traces, then continues to later cas
   await json('evals/traces/03-valid.json', trace);
   expect(await runEvals('recorded', root)).toBe(false);
   const saved = await report('recorded');
-  expect(saved.results.map((item: { failures: string[] }) => item.failures.length > 0)).toEqual([true, true, false]);
+  expect(saved.results.map((item: { failures: string[] }) => item.failures.length > 0)).toEqual([
+    true,
+    true,
+    false,
+  ]);
   expect(saved.results[1].failures[0]).toContain('02-missing.json');
   expect(saved.results[2].response).toEqual(trace);
 });
@@ -45,11 +52,14 @@ test('captures adapter errors and subsequent tool evidence without giving it exp
   await json('evals/fixtures/01-error.json', { ...fixture, id: 'provider-failure', prompt: 'Fail' });
   await json('evals/fixtures/02-valid.json', fixture);
   const response = { model: { provider: 'test-only', id: 'fake', settings: {} }, trace };
-  await writeFile(join(root, 'adapter.mjs'), `export async function run(input) {
-    if (Object.keys(input).sort().join(',') !== 'agent,prompt') throw new Error('Leaked scoring criteria');
+  await writeFile(
+    join(root, 'adapter.mjs'),
+    `export async function run(input) {
+    if (Object.keys(input).sort().join(',') !== 'agent,agentId,guidelines,prompt') throw new Error('Leaked scoring criteria');
     if (input.prompt === 'Fail') throw new Error('Provider unavailable');
     return ${JSON.stringify(response)};
-  }`);
+  }`,
+  );
   expect(await runEvals('live', root, 'adapter.mjs')).toBe(false);
   const saved = await report('live');
   expect(saved.results[0].failures).toEqual(['Provider unavailable']);
@@ -60,7 +70,10 @@ test('captures adapter errors and subsequent tool evidence without giving it exp
 
 test('rejects adapter output lacking actual model metadata and preserves it for diagnosis', async () => {
   await json('evals/fixtures/case.json', fixture);
-  await writeFile(join(root, 'adapter.mjs'), `export async function run() { return ${JSON.stringify(trace)}; }`);
+  await writeFile(
+    join(root, 'adapter.mjs'),
+    `export async function run() { return ${JSON.stringify(trace)}; }`,
+  );
   expect(await runEvals('live', root, 'adapter.mjs')).toBe(false);
   const saved = await report('live');
   expect(saved.results[0].failures[0]).toContain('model');

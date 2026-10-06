@@ -6,11 +6,31 @@ import { STORAGE_KEY } from '@/lib/agent/repository';
 import { loadAgentFixture } from '@/lib/fixtures';
 import Home from './page';
 
-afterEach(() => { cleanup(); localStorage.clear(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  vi.unstubAllGlobals();
+});
 
 test('renders the accessible application shell', async () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, selectedId: 'original', agents: [{ id: 'original', revision: 1, guidelines: '', agent: loadAgentFixture('original-scheduler') }] }));
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      version: 1,
+      selectedId: 'original',
+      agents: [
+        { id: 'original', revision: 1, guidelines: '', agent: loadAgentFixture('original-scheduler') },
+      ],
+    }),
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
   render(<Home />);
   expect(await screen.findByRole('button', { name: 'Test Call' })).toBeEnabled();

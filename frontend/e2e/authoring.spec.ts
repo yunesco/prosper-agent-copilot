@@ -1,3 +1,4 @@
+import { revealAgentFields } from './seed';
 import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
 
@@ -7,13 +8,17 @@ test('create, connect and repair a multi-step agent in one draft', async ({ page
   await page.getByLabel('Message 1 instructions').fill('Welcome to the clinic.');
   await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
   await page.getByLabel('Agent name', { exact: true }).fill('Manual clinic');
+  await revealAgentFields(page);
   await page.getByLabel('Agent instructions', { exact: true }).fill('Help the caller book a visit.');
   await page.getByRole('button', { name: 'Add step', exact: true }).click();
   await page.getByLabel('Step name').fill('insurance');
   await page.getByLabel('Step type').click();
   await page.getByRole('option', { name: 'End conversation', exact: true }).click();
   await page.getByLabel('Conversation goal', { exact: true }).fill('Collect insurance, then say goodbye.');
-  await page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true }).click();
+  await page
+    .getByRole('form', { name: 'Add step', exact: true })
+    .getByRole('button', { name: 'Add step', exact: true })
+    .click();
   await page.getByLabel('Message 1 instructions').fill('Collect insurance, then say goodbye.');
   await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
   await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
@@ -28,17 +33,31 @@ test('create, connect and repair a multi-step agent in one draft', async ({ page
   await page.getByLabel('New transition target').click();
   await page.getByRole('option', { name: 'Insurance', exact: true }).click();
   await page.getByRole('button', { name: 'Add transition', exact: true }).click();
-  await page.getByRole('region', { name: 'Transition 1', exact: true }).getByRole('button', { name: 'Delete transition' }).click();
+  await page
+    .getByRole('region', { name: 'Transition 1', exact: true })
+    .getByRole('button', { name: 'Delete transition' })
+    .click();
   await page.getByText('Function details', { exact: true }).click();
   await page.getByLabel('Function name', { exact: true }).fill('record_insurance');
   await page.getByLabel('Target node', { exact: true }).click();
   await page.getByRole('option', { name: 'Insurance', exact: true }).click();
-  await page.getByLabel('Transition condition', { exact: true }).fill('After the caller gives their insurance.');
+  await page
+    .getByLabel('Transition condition', { exact: true })
+    .fill('After the caller gives their insurance.');
   await page.getByText('Advanced JSON', { exact: true }).click();
-  await page.getByLabel('Collected fields JSON').fill(JSON.stringify({ properties: { insurance: { type: 'string', description: 'Insurance provider', native: { retained: true } } }, required: ['missing'] }));
+  await page.getByLabel('Collected fields JSON').fill(
+    JSON.stringify({
+      properties: {
+        insurance: { type: 'string', description: 'Insurance provider', native: { retained: true } },
+      },
+      required: ['missing'],
+    }),
+  );
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('undefined property');
-  await page.getByLabel('Collected fields JSON').fill(JSON.stringify({ properties: { insurance: { type: 'string' } }, required: ['insurance'] }));
+  await page
+    .getByLabel('Collected fields JSON')
+    .fill(JSON.stringify({ properties: { insurance: { type: 'string' } }, required: ['insurance'] }));
   await page.getByLabel('Function name', { exact: true }).fill('invalid function!');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('invalid tool name');
@@ -74,22 +93,33 @@ for (const width of [1440, 390]) {
     await page.getByLabel('Step name').fill('goodbye');
     await page.getByLabel('Step type').click();
     await page.getByRole('option', { name: 'End conversation', exact: true }).click();
-    await expect(page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true })).toBeDisabled();
+    await expect(
+      page
+        .getByRole('form', { name: 'Add step', exact: true })
+        .getByRole('button', { name: 'Add step', exact: true }),
+    ).toBeDisabled();
     await page.getByLabel('Conversation goal').fill('Thank the caller for booking and say goodbye.');
     await page.getByLabel('New transition condition').fill('The caller has no more questions.');
-    await page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true }).click();
+    await page
+      .getByRole('form', { name: 'Add step', exact: true })
+      .getByRole('button', { name: 'Add step', exact: true })
+      .click();
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Delete goodbye', exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`authoring-graph-${width}.png`) });
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await expect(page.getByLabel('Message 1 instructions')).toHaveValue('Thank the caller for booking and say goodbye.');
+    await expect(page.getByLabel('Message 1 instructions')).toHaveValue(
+      'Thank the caller for booking and say goodbye.',
+    );
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await page.getByRole('button', { name: 'Inspect goodbye', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await expect(page.getByLabel('Message 1 instructions')).toHaveValue('Thank the caller for booking and say goodbye.');
+    await expect(page.getByLabel('Message 1 instructions')).toHaveValue(
+      'Thank the caller for booking and say goodbye.',
+    );
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await page.getByRole('button', { name: 'Delete goodbye', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Inspect goodbye', exact: true })).toHaveCount(0);
@@ -97,12 +127,19 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Inspect goodbye', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Inspect transition: The caller has no more questions.', exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('button', {
+        name: 'Inspect transition: The caller has no more questions.',
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 }
 
 for (const width of [1440, 390]) {
-  test(`add step dismisses to its trigger without clearing selection at ${width}`, async ({ page }, testInfo) => {
+  test(`add step dismisses to its trigger without clearing selection at ${width}`, async ({
+    page,
+  }, testInfo) => {
     await seedOriginal(page);
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');

@@ -5,23 +5,41 @@ import { POST } from './route';
 test('rejects malformed JSON before reaching Python', async () => {
   const fetcher = vi.fn();
   vi.stubGlobal('fetch', fetcher);
-  const response = await POST(new Request('http://localhost/api/runtime/validate', { method: 'POST', body: '{' }));
+  const response = await POST(
+    new Request('http://localhost/api/runtime/validate', { method: 'POST', body: '{' }),
+  );
   expect(response.status).toBe(400);
   expect(fetcher).not.toHaveBeenCalled();
 });
 
 test.each([true, false])('passes Python acceptance or rejection through: %s', async valid => {
-  const fetcher = vi.fn().mockResolvedValue(Response.json(valid ? { valid } : { valid, error: 'Invalid candidate' }, { status: valid ? 200 : 422 }));
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(
+      Response.json(valid ? { valid } : { valid, error: 'Invalid candidate' }, { status: valid ? 200 : 422 }),
+    );
   vi.stubGlobal('fetch', fetcher);
   const agent = loadAgentFixture('original-scheduler');
-  const response = await POST(new Request('http://localhost/api/runtime/validate', { method: 'POST', body: JSON.stringify(agent) }));
+  const response = await POST(
+    new Request('http://localhost/api/runtime/validate', { method: 'POST', body: JSON.stringify(agent) }),
+  );
   expect((await response.json()).valid).toBe(valid);
   expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(agent);
 });
 
 test('forwards the complete Python error list to the browser', async () => {
   const errors = ['Duplicate node', 'Undefined required property'];
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ valid: false, error: errors.join('\n'), errors }, { status: 422 })));
-  const response = await POST(new Request('http://localhost/api/runtime/validate', { method: 'POST', body: JSON.stringify(loadAgentFixture('original-scheduler')) }));
+  vi.stubGlobal(
+    'fetch',
+    vi
+      .fn()
+      .mockResolvedValue(Response.json({ valid: false, error: errors.join('\n'), errors }, { status: 422 })),
+  );
+  const response = await POST(
+    new Request('http://localhost/api/runtime/validate', {
+      method: 'POST',
+      body: JSON.stringify(loadAgentFixture('original-scheduler')),
+    }),
+  );
   expect(await response.json()).toEqual({ valid: false, error: errors.join('\n'), errors });
 });

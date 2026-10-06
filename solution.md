@@ -12,10 +12,6 @@ those jobs trustworthy. Copilot creation, diagnosis, and iteration are the cente
 of the submission. A complete but small manual builder supports human review.
 If a feature does not materially improve either story, do not build it.
 
-This document defines the intended product and architecture, not a claim that all
-features exist. [README.md](README.md) describes the codebase as it stands.
-[TASKS.md](TASKS.md) alone tracks pending slices, dependencies, and acceptance.
-This spec is frozen; change its scope or architecture only at the user’s request.
 
 ## The two demo stories
 
@@ -34,9 +30,11 @@ a problematic call, ask Copilot to investigate, follow transcript evidence to th
 responsible graph element, review a targeted validated repair, Apply, and retest
 the repaired saved revision. Unrelated configuration must survive the repair.
 
-**Stretch goal only after Stories A and B are complete and reliable:** a user can
-ask Copilot to review recent mocked calls and discover an unflagged issue. This is
-optional, on-demand investigation, not background monitoring.
+**Story C — detection:** the user asks Copilot to review recent calls and tell them
+whether anything looks wrong. Copilot reads each transcript against the saved
+guidelines, including calls that succeeded or that no client reported, flags a real
+violation with cited transcript turns, leaves clean calls alone, and offers the same
+human-reviewed repair. This is on-demand investigation, not background monitoring.
 
 ## Saved agent, drafts, and persistence
 
@@ -104,9 +102,16 @@ The builder displays steps and transitions and supports step selection,
 instruction editing, adding/deleting steps, creating/deleting transitions,
 changing targets, editing natural-language conditions, and configuring collected
 fields. Support text, choice, number, yes/no, and required fields, with start/end
-semantics. Preserve existing dragging, reconnecting, positions, and selection.
+semantics. Preserve dragging, reconnecting, and selection. Automatically recompute readable
+graph positions after structural edits (steps, connections, or start-step changes),
+including applied proposals. Text edits and selection retain dragged positions.
+Rank steps below their forward prerequisites; keep return links explicit.
 Show Save, Cancel, and useful validation errors. Do not add further graph
 sophistication.
+Keep forward connections direct and branch conditions individually readable below
+their source; reserve side routes for returns. Initial framing and Fit preserve a
+readable scale, focusing the selected or start step when the whole graph would be
+too small. Adding shortcuts must not rearrange existing steps.
 
 Graph references from Copilot are structured addresses, not merely text matches.
 A node reference focuses the node; a transition reference identifies its source
@@ -115,6 +120,36 @@ briefly after Apply, and handle deleted/missing references without crashing.
 
 Use existing Tailwind and local shadcn/ui components and pane/chat presentation.
 Preserve usable existing small-screen behavior without a new mobile project.
+
+Agent-level Details opens initially and shows the editable name, a guidelines
+card with an inline plain-text editor, a compact Agent behavior card, and secondary
+Recent calls. Additional details retain agent instructions and start-step controls.
+Save commits the whole draft; Cancel restores it. The footer exposes saved, unsaved,
+and saving states. Node/transition inspectors remain available in Details; graph
+selection updates Copilot context without changing its active tab. Builder/Test
+Call navigation and pane visibility preserve conversation and composer state.
+
+Behavior review is a lightweight, read-only model comparison of saved guidelines
+and configuration: Not reviewed → Review behavior → a few grounded findings.
+Each finding has a verbatim guideline excerpt and relevant structural references,
+validated against the submitted snapshot. Ambiguity prompts clarification; potential
+mismatches can enter the same targeted proposal flow. Review offers a primary
+**Propose all changes** action that sends all potential mismatches as one atomic
+proposal for preview, validation, and explicit Apply. Individual proposal actions
+remain available; ambiguous findings require clarification instead of guessed fixes.
+The review leads with finding counts and the combined proposal action. The full
+model overview and each finding’s evidence expand on demand; render model Markdown
+as formatted text. Reviews are session-only,
+bound to agent ID/revision, and become out of date on runtime or guideline saves.
+They are not a behavior database, rules DSL, or proof of tested compliance.
+
+Recent calls are five labeled synthetic examples served by a mock platform API, only
+for the mocked deployed agent. The read-only viewer stays in Details with numbered
+transcript turns, outcome, feedback, and graph links; focusing a graph element
+retains the transcript. Each call offers **Investigate with Copilot**, and the list
+offers **Review recent calls with Copilot**. Copilot citations to a transcript turn
+open that call at that turn. No invented relative dates or Calls navigation tab.
+Missing historical elements are explicitly unavailable.
 
 ## Validation and mutation ownership
 
@@ -145,7 +180,7 @@ Keep the tool surface to:
 - `get_calls`: list only the active mocked agent's call evidence.
 - `get_call`: read a specific call only if it belongs to that agent.
 
-Introduce the call tools with evidence review. Do not expose separate low-level
+Do not expose separate low-level
 add/delete/update tools or replacement-JSON edits. The model reasons about a
 change and submits the operation batch. Tool results return validation failures
 so Copilot can revise its proposal. Use same-origin Copilot APIs with credentials
@@ -161,10 +196,35 @@ candidate through the shared mutation/repository boundary; it is not an invisibl
 AI edit or a second unsaved draft. Stale proposals cannot Apply, even if their
 content happens to look compatible. Validation unavailability fails closed.
 
+For explicit creation requests, Copilot can turn a pasted plain-text SOP or saved
+guidelines into a complete workflow from the minimal new-agent scaffold using
+the same atomic operation batch. Existing-agent requests preserve unrelated
+steps unless the user explicitly requests replacing the workflow.
+
+The latest completed, validated proposal renders its candidate on the canvas
+before Apply. Blue styling and text labels distinguish proposed new and updated
+steps and transitions from unchanged elements. Preview selection opens read-only
+candidate details; it never edits the saved configuration or changes the saved
+context sent to Copilot. Users can compare with the current workspace, inspect
+the full candidate and removal diff, then Dismiss or Apply. Manual drafts remain
+intact and must be saved or cancelled before Apply. Preview geometry is separate
+from saved graph geometry. Interrupted, superseded, dismissed and stale proposals
+cannot remain the active preview. Test Call always runs the saved agent.
+
 Keep conversation alive through graph selection. Support provider failures,
 malformed model output, invalid operations, unavailable validation, stale context,
 and switching agents during generation without corrupting saved state. Surface
 recoverable errors and a clear way to retry or generate a fresh proposal.
+
+Proposal cards lead with outcome, Why, Behavior affected, and implementation
+changes derived from the actual candidate diff. Separate Python Graph validation,
+exact named Configuration checks, and Model review; label Conversation checks not
+run until actual execution exists. Only the latest completed valid proposal is
+available to Apply. Apply reconstructs and verifies the exact reviewed candidate,
+revalidates, and rechecks identity, revision, workspace and draft state before
+persistence. Invalid, interrupted, dismissed, superseded, stale and applied cards
+remain understandable history. Briefly highlight surviving changes and offer
+Test Call without automatically starting a microphone session.
 
 ## Test Call and conversation quality
 
@@ -192,10 +252,14 @@ transcripts and synthetic recorded tool traces are not live evidence.
 
 ## Mocked production evidence and diagnosis
 
-Use 3–4 synthetic calls for the mocked deployed scheduler: a clean successful
-booking, a client-reported scheduling failure, an unflagged problematic call, and
-an existing-patient booking. Reuse and extend `fixtures/` directly; do not duplicate
-samples. Keep `backend/example_flow.json` as the supplied original example.
+Use five synthetic calls for the mocked deployed scheduler: clean bookings, a
+client-reported scheduling failure, and one unflagged call that violates the
+guidelines (an existing patient is asked for insurance) and has no prewritten issue
+answer. They live in `fixtures/` and are served by a mock platform API
+(`/api/platform/agents/:id/calls`, `/calls/:callId`) with listing, outcome filter,
+cursor pagination, and agent-scoped lookup; a production platform would replace that
+one module and its handlers. Keep `backend/example_flow.json` as the supplied
+original example.
 
 Each call has a stable call ID, agent ID, transcript, outcome, graph path/relevant
 nodes, and optional client feedback. A source agent revision may be included to
@@ -214,15 +278,16 @@ For the Friday failure, explain the conflict between new-patient scheduling rule
 and `offer_times`, then propose the smallest necessary patch. Preserve
 existing-patient scheduling, insurance behavior, and unrelated configuration.
 Validate, review, Apply, and immediately offer a Test Call of the repaired revision.
-For the optional unflagged-discovery stretch goal, inspect call evidence rather
-than reading a prewritten issue answer; show evidence and offer the same
-human-reviewed repair flow.
+For discovery, inspect call evidence rather than reading a prewritten issue answer;
+show evidence and offer the same human-reviewed repair flow. A citation is rendered
+as a link only when the same conversation holds a `get_call` result containing that
+turn; otherwise it is shown as unverified.
 
 ## Deliberate exclusions
 
 Do not build auth/login/users, teams/organizations, roles/permissions, billing,
 marketplaces, a general dashboard, databases/PostgreSQL, queues/Redis, real call
-ingestion, background agents/monitoring/alerts, embeddings, analytics/custom
+ingestion (the mock platform API is the stand-in), background agents/monitoring/alerts, embeddings, analytics/custom
 reporting, or a full observability stack. No EHR, scheduling-provider integration,
 patient records, or HIPAA platform work.
 

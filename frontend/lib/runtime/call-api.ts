@@ -1,17 +1,30 @@
 import { z } from 'zod';
 import { agentSchema } from '@/lib/agent/schema';
 
-export const callOfferSchema = z.object({ agent: agentSchema, sdp: z.string().min(1), type: z.literal('offer') }).strict();
-export const callAnswerSchema = z.object({ sdp: z.string().min(1), type: z.literal('answer'), pc_id: z.string() });
+export const callOfferSchema = z
+  .object({ agent: agentSchema, sdp: z.string().min(1), type: z.literal('offer') })
+  .strict();
+export const callAnswerSchema = z.object({
+  sdp: z.string().min(1),
+  type: z.literal('answer'),
+  pc_id: z.string(),
+});
 
-export async function requestCallAnswer(offer: z.infer<typeof callOfferSchema>, options: { url?: string; fetcher?: typeof fetch; signal?: AbortSignal } = {}) {
+export async function requestCallAnswer(
+  offer: z.infer<typeof callOfferSchema>,
+  options: { url?: string; fetcher?: typeof fetch; signal?: AbortSignal } = {},
+) {
   let response: Response;
   try {
     response = await (options.fetcher ?? fetch)(options.url ?? '/api/runtime/call', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(offer),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(offer),
       signal: options.signal ?? AbortSignal.timeout(20_000),
     });
-  } catch { throw new Error('Voice runtime unavailable. Check that the voice backend is running and try again.'); }
+  } catch {
+    throw new Error('Voice runtime unavailable. Check that the voice backend is running and try again.');
+  }
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = z.object({ error: z.string() }).safeParse(data);

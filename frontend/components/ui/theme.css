@@ -1,8 +1,6 @@
 /* Shared light-theme tokens for the builder and shadcn/ui controls. */
 @theme {
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
   /* Standard shadcn roles mapped to the settled light theme. */
   --color-background: var(--ui-surface-raised);
@@ -44,6 +42,8 @@
   --color-error-text: var(--ui-error-text);
   --color-error-content: var(--ui-error-content);
   --color-error-soft: var(--ui-error-soft);
+  --color-proposal: var(--ui-proposal);
+  --color-proposal-soft: var(--ui-proposal-soft);
   --color-evidence: var(--ui-evidence);
 
   /* Elevation: flat surfaces use a border; these lift above the page. */
@@ -55,22 +55,23 @@
   --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-glide: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-
 }
 
 :root {
   color-scheme: light;
-  --ui-app-chrome: oklch(0.955 0.004 255);
-  --ui-workspace: oklch(0.992 0.002 255);
-  --ui-surface: oklch(0.973 0.003 255);
+  --ui-proposal: oklch(0.46 0.2 265);
+  --ui-proposal-soft: oklch(0.96 0.025 265);
+  --ui-app-chrome: oklch(0.97 0 0);
+  --ui-workspace: oklch(0.992 0 0);
+  --ui-surface: oklch(0.97 0 0);
   --ui-surface-raised: oklch(1 0 0);
-  --ui-border: oklch(0.905 0.005 255);
-  --ui-border-strong: oklch(0.84 0.007 255);
-  --ui-base-content: oklch(0.21 0.012 260);
-  --ui-text-muted: oklch(0.44 0.013 260);
-  --ui-text-subtle: oklch(0.53 0.012 260);
-  --ui-selection: oklch(0.94 0.006 255);
-  --ui-primary: oklch(0.23 0.012 260);
+  --ui-border: oklch(0.922 0 0);
+  --ui-border-strong: oklch(0.82 0 0);
+  --ui-base-content: oklch(0.2 0 0);
+  --ui-text-muted: oklch(0.46 0 0);
+  --ui-text-subtle: oklch(0.53 0 0);
+  --ui-selection: oklch(0.945 0 0);
+  --ui-primary: oklch(0.2 0 0);
   --ui-primary-content: oklch(0.99 0 0);
   --ui-accent: var(--ui-primary);
   --ui-accent-text: var(--ui-primary);
@@ -83,11 +84,6 @@
   --ui-error-content: oklch(0.99 0 0);
   --ui-error-soft: oklch(0.6 0.2 25 / 10%);
   --ui-evidence: oklch(0.9 0.12 90 / 70%);
-  --ui-shadow-raised:
-    0 1px 2px oklch(0.2 0.01 260 / 6%),
-    0 4px 12px -4px oklch(0.2 0.01 260 / 10%);
-  --ui-shadow-overlay:
-    0 2px 4px oklch(0.2 0.01 260 / 6%),
-    0 16px 40px -12px oklch(0.2 0.01 260 / 22%);
+  --ui-shadow-raised: 0 1px 2px oklch(0.2 0.01 260 / 6%), 0 4px 12px -4px oklch(0.2 0.01 260 / 10%);
+  --ui-shadow-overlay: 0 2px 4px oklch(0.2 0.01 260 / 6%), 0 16px 40px -12px oklch(0.2 0.01 260 / 22%);
 }
-

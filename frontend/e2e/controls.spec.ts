@@ -1,10 +1,16 @@
+import { revealAgentFields } from './seed';
 import { expect, test } from '@playwright/test';
 import { seedOriginal } from './seed';
 
 test('dropdown Escape preserves drafts; keyboard selection updates the routing draft', async ({ page }) => {
   await seedOriginal(page);
   await page.goto('/');
-  await page.getByRole('button', { name: "Inspect transition: Record the caller's name and reason once both are known.", exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: "Inspect transition: Record the caller's name and reason once both are known.",
+      exact: true,
+    })
+    .click();
   const condition = page.getByLabel('Transition condition', { exact: true });
   await condition.fill('Keep this unsaved condition');
   const target = page.getByRole('combobox', { name: 'Target node' });
@@ -17,6 +23,7 @@ test('dropdown Escape preserves drafts; keyboard selection updates the routing d
   await expect(condition).toHaveValue('Keep this unsaved condition');
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled();
   await target.press('Enter');
+  await expect(page.getByRole('listbox')).toBeVisible();
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await expect(target).toHaveText('Confirm');
@@ -33,6 +40,7 @@ for (const width of [1440, 390]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await revealAgentFields(page);
     const guidelines = page.getByLabel('Client guidelines');
     await guidelines.fill('Keep my work');
     const selector = page.getByRole('combobox', { name: 'Saved agent' });

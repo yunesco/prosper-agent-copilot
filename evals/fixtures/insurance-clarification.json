@@ -1,0 +1,12 @@
+{
+  "id": "insurance-clarification",
+  "agent_id": "clinic-scheduler",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "Existing patients should skip insurance. Clarify the collect_details instructions and relevant transition condition so insurance is requested only for new patients. Keep scheduling and every other configuration unchanged. Propose a targeted change.",
+  "expected": {
+    "tools_in_order": ["get_agent", "propose_agent_patch"],
+    "changed_nodes": ["collect_details"],
+    "requires_approval": true
+  }
+}

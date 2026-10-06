@@ -1,0 +1,34 @@
+{
+  "id": "existing-patient-booking",
+  "agent_id": "clinic-scheduler",
+  "title": "Existing-patient Friday booking",
+  "duration_seconds": 52,
+  "outcome": "successful",
+  "graph_path": [
+    "collect_details",
+    "offer_times",
+    "confirm"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "May I have your name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Alex Example, March 3, 1985. I am an existing patient."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith is available Monday at 10 AM or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Friday at 2 PM, please."
+    },
+    {
+      "role": "assistant",
+      "text": "You’re booked for Friday at 2 PM. Goodbye."
+    }
+  ]
+}

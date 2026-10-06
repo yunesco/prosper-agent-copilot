@@ -4,9 +4,18 @@ import { loadAgentFixture } from '../fixtures';
 
 function setup() {
   let raw: string | null = null;
-  const storage = { getItem: vi.fn(() => raw), setItem: vi.fn((_key: string, value: string) => { raw = value; }) };
+  const storage = {
+    getItem: vi.fn(() => raw),
+    setItem: vi.fn((_key: string, value: string) => {
+      raw = value;
+    }),
+  };
   const validate = vi.fn(async () => {});
-  const repository = new LocalAgentRepository(() => storage, validate, () => 'generated');
+  const repository = new LocalAgentRepository(
+    () => storage,
+    validate,
+    () => 'generated',
+  );
   return { repository, storage, validate, raw: () => raw };
 }
 
@@ -14,29 +23,43 @@ test('initializes two independent validated records once and reloads selection',
   const { repository, storage, validate } = setup();
   const doc = await repository.initialize();
   expect(doc.selectedId).toBe('generated');
-  expect(doc.agents.map(a => [a.id, a.revision])).toEqual([['generated', 1], ['clinic-scheduler', 1]]);
+  expect(doc.agents.map(a => [a.id, a.revision])).toEqual([
+    ['generated', 1],
+    ['clinic-scheduler', 1],
+  ]);
   expect(doc.agents[0].agent.nodes[0]).toMatchObject({ name: 'start', end: true });
   expect(doc.agents[1].agent).toEqual(loadAgentFixture('clinic-scheduler'));
   expect(validate).toHaveBeenCalledTimes(2);
   repository.selectAgent('clinic-scheduler');
-  expect((await new LocalAgentRepository(() => storage, validate).initialize()).selectedId).toBe('clinic-scheduler');
+  expect((await new LocalAgentRepository(() => storage, validate).initialize()).selectedId).toBe(
+    'clinic-scheduler',
+  );
   expect(validate).toHaveBeenCalledTimes(2);
   expect((await repository.getAgent('clinic-scheduler')).revision).toBe(1);
 });
 
-test.each(['{', '{"version":2}', JSON.stringify({ version: 1, selectedId: 'missing', agents: [] })])('preserves malformed or unsupported storage: %s', async raw => {
-  const storage = { getItem: () => raw, setItem: vi.fn() };
-  await expect(new LocalAgentRepository(() => storage).initialize()).rejects.toThrow('malformed');
-  expect(storage.setItem).not.toHaveBeenCalled();
-});
+test.each(['{', '{"version":2}', JSON.stringify({ version: 1, selectedId: 'missing', agents: [] })])(
+  'preserves malformed or unsupported storage: %s',
+  async raw => {
+    const storage = { getItem: () => raw, setItem: vi.fn() };
+    await expect(new LocalAgentRepository(() => storage).initialize()).rejects.toThrow('malformed');
+    expect(storage.setItem).not.toHaveBeenCalled();
+  },
+);
 
 test('denied storage, validation failure and failed writes cannot initialize ephemeral state', async () => {
-  await expect(new LocalAgentRepository(() => { throw new Error('denied'); }).initialize()).rejects.toThrow('denied');
+  await expect(
+    new LocalAgentRepository(() => {
+      throw new Error('denied');
+    }).initialize(),
+  ).rejects.toThrow('denied');
   const { repository, validate, storage, raw } = setup();
   validate.mockRejectedValueOnce(new Error('invalid'));
   await expect(repository.initialize()).rejects.toThrow('invalid');
   expect(raw()).toBeNull();
-  storage.setItem.mockImplementationOnce(() => { throw new Error('quota'); });
+  storage.setItem.mockImplementationOnce(() => {
+    throw new Error('quota');
+  });
   await expect(repository.initialize()).rejects.toThrow('quota');
   expect(raw()).toBeNull();
 });
@@ -57,11 +80,16 @@ test('no-ops preserve revisions, guidelines increment once, native payloads surv
 
 test('failed saves leave exact persisted bytes untouched and allow retry', async () => {
   const { repository, storage, validate, raw } = setup();
-  const base = (await repository.initialize()).agents[0], before = raw();
+  const base = (await repository.initialize()).agents[0],
+    before = raw();
   validate.mockRejectedValueOnce(new Error('invalid'));
-  await expect(repository.saveAgent(base.id, { ...base, guidelines: 'changed' }, 1)).rejects.toThrow('invalid');
+  await expect(repository.saveAgent(base.id, { ...base, guidelines: 'changed' }, 1)).rejects.toThrow(
+    'invalid',
+  );
   expect(raw()).toBe(before);
-  storage.setItem.mockImplementationOnce(() => { throw new Error('quota'); });
+  storage.setItem.mockImplementationOnce(() => {
+    throw new Error('quota');
+  });
   await expect(repository.saveAgent(base.id, { ...base, guidelines: 'changed' }, 1)).rejects.toThrow('quota');
   expect(raw()).toBe(before);
   expect((await repository.saveAgent(base.id, { ...base, guidelines: 'changed' }, 1)).revision).toBe(2);
@@ -71,35 +99,61 @@ test('overlapping validation resolves out of order without overwriting a newer r
   const { repository, validate } = setup();
   const base = (await repository.initialize()).agents[0];
   let release = () => {};
-  validate.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+  validate.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        release = resolve;
+      }),
+  );
   const pending = repository.saveAgent(base.id, { ...base, guidelines: 'old' }, 1);
   await repository.saveAgent(base.id, { ...base, guidelines: 'new' }, 1);
   const rejected = expect(pending).rejects.toThrow('changed');
-  release(); await rejected;
+  release();
+  await rejected;
   expect((await repository.getAgent(base.id)).guidelines).toBe('new');
 });
 
 test('context generations reject switch-away/switch-back and canceled candidates after validation', async () => {
   const { repository, validate } = setup();
   const base = (await repository.initialize()).agents[0];
-  let generation = 1, release = () => {};
-  validate.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+  let generation = 1,
+    release = () => {};
+  validate.mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        release = resolve;
+      }),
+  );
   const captured = generation;
-  const pending = commitAgent(repository, base, [{ type: 'update_agent', changes: { name: 'late' } }], 'late', () => {
-    if (generation !== captured) throw new Error('stale context');
-  });
-  repository.selectAgent('clinic-scheduler'); generation++;
-  repository.selectAgent(base.id); generation++;
+  const pending = commitAgent(
+    repository,
+    base,
+    [{ type: 'update_agent', changes: { name: 'late' } }],
+    'late',
+    () => {
+      if (generation !== captured) throw new Error('stale context');
+    },
+  );
+  repository.selectAgent('clinic-scheduler');
+  generation++;
+  repository.selectAgent(base.id);
+  generation++;
   const rejected = expect(pending).rejects.toThrow('stale context');
-  release(); await rejected;
+  release();
+  await rejected;
   expect(await repository.getAgent(base.id)).toEqual(base);
 });
 
 test('create validates, assigns identity and revision, and does not change selection', async () => {
   const { repository, storage, validate } = setup();
   const initial = await repository.initialize();
-  const creator = new LocalAgentRepository(() => storage, validate, () => 'another');
+  const creator = new LocalAgentRepository(
+    () => storage,
+    validate,
+    () => 'another',
+  );
   const record = await creator.createAgent(initial.agents[0]);
-  expect(record.id).toBe('another'); expect(record.revision).toBe(1);
+  expect(record.id).toBe('another');
+  expect(record.revision).toBe(1);
   expect(JSON.parse(storage.getItem()!).selectedId).toBe(initial.selectedId);
 });

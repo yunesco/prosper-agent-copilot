@@ -4,7 +4,10 @@ import { ConnectionMode, XYHandle } from '@xyflow/system';
 import { agentGraph } from './graph';
 import { loadAgentFixture } from '../fixtures';
 
-afterEach(() => { document.body.replaceChildren(); vi.restoreAllMocks(); });
+afterEach(() => {
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+});
 
 test('generated handles work with the installed React Flow selector and connection validation', () => {
   const agent = loadAgentFixture('original-scheduler');
@@ -23,9 +26,15 @@ test('generated handles work with the installed React Flow selector and connecti
       // Exercise XYHandle.isValid itself: its querySelector interpolates IDs
       // without escaping quotes. Raw JSON tuples threw before reaching validation.
       const result = XYHandle.isValid(new MouseEvent('mousemove'), {
-        handle: { id, nodeId, type }, connectionMode: ConnectionMode.Strict,
-        fromNodeId: 'other', fromHandleId: 'new', fromType: type === 'source' ? 'target' : 'source',
-        doc: document, lib: 'react', flowId: '1', nodeLookup: new Map(),
+        handle: { id, nodeId, type },
+        connectionMode: ConnectionMode.Strict,
+        fromNodeId: 'other',
+        fromHandleId: 'new',
+        fromType: type === 'source' ? 'target' : 'source',
+        doc: document,
+        lib: 'react',
+        flowId: '1',
+        nodeLookup: new Map(),
       });
       expect(result.handleDomNode).toBe(element);
       expect(result.isValid).toBe(true);

@@ -1,53 +1,58 @@
 import { seedOriginal } from './seed';
 import { expect, test, type Page } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => { await seedOriginal(page); });
+test.beforeEach(async ({ page }) => {
+  await seedOriginal(page);
+});
 
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
-for (const [width, height] of [[1440, 900], [390, 844]]) {
-  test(`shell and preview at ${width}x${height}`, async ({ page }, testInfo) => {
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+]) {
+  test(`shell and Copilot pane at ${width}x${height}`, async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width, height });
     await page.goto('/');
     await expect(page.locator('main > header').getByRole('navigation', { name: 'Agent mode' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Test Call' })).toBeEnabled();
-    await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('textbox', { name: 'Agent name', includeHidden: true })).toHaveValue('Prosper Scheduler');
+    await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await expect(page.getByRole('textbox', { name: 'Agent name', includeHidden: true })).toHaveValue(
+      'Prosper Scheduler',
+    );
     await noOverflow(page);
     const shell = testInfo.outputPath(`shell-${width}.png`);
     await page.screenshot({ path: shell, fullPage: true });
     await testInfo.attach(`shell-${width}`, { path: shell, contentType: 'image/png' });
-    await page.goto('/preview/ui');
-    await page.getByLabel('Chat state').selectOption('complete');
-    await page.getByRole('button', { name: 'Worst case', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
     await expect(page.getByLabel('Message Copilot')).toBeVisible();
-    await expect(page.getByText('Synthetic data', { exact: false }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Worst case', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await page.getByRole('region', { name: 'Conversation messages' }).evaluate(element => { element.scrollTop = 0; });
     await noOverflow(page);
-    const preview = testInfo.outputPath(`preview-${width}.png`);
-    await page.screenshot({ path: preview, fullPage: true });
-    await testInfo.attach(`preview-${width}`, { path: preview, contentType: 'image/png' });
+    const copilot = testInfo.outputPath(`copilot-${width}.png`);
+    await page.screenshot({ path: copilot, fullPage: true });
+    await testInfo.attach(`copilot-${width}`, { path: copilot, contentType: 'image/png' });
     expect(errors).toEqual([]);
   });
 }
 
 test('pane keyboard, pointer cancellation, bounds, reset and focus retention', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/preview/ui');
-  const note = page.getByLabel('Workspace note');
-  await note.fill('Keep this note');
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
   const draft = page.getByLabel('Message Copilot');
   await draft.fill('Keep this draft');
   await page.getByRole('button', { name: 'Close details', exact: true }).click();
-  await expect(note).toBeFocused();
   await expect(draft).toBeHidden();
   await page.getByRole('button', { name: 'Open details', exact: true }).click();
   await expect(draft).toHaveValue('Keep this draft');
@@ -88,67 +93,25 @@ test('pane keyboard, pointer cancellation, bounds, reset and focus retention', a
   await page.mouse.up();
   await expect(divider).toHaveAttribute('aria-valuenow', '49');
   await divider.focus();
-  expect(await divider.evaluate(element => getComputedStyle(element.firstElementChild!).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  expect(
+    await divider.evaluate(element => getComputedStyle(element.firstElementChild!).backgroundColor),
+  ).not.toBe('rgba(0, 0, 0, 0)');
 });
 
 test('mobile panes retain drafts and focus; resizing across breakpoint retains context', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/preview/ui');
-  const note = page.getByLabel('Workspace note');
-  await note.fill('Mobile note');
+  await page.goto('/');
   await page.getByRole('button', { name: 'Details', exact: true }).click();
+  await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
   const draft = page.getByLabel('Message Copilot');
   await draft.fill('Mobile draft');
   await page.getByRole('button', { name: 'Graph', exact: true }).click();
-  await expect(note).toHaveValue('Mobile note');
-  await expect(note).toBeFocused();
   await page.getByRole('button', { name: 'Details', exact: true }).click();
   await expect(draft).toHaveValue('Mobile draft');
   await expect(draft).toBeFocused();
   await page.setViewportSize({ width: 1024, height: 768 });
-  await expect(note).toBeVisible();
   await expect(draft).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(draft).toBeFocused();
-  await noOverflow(page);
-});
-
-test('chat preview states, streaming chunks, send, stop, retry, activity and independent scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/preview/ui');
-  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
-  await page.getByLabel('Message Copilot').fill('   ');
-  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
-  await page.getByLabel('Message Copilot').fill('Show the synthetic state');
-  await page.getByLabel('Message Copilot').press('Enter');
-  await expect(page.getByText('Waiting for a response…')).toBeVisible();
-  await page.getByRole('button', { name: 'Stop', exact: true }).click();
-  await expect(page.getByText('Response stopped.')).toBeVisible();
-  await page.getByRole('button', { name: 'Retry response' }).click();
-  await expect(page.getByText('Waiting for a response…')).toBeVisible();
-  await page.getByLabel('Chat state').selectOption('streaming');
-  await page.getByRole('button', { name: 'Next chunk' }).click();
-  await expect(page.getByRole('article', { name: 'Copilot response' }).locator('strong')).toHaveText('synthetic preview');
-  await page.getByLabel('Chat state').selectOption('error');
-  await expect(page.getByText('Couldn’t complete the response. Try again.')).toBeVisible();
-  await page.getByText('Activity (1)', { exact: true }).click();
-  await expect(page.getByText('Failed', { exact: true })).toBeVisible();
-  await page.getByLabel('Chat state').selectOption('complete');
-  await page.getByRole('button', { name: 'Worst case', exact: true }).click();
-  for (let i = 0; i < 5; i++) await page.getByRole('button', { name: 'Append sample' }).click();
-  const messages = page.getByRole('region', { name: 'Conversation messages' });
-  await messages.evaluate(element => { element.scrollTop = 0; });
-  await expect(page.getByRole('button', { name: 'Jump to latest' })).toBeVisible();
-  await page.getByRole('button', { name: 'Append sample' }).click();
-  expect(await messages.evaluate(element => element.scrollTop)).toBe(0);
-  await page.getByRole('button', { name: 'Jump to latest' }).click();
-  await expect(page.getByRole('button', { name: 'Jump to latest' })).toBeHidden();
-  const workspace = page.locator('[data-pane-content="workspace"]');
-  expect(await workspace.evaluate(element => element.scrollTop)).toBe(0);
-  await workspace.evaluate(element => { element.scrollTop = 300; });
-  await page.getByRole('button', { name: 'Close details', exact: true }).click();
-  await page.getByRole('button', { name: 'Open details', exact: true }).click();
-  expect(await workspace.evaluate(element => element.scrollTop)).toBe(300);
   await noOverflow(page);
 });
