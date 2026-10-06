@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test, type Page } from '@playwright/test';
+
+test.beforeEach(async ({ page }, info) => { if (!info.title.startsWith('switching saved agents')) await seedOriginal(page); });
 import fridayCall from '../../fixtures/calls/new-patient-friday.json' with { type: 'json' };
 import { agentSchema } from '../lib/agent/schema';
 
@@ -69,12 +72,19 @@ for (const width of [1440, 390]) {
     await goal.fill('Say: This is the edited call. Then collect name and DOB.');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Changes saved', { exact: true })).toBeVisible();
+    await page.reload();
+    const savedPayload = await page.evaluate(() => { const doc = JSON.parse(localStorage.getItem('prosper.agents.v1')!); return doc.agents.find((record: { id: string }) => record.id === doc.selectedId).agent; });
+    await page.getByRole('button', { name: 'Inspect collect_details', exact: true }).click();
+    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await goal.fill('An unsaved draft must not reach voice.');
     await page.getByRole('button', { name: 'Test Call', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Call', exact: true }).click();
     await page.getByRole('button', { name: 'Start call', exact: true }).click();
     await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
+    await expect(page.getByText('Saved agent original-scheduler · Revision 2')).toBeVisible();
+    await expect(page.getByText('Unsaved drafts are excluded from Test Call.')).toBeVisible();
     expect(agents).toHaveLength(2);
+    expect(agents[1]).toEqual(savedPayload);
     const first = agentSchema.parse(agents[0]);
     const second = agentSchema.parse(agents[1]);
     expect(first.nodes.find(node => node.name === 'collect_details')?.task_messages).not.toEqual(second.nodes.find(node => node.name === 'collect_details')!.task_messages);
@@ -188,3 +198,31 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: info.outputPath(`transcript-${width}.png`) });
   });
 }
+
+
+test('switching saved agents stops active calls, clears context and releases tracks', async ({ page }) => {
+  await mockVoice(page);
+  const agents: unknown[] = [];
+  await page.route('**/api/runtime/call', route => {
+    agents.push(route.request().postDataJSON().agent);
+    return route.fulfill({ json: { sdp: 'answer', type: 'answer', pc_id: 'test' } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Test Call', exact: true }).click();
+  await page.getByRole('button', { name: 'Start call', exact: true }).click();
+  await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
+  await page.getByLabel('Saved agent', { exact: true }).click();
+  await page.getByRole('option', { name: 'Mocked existing deployed agent', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(1);
+  await page.getByRole('button', { name: 'Test Call', exact: true }).click();
+  await expect(page.getByRole('log')).not.toContainText('I need an appointment.');
+  await page.getByRole('button', { name: 'Start call', exact: true }).click();
+  await expect(page.getByText('Saved agent clinic-scheduler · Revision 1')).toBeVisible();
+  await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
+  expect(agentSchema.parse(agents[0]).initial_node).toBe('start');
+  expect(agentSchema.parse(agents[1]).initial_node).toBe('collect_details');
+  // Stay in the same document: a hard navigation resets the injected track counter.
+  await page.getByRole('button', { name: 'Builder', exact: true }).click();
+  await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(2);
+});

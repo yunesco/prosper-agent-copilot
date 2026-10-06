@@ -6,38 +6,9 @@ than appending history. All items below are pending; existing foundations are
 reused, not scheduled for a rebuild. Derive implementation from the existing code
 against the frozen spec; do not reopen architecture planning.
 
-## 1. Saved agent repository and context — NEXT
+## 2. Integrated Copilot and reviewed structured proposals — NEXT
 
-**Status:** ready. **Dependencies:** existing operations, Python validation, draft
-editor, and current-agent Test Call bridge.
-
-- [ ] Add a parsed saved-record contract with stable ID, revision, runtime agent,
-  and plain-text guidelines; implement an AgentRepository with localStorage.
-- [ ] Support creating a minimal valid agent and selecting the existing mocked
-  scheduler under the label “Mocked existing deployed agent.” Reuse fixtures.
-- [ ] Route manual Save through candidate operations, Python validation, and a
-  revision-checked repository commit. Commit graph and guideline drafts together.
-- [ ] Restore saved agents after refresh; Cancel restores saved values. Increment
-  revision once per meaningful commit, including guideline-only changes; not for
-  no-ops, selection, or geometry.
-- [ ] Reject commits whose agent ID or expected revision no longer matches the
-  active saved record; recheck after asynchronous validation. Surface malformed/
-  unavailable storage safely. Cross-browser-tab coordination is out of scope.
-- [ ] Protect dirty drafts on agent switch; isolate selection and asynchronous
-  completions by agent. Stop active calls on switch.
-- [ ] Keep Test Call on the exact saved payload and show its saved ID/revision;
-  clearly distinguish any unsaved draft from the call's configuration.
-
-**Acceptance:** refresh preserves two distinct saved agents and their guidelines;
-Cancel and failed validation/storage leave saved state unchanged. Overlapping
-saves within the active app cannot overwrite a newer revision. Switching agents
-during a save cannot alter the new selection. A call after Save uses the committed payload,
-while a call with an unsaved draft uses the labeled saved version. Focused unit,
-integration, e2e, desktop/mobile inspection, and an actual call cover the change.
-
-## 2. Integrated Copilot and reviewed structured proposals
-
-**Status:** pending. **Dependencies:** 1.
+**Status:** ready. **Dependencies:** existing saved-agent repository and context.
 
 - [ ] Integrate the existing chat presentation into Builder's Details | Copilot
   pane using AI SDK state and a same-origin server API.
@@ -65,7 +36,7 @@ interaction and desktop/mobile layout, and run a live Copilot eval.
 
 ## 3. Story A: guidelines to working agent and real call
 
-**Status:** pending. **Dependencies:** 1–2.
+**Status:** pending. **Dependencies:** 2.
 
 - [ ] Exercise creation from a minimal valid agent with the demo clinic guidelines:
   name, DOB, patient type, new-patient-only insurance, existing-patient bypass,
@@ -91,7 +62,7 @@ the demo’s live voice behavior without requiring every scenario to run live.
 
 ## 4. Mocked call evidence and minimal production review
 
-**Status:** pending. **Dependencies:** 1. Implement after Story A to keep focus.
+**Status:** pending. **Dependencies:** existing saved-agent repository. Implement after Story A to keep focus.
 
 - [ ] Extend the two existing call fixtures to 3–4 covering clean success, reported
   failure, unflagged problem, and existing-patient booking; use stable call/agent

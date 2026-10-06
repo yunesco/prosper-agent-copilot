@@ -6,7 +6,7 @@ import { CallTranscript } from './TestCall';
 import type { useTestCall } from './use-test-call';
 
 const call: ReturnType<typeof useTestCall> = {
-  status: 'connected', active: true, error: '', start: vi.fn(), stop: vi.fn(),
+  identity: null, status: 'connected', active: true, error: '', start: vi.fn(), stop: vi.fn(),
   transcript: [{ role: 'assistant', text: 'Hello', segment: 1 }],
 };
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

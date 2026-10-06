@@ -1,11 +1,11 @@
 'use client';
 
-import { type ComponentProps, useCallback, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Background, MarkerType, Panel, ReactFlow, ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react';
 import { Maximize, Plus, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/Button';
 import { agentGraph } from '@/lib/agent/graph';
 import type { AgentConfig } from '@/lib/agent/schema';
@@ -28,7 +28,7 @@ function GraphControls({ onAdd, pending }: { onAdd: () => void; pending: boolean
   </Panel>;
 }
 
-function GraphCanvas({ agent, selectedTransitionFunction = null, selectedNodeId, onSelect, onSelectTransition, onAddStep, onDeleteStep, onConnectSteps, onReconnectStep, pending = false }: { selectedTransitionFunction?: string | null; onConnectSteps?: (source: string, target: string) => void; onReconnectStep?: (source: string, name: string, nextSource: string, target: string) => void; onAddStep?: (name: string, source: string | null, end: boolean, condition: string, goal: string) => string; onDeleteStep?: (name: string) => void; pending?: boolean; agent: AgentConfig; selectedNodeId: string | null; onSelect: (id: string | null) => void; onSelectTransition: (source: string, index: number) => void }) {
+function GraphCanvas({ initialPositions, onPositionsChange, agent, selectedTransitionFunction = null, selectedNodeId, onSelect, onSelectTransition, onAddStep, onDeleteStep, onConnectSteps, onReconnectStep, pending = false }: { initialPositions?: Record<string, XYPosition>; onPositionsChange?: (positions: Record<string, XYPosition>) => void; selectedTransitionFunction?: string | null; onConnectSteps?: (source: string, target: string) => void; onReconnectStep?: (source: string, name: string, nextSource: string, target: string) => void; onAddStep?: (name: string, source: string | null, end: boolean, condition: string, goal: string) => string; onDeleteStep?: (name: string) => void; pending?: boolean; agent: AgentConfig; selectedNodeId: string | null; onSelect: (id: string | null) => void; onSelectTransition: (source: string, index: number) => void }) {
   const { screenToFlowPosition } = useReactFlow();
   const container = useRef<HTMLDivElement>(null);
   const reconnecting = useRef(false);
@@ -49,7 +49,8 @@ function GraphCanvas({ agent, selectedTransitionFunction = null, selectedNodeId,
     setAdding({ source, animate: !addTrigger.current?.matches(':focus-visible'), point: local, position: point ? screenToFlowPosition(point) : undefined });
   }, [screenToFlowPosition]);
   const graph = useMemo(() => agentGraph(agent), [agent]);
-  const [positions, setPositions] = useState<Record<string, XYPosition>>(() => Object.fromEntries(graph.nodes.map(node => [node.id, node.position])));
+  const [positions, setPositions] = useState<Record<string, XYPosition>>(() => initialPositions || Object.fromEntries(graph.nodes.map(node => [node.id, node.position])));
+  useEffect(() => { onPositionsChange?.(positions); }, [onPositionsChange, positions]);
   const [measurements, setMeasurements] = useState<Record<string, { width: number; height: number }>>({});
   // Retain presentation positions across topology edits; new steps get the initial layout.
   if (graph.nodes.some(node => !positions[node.id])) {
@@ -109,12 +110,11 @@ function GraphCanvas({ agent, selectedTransitionFunction = null, selectedNodeId,
       onNodeClick={(_, node) => onSelect(node.id)}
       onPaneClick={() => onSelect(null)} fitView fitViewOptions={{ padding: 0.3, maxZoom: 1 }} minZoom={0.2} maxZoom={2}>
       <Background gap={20} size={0.7} /><GraphControls onAdd={() => openAdd(null)} pending={pending || !onAddStep} />
-      {onConnectSteps && <Panel position="bottom-center" className="pointer-events-none rounded-full border border-ui-border bg-surface-raised px-3 py-2 text-center text-xs text-text-muted">Drag + to connect · Drag either arrow end to reroute</Panel>}
       {adding && <Panel position="top-left" style={adding.point ? { left: adding.point.x, top: adding.point.y } : undefined} className={cn(adding.point ? "!m-0" : "!mt-16", " max-h-[calc(100%-5rem)] w-80 max-w-[calc(100%-2rem)] overflow-y-auto overscroll-contain rounded-xl bg-surface-raised p-4 shadow-overlay", adding.animate && "motion-safe:transition-[opacity,translate] motion-safe:duration-150 motion-safe:ease-snappy motion-safe:starting:opacity-0 motion-safe:starting:-translate-y-1")}>
         <form aria-label="Add step" className="space-y-4" onSubmit={event => { event.preventDefault(); if (pending || !goal.trim() || (adding.source !== null && !condition.trim()) || !name.trim()) return; const nodeId = onAddStep?.(name, adding.source, kind === 'end', condition, goal); if (nodeId && adding.position) setPositions(current => ({ ...current, [nodeId]: adding.position! })); setAdding(null); }}>
           <div className="flex items-center justify-between"><h3 className="text-sm font-medium">{adding.source ? 'Add connected step' : 'Add step'}</h3><Button type="button" variant="ghost" size="icon" aria-label="Close add step" onClick={closeAdd}><X /></Button></div>
           <label className="block space-y-1 text-xs">Step name<Input autoFocus aria-label="Step name" placeholder="e.g. Collect insurance" value={name} onChange={event => setName(event.target.value)} /></label>
-          <label className="block space-y-1 text-xs">Step type<NativeSelect aria-label="Step type" value={kind} onChange={event => { setKind(event.target.value); if (event.target.value === 'end' && !goal.trim()) setGoal('Say goodbye.'); }}><NativeSelectOption value="conversation">Conversation</NativeSelectOption><NativeSelectOption value="end">End conversation</NativeSelectOption></NativeSelect></label>
+          <label className="block space-y-1 text-xs">Step type<Select value={kind} onValueChange={value => { if (!value) return; setKind(value); if (value === 'end' && !goal.trim()) setGoal('Say goodbye.'); }}><SelectTrigger aria-label="Step type"><SelectValue>{kind === 'end' ? 'End conversation' : 'Conversation'}</SelectValue></SelectTrigger><SelectContent><SelectItem value="conversation">Conversation</SelectItem><SelectItem value="end">End conversation</SelectItem></SelectContent></Select></label>
           <label className="block space-y-1.5 text-xs font-medium">Conversation goal<Textarea aria-label="Conversation goal" className="min-h-24 resize-y font-normal leading-6" placeholder="e.g. Ask which insurance provider the caller uses." value={goal} onChange={event => setGoal(event.target.value)} /></label>
           {adding.source !== null && <label className="block space-y-1.5 border-t border-ui-border pt-3 text-xs font-medium">When to enter this step<Textarea aria-label="New transition condition" className="min-h-24 resize-y font-normal leading-6" placeholder="e.g. The caller is a new patient." value={condition} onChange={event => setCondition(event.target.value)} /></label>}
 

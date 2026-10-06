@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await seedOriginal(page); });
 
 for (const width of [1440, 390]) {
   test(`inline edits, draft retention and validated saves at ${width}`, async ({ page }, testInfo) => {
@@ -22,19 +25,21 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     await expect(page.getByRole('button', { name: 'Inspect collect_details', exact: true, includeHidden: true })).toContainText('Collect name and date of birth');
     await page.getByRole('button', { name: 'Connections', exact: true }).click();
-    await page.getByRole('combobox', { name: 'Target node', exact: true }).selectOption('confirm');
+    await page.getByRole('combobox', { name: 'Target node', exact: true }).click();
+    await page.getByRole('option', { name: 'Confirm', exact: true }).click();
     await page.getByRole('textbox', { name: 'Transition condition', exact: true }).fill('Continue once details are complete.');
     await page.screenshot({ path: testInfo.outputPath(`transition-edit-${width}.png`) });
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('form', { name: 'Node settings' }).getByRole('alert')).toContainText("'offer_times' is unreachable");
-    await page.getByRole('combobox', { name: 'Target node', exact: true }).selectOption('offer_times');
+    await page.getByRole('combobox', { name: 'Target node', exact: true }).click();
+    await page.getByRole('option', { name: 'Offer times', exact: true }).click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     await page.getByRole('button', { name: '→ offer_times' }).click();
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
     await page.getByRole('button', { name: /^Collect details/ }).click();
     await expect(page.getByRole('textbox', { name: 'Transition condition', exact: true })).toHaveValue('Continue once details are complete.');
-    await expect(page.getByRole('combobox', { name: 'Target node', exact: true })).toHaveValue('offer_times');
+    await expect(page.getByRole('combobox', { name: 'Target node', exact: true })).toContainText('Offer times');
     await page.getByRole('button', { name: 'General', exact: true }).click();
     await goal.fill('Do not commit an invalid edit');
     await page.route('**/api/runtime/validate', route => route.fulfill({ status: 422, json: { valid: false, error: 'Invalid candidate. Check the transition target.' } }));

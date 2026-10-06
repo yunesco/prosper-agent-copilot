@@ -24,3 +24,36 @@ test('moving the source carries unfinished fields and invalid JSON to the new tr
   expect(result.current.agent).toBe(agent);
   expect(result.current.dirty).toBe(false);
 });
+
+test('graph and guidelines save together; failed validation retains drafts and Cancel restores both', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const record = { id: 'saved', revision: 1, agent, guidelines: 'Saved guidelines' };
+  const onSave = vi.fn().mockRejectedValueOnce(new Error('invalid')).mockResolvedValue(undefined);
+  const { result } = renderHook(() => useNodeEdits(agent, null, onSave, record));
+  act(() => { result.current.operate([{ type: 'update_agent', changes: { name: 'Draft' } }]); result.current.editGuidelines('Draft guidelines'); });
+  await act(async () => { expect(await result.current.save()).toBe(false); });
+  expect(onSave).toHaveBeenCalledWith([{ type: 'update_agent', changes: { name: 'Draft' } }], 'Draft guidelines', expect.any(Function));
+  expect(result.current.guidelines).toBe('Draft guidelines');
+  expect(result.current.error).toBe('invalid');
+  act(() => result.current.cancel());
+  expect(result.current.agent).toBe(agent);
+  expect(result.current.guidelines).toBe('Saved guidelines');
+  expect(result.current.dirty).toBe(false);
+});
+
+test('Cancel during validation invalidates the commit and its late result', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  let release = () => {};
+  let commits = 0;
+  const onSave = vi.fn(async (_ops, _guidelines, assertActive) => { await new Promise<void>(resolve => { release = resolve; }); assertActive(); commits++; });
+  const { result } = renderHook(() => useNodeEdits(agent, null, onSave));
+  act(() => result.current.editGuidelines('Draft'));
+  let pending: Promise<boolean>;
+  act(() => { pending = result.current.save(); });
+  act(() => result.current.cancel());
+  await act(async () => { release(); await pending; });
+  expect(commits).toBe(0);
+  expect(result.current.dirty).toBe(false);
+  expect(result.current.saved).toBe(false);
+  expect(result.current.error).toBe('');
+});

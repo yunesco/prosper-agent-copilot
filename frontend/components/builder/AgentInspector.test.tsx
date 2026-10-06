@@ -84,8 +84,10 @@ test('transition inspector exposes routing, tool name and collected fields toget
   fireEvent.click(screen.getByText('Function details'));
   expect(screen.getByLabelText('Function name')).toHaveValue('record_details');
   expect(screen.getByRole('region', { name: 'Collect Full name' })).toBeVisible();
-  expect(screen.getByRole('combobox', { name: 'Target node' })).toHaveValue('offer_times');
-  fireEvent.change(screen.getByRole('combobox', { name: 'Target node' }), { target: { value: 'confirm' } });
+  expect(screen.getByRole('combobox', { name: 'Target node' })).toHaveTextContent('Offer times');
+  fireEvent.click(screen.getByRole('combobox', { name: 'Target node' }));
+  fireEvent.pointerDown(await screen.findByRole('option', { name: 'Confirm' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Confirm' }));
   fireEvent.change(screen.getByLabelText('Transition condition'), { target: { value: 'Ready to confirm' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
@@ -102,9 +104,9 @@ test('collect information with readable fields, preserving native schemas and at
   render(<AgentInspector agent={agent} selectedNodeId="collect_details" selectedTransitionFunction="record_details" onSelect={vi.fn()} onSave={onSave} />);
   fireEvent.click(screen.getByRole('button', { name: 'Add information' }));
   fireEvent.change(screen.getByLabelText('Information name'), { target: { value: 'Insurance provider' } });
-  expect(screen.getByLabelText('Required')).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Required' })).toBeChecked();
   fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'Ask who provides the caller’s insurance.' } });
-  fireEvent.click(screen.getByLabelText('Required'));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Required' }));
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
   fireEvent.click(screen.getByRole('button', { name: /^Full name/ }));
   fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'Ask for their full name.' } });
@@ -155,7 +157,7 @@ test('pending validation disables edits and duplicate submission', async () => {
   fireEvent.submit(screen.getByRole('form', { name: 'Node settings' }));
   expect(screen.getByLabelText('Message 1 instructions')).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   fireEvent.submit(screen.getByRole('form', { name: 'Node settings' }));
   expect(onSave).toHaveBeenCalledOnce();
   finish();
@@ -232,7 +234,7 @@ test('scheduler field summaries distinguish choices and text, and unfinished edi
   expect(screen.getByRole('button', { name: /^Reason Text/ })).toBeVisible();
   rerender(<AgentInspector {...props} selectedNodeId="offer_times" selectedTransitionFunction="select_time" />);
   fireEvent.click(screen.getByRole('button', { name: /^Slot Choice/ }));
-  expect(screen.getByLabelText('Answer type')).toHaveValue('choice');
+  expect(screen.getByLabelText('Answer type')).toHaveTextContent('Choice');
   fireEvent.change(screen.getByLabelText('Option 1'), { target: { value: 'Monday 9 AM' } });
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Function name'), { target: { value: 'new_time' } });
@@ -257,7 +259,9 @@ test('visual Slot creation stages exact JSON only after Done and reports invalid
   expect(screen.getByText('Enter a field key.')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Information name'), { target: { value: 'Slot' } });
   fireEvent.change(screen.getByLabelText('Field description'), { target: { value: 'The chosen appointment slot.' } });
-  fireEvent.change(screen.getByLabelText('Answer type'), { target: { value: 'choice' } });
+  fireEvent.click(screen.getByLabelText('Answer type'));
+  fireEvent.pointerDown(await screen.findByRole('option', { name: 'Choice' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Choice' }));
   for (const [index, option] of ['Tuesday 10 AM', 'Thursday 2 PM'].entries()) {
     fireEvent.click(screen.getByRole('button', { name: 'Add option' }));
     fireEvent.change(screen.getByLabelText(`Option ${index + 1}`), { target: { value: option } });

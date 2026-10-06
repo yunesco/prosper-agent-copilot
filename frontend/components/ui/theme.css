@@ -6,6 +6,8 @@
 
   /* Standard shadcn roles mapped to the settled light theme. */
   --color-background: var(--ui-surface-raised);
+  --color-popover: var(--ui-surface-raised);
+  --color-popover-foreground: var(--ui-base-content);
   --color-foreground: var(--ui-base-content);
   --color-primary-foreground: var(--ui-primary-content);
   --color-secondary: var(--ui-surface);

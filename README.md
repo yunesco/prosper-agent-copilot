@@ -8,29 +8,33 @@ See [solution.md](solution.md) for the intended product and architecture,
 
 ## What the code currently does
 
-The current app opens the supplied scheduler in a React Flow graph. It supports
-step and transition editing, collected fields, start/end semantics, graph-wide
-drafts, Save/Cancel, dragging, and reconnecting. Saves use shared structured
-operations and Python validation. Saved changes are currently **in memory only**;
-refresh reloads the fixture. The shell has an in-memory revision guard for
-concurrent validation, not a persisted agent revision or repository.
+Fresh browser storage opens a minimal agent and also saves the clinic scheduler
+as **Mocked existing deployed agent**. A parsed, versioned localStorage repository
+persists each agent's stable ID, revision, runtime configuration, guidelines, and
+the selected agent. Malformed or unavailable storage surfaces a recoverable error;
+existing data is preserved.
 
-Test Call sends the current saved in-memory agent through a same-origin route to
-the Python voice runtime, with call status, transcript, hangup, and resource cleanup.
-It does not send the unsaved graph draft. Python validates each call configuration
-and binds it to that session; the builder does not use the supplied `/client`.
+The React Flow builder supports step and transition editing, collected fields,
+start/end semantics, dragging, and reconnecting. Graph and plain-text guideline
+edits form one draft. Save applies shared structured operations, validates through
+Python, and checks the saved revision immediately before persistence. Meaningful
+changes increment the revision once; no-ops and graph geometry do not. Cancel
+restores saved values. Switching agents protects drafts with Save, Cancel, or Keep
+editing and invalidates pending validation and call callbacks. Graph positions
+stay separate from runtime JSON and are retained per agent within the workspace.
+
+Test Call captures the exact saved runtime configuration and displays its agent
+ID/revision. Unsaved drafts are explicitly excluded. The same-origin route sends
+the runtime payload to Python, with call status, transcript, hangup, and resource
+cleanup on stop, switch, and unmount. The builder does not use the supplied
+`/client`; the Python voice stack and request payload are unchanged.
 
 The reusable chat presentation is demonstrated at `/preview/ui`; it is not a
 working Copilot integration. AI SDK dependencies and an eval harness exist, but
-there is no real Copilot API/tool loop or live eval adapter yet. Plain-text
-guidelines, two clinic call fixtures, and a flagged issue fixture exist as data;
-they are not yet an editable guidelines or production-review workflow.
-
-There is no localStorage agent repository, saved-record identity/revision model,
-agent selector, proposal Apply flow, or automatic call investigation. Existing
-tests and the live-call script are implementation evidence, not a claim that the
-new end-to-end demo stories have passed. This inventory comes from code/test
-inspection; no tests or live calls were run for this documentation update.
+there is no real Copilot API/tool loop or live eval adapter yet. Two clinic call
+fixtures and a flagged issue fixture exist as data; there is no production-review,
+proposal Apply, or automatic investigation workflow. Pending work lives only in
+[TASKS.md](TASKS.md).
 
 ## Setup
 
@@ -63,7 +67,7 @@ working Copilot.
 | Area | Responsibility |
 | --- | --- |
 | `frontend/components/builder/` | Workspace, graph, inspector, drafts, Test Call UI |
-| `frontend/lib/agent/` | Parsed TS contract, immutable operations, graph projection |
+| `frontend/lib/agent/` | Parsed contracts, immutable operations, local repository, graph projection |
 | `frontend/lib/runtime/` | Validation and voice HTTP/transport clients |
 | `frontend/app/api/runtime/` | Thin same-origin validation and call handlers |
 | `backend/agent_builder/` | Authoritative validation, compilation, current-agent call endpoint |
@@ -97,3 +101,13 @@ an edited original scheduler. It requires running services, Chromium, and
 do not establish the new clinic creation/repair stories. Relevant Copilot/voice
 changes need a real eval or actual call; missing services leave live acceptance
 incomplete. Use synthetic patient data throughout.
+
+Run `node evals/voice/saved-context.mjs` against running local services to verify
+saved-context persistence through the real voice runtime. It saves an identifiable
+instruction, refreshes, enters a different unsaved instruction, and checks the
+exact outgoing saved payload, spoken marker, and incoming audio. It uses a silent
+synthetic microphone and needs no WAV fixtures. `VOICE_FRONTEND_URL` overrides
+localhost:3000; results are written to `evals/results/saved-context.json`.
+The saved-context scenario passed with actual provider audio during slice 1
+verification. This establishes saved-context execution, not the later clinic
+creation or repair conversation-quality criteria.

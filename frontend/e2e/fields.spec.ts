@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await seedOriginal(page); });
 
 for (const width of [1440, 390]) {
   test(`choice editing survives selection and pane changes at ${width}`, async ({ page }, testInfo) => {

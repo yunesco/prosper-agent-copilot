@@ -41,3 +41,5 @@ test-results/
 evals/results/
 .coverage
 htmlcov/
+
+frontend/.next-e2e/

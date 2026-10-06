@@ -2,11 +2,12 @@
 
 import { ChevronDown, ChevronRight, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AgentEdge } from '@/lib/agent/schema';
-import { fieldKey, fieldKind, fieldLabels, removeCollectedField, type FieldDraft, type FieldKind } from '@/lib/agent/collected-fields';
+import { fieldKey, fieldKind, fieldLabels, removeCollectedField, type FieldDraft } from '@/lib/agent/collected-fields';
 import { stepTitle } from '@/lib/agent/graph';
 
 export function CollectedFieldsEditor({ edge, onChange, disabled, draft, onDraft, onDone }: {
@@ -18,13 +19,13 @@ export function CollectedFieldsEditor({ edge, onChange, disabled, draft, onDraft
       {draft.originalKey === null && <label className="block space-y-1 text-xs">Name<Input aria-label="Information name" value={draft.name ?? ''} onChange={event => update({ name: event.target.value, key: fieldKey(event.target.value) })} /></label>}
       <label className="block space-y-1 text-xs">Field key<Input aria-label="Field key" value={draft.key} onChange={event => update({ key: event.target.value })} /></label>
       <label className="block space-y-1 text-xs">Description<Textarea aria-label="Field description" value={draft.description} onChange={event => update({ description: event.target.value })} /></label>
-      <label className="block space-y-1 text-xs">Answer type<NativeSelect aria-label="Answer type" value={draft.kind} onChange={event => {
-        const kind = event.target.value as FieldKind;
+      <label className="block space-y-1 text-xs">Answer type<Select value={draft.kind} disabled={disabled} onValueChange={kind => {
+        if (!kind) return;
         if (kind !== 'choice' && draft.options.length) onDraft({ ...draft, error: 'Remove all choice options before changing the answer type.' });
         else update({ kind });
-      }}>{Object.entries(fieldLabels).map(([kind, label]) => <NativeSelectOption key={kind} value={kind}>{label}</NativeSelectOption>)}</NativeSelect></label>
+      }}><SelectTrigger aria-label="Answer type"><SelectValue>{fieldLabels[draft.kind]}</SelectValue></SelectTrigger><SelectContent>{Object.entries(fieldLabels).map(([kind, label]) => <SelectItem key={kind} value={kind}>{label}</SelectItem>)}</SelectContent></Select></label>
       {draft.kind === 'choice' && <div className="space-y-2">{draft.options.map((option, index) => <div key={index} className="flex gap-2"><Input aria-label={`Option ${index + 1}`} value={option} onChange={event => update({ options: draft.options.map((value, i) => i === index ? event.target.value : value) })} /><Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label={`Remove option ${index + 1}`} onClick={() => update({ options: draft.options.filter((_, i) => i !== index) })}><X className="size-4" /></Button></div>)}<Button type="button" variant="outline" size="sm" onClick={() => update({ options: [...draft.options, ''] })}>Add option</Button></div>}
-      <label className="flex items-center gap-2 text-xs"><input type="checkbox" aria-label="Required" checked={draft.required} onChange={event => update({ required: event.target.checked })} />Required</label>
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"><Checkbox disabled={disabled} checked={draft.required} onCheckedChange={required => update({ required })} />Required</label>
       {draft.error && <p role="alert" className="text-xs text-destructive">{draft.error}</p>}
       <div className="flex justify-end gap-2 border-t border-ui-border pt-3"><Button type="button" variant="ghost" size="sm" onClick={() => onDraft(null)}>Cancel field</Button><Button type="button" size="sm" onClick={onDone}>Done</Button></div>
     </section> : null;

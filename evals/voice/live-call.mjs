@@ -13,6 +13,14 @@ process.on('uncaughtException', error => {
 });
 const browser = await chromium.launch({args:['--autoplay-policy=no-user-gesture-required']});
 const page = await browser.newPage();
+// This legacy scenario exercises the supplied original, not the fresh minimal agent.
+await page.addInitScript(agent => {
+ localStorage.setItem('prosper.agents.v1', JSON.stringify({
+  version: 1, selectedId: 'original-scheduler',
+  agents: [{id:'original-scheduler', revision:1, agent, guidelines:''}],
+ }));
+}, JSON.parse(fs.readFileSync(`${root}/backend/example_flow.json`, 'utf8')));
+
 page.setDefaultTimeout(12000);
 const result = { case:scenario, scenario:'Original scheduler: manually add insurance, route record_details to insurance, then offer_times and confirm', input:'Synthetic English microphone audio, real WebRTC and configured STT/LLM/TTS providers', expected:'Ask for insurance after name/reason and before offering times; record insurance; confirm selected time', savedAgent:null, transcript:'', audio:[], error:null };
 await page.addInitScript(() => {

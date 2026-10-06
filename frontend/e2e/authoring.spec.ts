@@ -1,32 +1,38 @@
+import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
 
 test('create, connect and repair a multi-step agent in one draft', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Create new agent', exact: true }).click();
+  await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
   await page.getByLabel('Message 1 instructions').fill('Welcome to the clinic.');
   await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
   await page.getByLabel('Agent name', { exact: true }).fill('Manual clinic');
   await page.getByLabel('Agent instructions', { exact: true }).fill('Help the caller book a visit.');
   await page.getByRole('button', { name: 'Add step', exact: true }).click();
   await page.getByLabel('Step name').fill('insurance');
-  await page.getByLabel('Step type').selectOption('end');
+  await page.getByLabel('Step type').click();
+  await page.getByRole('option', { name: 'End conversation', exact: true }).click();
+  await page.getByLabel('Conversation goal', { exact: true }).fill('Collect insurance, then say goodbye.');
   await page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true }).click();
   await page.getByLabel('Message 1 instructions').fill('Collect insurance, then say goodbye.');
   await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
-  await page.getByRole('button', { name: /^Start Welcome/ }).click();
-  await page.getByLabel('End conversation after this step').uncheck();
+  await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'End conversation after this step' }).uncheck();
   await page.getByRole('button', { name: 'Connections' }).click();
   await page.getByText('New transition', { exact: true }).click();
   await page.getByLabel('New transition condition').fill('Temporary branch');
-  await page.getByLabel('New transition target').selectOption('insurance');
+  await page.getByLabel('New transition target').click();
+  await page.getByRole('option', { name: 'Insurance', exact: true }).click();
   await page.getByRole('button', { name: 'Add transition', exact: true }).click();
   await page.getByLabel('New transition condition').fill('Insurance collected');
-  await page.getByLabel('New transition target').selectOption('insurance');
+  await page.getByLabel('New transition target').click();
+  await page.getByRole('option', { name: 'Insurance', exact: true }).click();
   await page.getByRole('button', { name: 'Add transition', exact: true }).click();
   await page.getByRole('region', { name: 'Transition 1', exact: true }).getByRole('button', { name: 'Delete transition' }).click();
   await page.getByText('Function details', { exact: true }).click();
   await page.getByLabel('Function name', { exact: true }).fill('record_insurance');
-  await page.getByLabel('Target node', { exact: true }).selectOption('insurance');
+  await page.getByLabel('Target node', { exact: true }).click();
+  await page.getByRole('option', { name: 'Insurance', exact: true }).click();
   await page.getByLabel('Transition condition', { exact: true }).fill('After the caller gives their insurance.');
   await page.getByText('Advanced JSON', { exact: true }).click();
   await page.getByLabel('Collected fields JSON').fill(JSON.stringify({ properties: { insurance: { type: 'string', description: 'Insurance provider', native: { retained: true } } }, required: ['missing'] }));
@@ -45,8 +51,8 @@ test('create, connect and repair a multi-step agent in one draft', async ({ page
   await page.getByRole('button', { name: 'Delete insurance', exact: true }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('main').getByRole('alert')).toContainText('no reachable call-ending');
-  await page.getByRole('button', { name: /^Start Welcome/ }).click();
-  await page.getByLabel('End conversation after this step').check();
+  await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'End conversation after this step' }).check();
   await page.getByRole('button', { name: 'Connections' }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Changes saved');
@@ -61,15 +67,13 @@ for (const width of [1440, 390]) {
   test(`graph add/delete controls and draft cancellation at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await page.getByRole('button', { name: 'Create new agent', exact: true }).click();
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(page.getByRole('status')).toHaveText('Changes saved');
+    await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await page.getByRole('button', { name: 'Fit', exact: true }).click();
     await page.getByRole('button', { name: 'Add step after start', exact: true }).click();
     await page.getByLabel('Step name').fill('goodbye');
-    await page.getByLabel('Step type').selectOption('end');
+    await page.getByLabel('Step type').click();
+    await page.getByRole('option', { name: 'End conversation', exact: true }).click();
     await expect(page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true })).toBeDisabled();
     await page.getByLabel('Conversation goal').fill('Thank the caller for booking and say goodbye.');
     await page.getByLabel('New transition condition').fill('The caller has no more questions.');
@@ -99,6 +103,7 @@ for (const width of [1440, 390]) {
 
 for (const width of [1440, 390]) {
   test(`add step dismisses to its trigger without clearing selection at ${width}`, async ({ page }, testInfo) => {
+    await seedOriginal(page);
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
     const node = page.getByRole('button', { name: 'Inspect greeting', exact: true });

@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await seedOriginal(page); });
 
 test('serves the built shell and health route without external services', async ({ page, request }) => {
   const errors: string[] = [];
@@ -6,7 +9,7 @@ test('serves the built shell and health route without external services', async 
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('/');
   await expect(page).toHaveTitle('Prosper Agent Builder');
-  await expect(page.getByRole('heading', { level: 1, name: 'Agent builder' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prosper Scheduler' })).toBeVisible();
   const health = await request.get('/api/health');
   expect(health.ok()).toBe(true);
   expect(await health.json()).toEqual({ status: 'ok', service: 'frontend' });

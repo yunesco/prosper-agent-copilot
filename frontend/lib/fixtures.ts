@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import originalScheduler from '../../backend/example_flow.json';
-import clinicScheduler from '../../fixtures/agents/clinic-scheduler.json';
-import guidelines from '../../fixtures/guidelines/demo-clinic.json';
-import failedCall from '../../fixtures/calls/new-patient-friday.json';
-import successfulCall from '../../fixtures/calls/new-patient-monday.json';
-import flaggedIssue from '../../fixtures/issues/friday-restriction.json';
+import originalScheduler from '../../backend/example_flow.json' with { type: 'json' };
+import clinicScheduler from '../../fixtures/agents/clinic-scheduler.json' with { type: 'json' };
+import guidelines from '../../fixtures/guidelines/demo-clinic.json' with { type: 'json' };
+import failedCall from '../../fixtures/calls/new-patient-friday.json' with { type: 'json' };
+import successfulCall from '../../fixtures/calls/new-patient-monday.json' with { type: 'json' };
+import flaggedIssue from '../../fixtures/issues/friday-restriction.json' with { type: 'json' };
 import { parseAgent } from './agent/schema';
 
 export const callSchema = z.object({

@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test, type Page } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await seedOriginal(page); });
 
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

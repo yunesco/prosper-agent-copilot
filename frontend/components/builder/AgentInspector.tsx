@@ -1,14 +1,15 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronLeft, MessageCircle } from 'lucide-react';
+import { ArrowRight, Check, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { nodeSchema, type AgentConfig, type AgentEdge, type AgentNode } from '@/lib/agent/schema';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { type AgentConfig, type AgentEdge, type AgentNode } from '@/lib/agent/schema';
 import { createTransitionOperation } from '@/lib/agent/authoring';
-import { nodeDescription, stepTitle } from '@/lib/agent/graph';
+import { stepTitle } from '@/lib/agent/graph';
 import { type AgentEditor, type SaveOperations } from './use-node-edits';
 import { cn } from '@/lib/utils';
 import { CollectedFieldsEditor } from './CollectedFieldsEditor';
@@ -29,17 +30,6 @@ function CollectedFields({ edge }: { edge: AgentEdge }) {
         {schema && typeof schema.description === 'string' && <p className="text-xs leading-5 text-text-muted">{schema.description}</p>}
       </div>;
     })}
-    {Object.keys(edge.properties).length > 0 && <details><summary className="cursor-pointer text-xs text-text-subtle">Field schema</summary><Payload value={{ properties: edge.properties, required: edge.required }} /></details>}
-  </section>;
-}
-
-function RuntimeSettings({ agent }: { agent: AgentConfig }) {
-  return <section className="space-y-4 border-t border-ui-border pt-5" aria-label="Runtime settings">
-    <div className="flex items-center justify-between gap-3"><h3 className="font-medium">Voice & model</h3><span className="text-xs text-text-subtle">Agent-wide · Read only</span></div>
-    <dl className="space-y-4">
-      <div className="space-y-2"><dt className="text-xs text-text-muted">Voice ID</dt><dd className="break-all rounded-lg border border-ui-border px-3 py-2.5 font-mono text-xs">{agent.voice_id}</dd></div>
-      <div className="space-y-2"><dt className="text-xs text-text-muted">Model</dt><dd className="break-all rounded-lg border border-ui-border px-3 py-2.5">{agent.model}</dd></div>
-    </dl>
   </section>;
 }
 
@@ -52,7 +42,7 @@ function Actions({ node }: { node: AgentNode }) {
       {node[kind].map((action, index) => <div key={index} className="space-y-2 rounded-lg border border-ui-border p-3">
         <p className="text-sm">{typeof action.type === 'string' ? stepTitle(action.type) : 'Custom action'}</p>
         {typeof action.text === 'string' && <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">{action.text}</p>}
-        <details><summary className="cursor-pointer text-xs text-text-subtle">Action payload</summary><Payload value={action} /></details>
+        <details><summary className="cursor-pointer rounded-md py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs text-text-subtle">Action payload</summary><Payload value={action} /></details>
       </div>)}
       {kind === 'post_actions' && node.end && node.post_actions.length > 0 && <p className="text-xs leading-5 text-text-muted">These actions replace the default end-conversation action.</p>}
     </div>)}
@@ -69,18 +59,21 @@ function TransitionFields({ agent, edge, onChange, onSelect, editable, collectio
     </div>
     <div className="space-y-2"><label htmlFor={`${id}-target`} className="block font-medium">Target node</label>
       <div className="flex min-w-0 items-center gap-2">
-        <NativeSelect id={`${id}-target`} className="min-w-0 flex-1 [&_select]:h-10 [&_select]:text-base md:[&_select]:text-sm" value={edge.target} disabled={!editable} onChange={event => onChange({ target: event.target.value })}>
-          {!agent.nodes.some(node => node.name === edge.target) && <NativeSelectOption value={edge.target}>{edge.target} (missing)</NativeSelectOption>}
-          {agent.nodes.map(node => <NativeSelectOption key={node.name} value={node.name}>{stepTitle(node.name)}</NativeSelectOption>)}
-        </NativeSelect>
+        <Select value={edge.target} disabled={!editable || editor.pending} onValueChange={value => { if (value) onChange({ target: value }); }}>
+          <SelectTrigger id={`${id}-target`} className="min-w-0 flex-1"><SelectValue>{agent.nodes.some(node => node.name === edge.target) ? stepTitle(edge.target) : `${edge.target} (missing)`}</SelectValue></SelectTrigger>
+          <SelectContent>
+            {!agent.nodes.some(node => node.name === edge.target) && <SelectItem value={edge.target}>{edge.target} (missing)</SelectItem>}
+            {agent.nodes.map(node => <SelectItem key={node.name} value={node.name}>{stepTitle(node.name)}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Button type="button" variant="outline" size="icon" className="size-10" aria-label={`→ ${edge.target}`} title={`Open ${stepTitle(edge.target)}`} onClick={() => onSelect(edge.target)}><ArrowRight aria-hidden="true" /></Button>
       </div>
     </div>
-    {editable && <CollectedFieldsEditor draft={editor.fieldEdits[source + '\0' + edge.function]} onDraft={draft => editor.fieldEdit(source, edge.function, draft)} onDone={() => editor.finishField(source, edge.function)} edge={edge} disabled={!!collection?.error} onChange={fields => onCollection(JSON.stringify(fields, null, 2))} />}
-    <details className="border-t border-ui-border pt-4"><summary className="cursor-pointer text-xs text-text-muted">Function details</summary>
+    {editable && <CollectedFieldsEditor draft={editor.fieldEdits[source + '\0' + edge.function]} onDraft={draft => editor.fieldEdit(source, edge.function, draft)} onDone={() => editor.finishField(source, edge.function)} edge={edge} disabled={!!collection?.error || editor.pending} onChange={fields => onCollection(JSON.stringify(fields, null, 2))} />}
+    <details className="border-t border-ui-border pt-4"><summary className="cursor-pointer rounded-md py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs text-text-muted">Function details</summary>
       <label className="mt-3 block space-y-2 text-xs">Function name<Input aria-label="Function name" className="font-mono text-xs" readOnly={!editable} value={edge.function} onChange={event => onChange({ function: event.target.value })} /></label>
     </details>
-    {editable && <details><summary className="cursor-pointer text-xs text-text-subtle">Advanced JSON</summary><p className="my-2 text-xs text-text-muted">Edit properties as JSON Schema and required as a list of field names.</p><Textarea disabled={!!editor.fieldEdits[source + '\0' + edge.function]} aria-label="Collected fields JSON" className="min-h-40 font-mono text-xs" value={collection?.text ?? JSON.stringify({ properties: edge.properties, required: edge.required }, null, 2)} onChange={event => onCollection(event.target.value)} />{collection?.error && <p role="alert" className="text-xs text-destructive">{collection.error}</p>}</details>}
+    {editable && <details><summary className="cursor-pointer rounded-md py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-xs text-text-subtle">Advanced JSON</summary><p className="my-2 text-xs text-text-muted">Edit properties as JSON Schema and required as a list of field names.</p><Textarea disabled={!!editor.fieldEdits[source + '\0' + edge.function]} aria-label="Collected fields JSON" className="min-h-40 font-mono text-xs" value={collection?.text ?? JSON.stringify({ properties: edge.properties, required: edge.required }, null, 2)} onChange={event => onCollection(event.target.value)} />{collection?.error && <p role="alert" className="text-xs text-destructive">{collection.error}</p>}</details>}
     {!editable && <CollectedFields edge={edge} />}
   </div>;
 }
@@ -104,9 +97,11 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
 
 
   return <form ref={form} aria-label={edge ? 'Transition settings' : node ? 'Node settings' : 'Agent settings'} className="flex min-h-full flex-col text-sm" onSubmit={event => { event.preventDefault(); if (form.current?.reportValidity()) void editor.save(); }}
-    onFocusCapture={event => { if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) lastField.current = event.target; }}
+    onFocusCapture={event => { if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement || (event.target instanceof HTMLElement && event.target.getAttribute('role') === 'combobox')) lastField.current = event.target; }}
     onKeyDown={event => {
-      if (event.nativeEvent.isComposing) return;
+      if (event.nativeEvent.isComposing || event.defaultPrevented) return;
+      // Portaled menus own Escape; closing a menu must not cancel the draft.
+      if (event.target instanceof Element && event.target.closest('[data-slot=select-content]')) return;
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); form.current?.requestSubmit(); }
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (editor.pending) return; if (editor.dirty) { cancel(); focusField(); } else onSelect(edge && node ? node.name : null); }
     }}>
@@ -136,20 +131,19 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
           </div>)}
         </section>
         <details className="space-y-3 border-t border-ui-border pt-4">
-          <summary className="cursor-pointer text-sm font-medium">Role instructions<span className="ml-2 text-xs font-normal text-text-muted">{node.role_message === null ? 'Inherited' : 'Custom'}</span></summary>
+          <summary className="cursor-pointer rounded-md py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm font-medium">Role instructions<span className="ml-2 text-xs font-normal text-text-muted">{node.role_message === null ? 'Inherited' : 'Custom'}</span></summary>
           <label htmlFor={`${id}-role`} className="sr-only">Role instructions</label>
           <Textarea id={`${id}-role`} readOnly={!onSave} value={node.role_message ?? agent.persona} className="min-h-28 resize-y px-3 py-2.5 leading-6" placeholder="Uses the agent instructions" onChange={event => editor.update(current => ({ ...current, role_message: event.target.value }))} />
           {node.role_message !== null && onSave ? <Button type="button" variant="ghost" size="sm" className="-ml-2 text-text-muted" onClick={() => editor.update(current => ({ ...current, role_message: null }))}>Use agent instructions</Button> : null}
         </details>
-        {onSave && <section className="space-y-3 border-t border-ui-border pt-5"><label className="flex items-center gap-2"><input type="checkbox" className="size-4 accent-accent-text" checked={node.end} onChange={event => editor.update(current => ({ ...current, end: event.target.checked }))} />End conversation after this step</label></section>}
+        {onSave && <section className="space-y-3 border-t border-ui-border pt-5"><label className="flex min-h-11 cursor-pointer items-center gap-3"><Checkbox disabled={editor.pending} checked={node.end} onCheckedChange={checked => editor.update(current => ({ ...current, end: checked }))} />End conversation after this step</label></section>}
         <Actions node={node} />
-        <details className="border-t border-ui-border pt-4"><summary className="cursor-pointer text-xs text-text-subtle">Native message payload</summary><Payload value={{ name: node.name, role_message: node.role_message, task_messages: node.task_messages }} /></details>
       </> : <>
         <section className="space-y-3 border-b border-ui-border pb-5"><h3 className="font-medium">Incoming ({incoming.length})</h3>{incoming.length ? incoming.map(({ source, edge }) => <Button key={JSON.stringify([source, edge.function])} type="button" variant="ghost" className="h-auto w-full justify-start whitespace-normal px-2 py-2 text-left" onClick={() => onSelect(source)}><ArrowRight className="shrink-0" /><span><span className="block">From {stepTitle(source)}</span><span className="mt-1 block text-xs font-normal text-text-muted">{edge.description || 'Set condition'}</span></span></Button>) : <p className="text-xs text-text-muted">{node.name === agent.initial_node ? 'The call starts here.' : 'Connect another step to this one.'}</p>}</section>
         <h3 className="font-medium">Outgoing ({node.edges.length})</h3>
-        {onSave && <details className="border-b border-ui-border pb-4"><summary className="cursor-pointer text-sm font-medium">New transition</summary><div className="mt-4 space-y-3">
+        {onSave && <details className="border-b border-ui-border pb-4"><summary className="cursor-pointer rounded-md py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 text-sm font-medium">New transition</summary><div className="mt-4 space-y-3">
           <label className="block space-y-2 text-xs">New transition condition<Textarea aria-label="New transition condition" placeholder="e.g. The caller is a new patient." value={newCondition} onChange={event => setNewCondition(event.target.value)} /></label>
-          <label className="block space-y-2 text-xs">Continue to<NativeSelect aria-label="New transition target" value={newTarget} onChange={event => setNewTarget(event.target.value)}><NativeSelectOption value="">Choose a step</NativeSelectOption>{agent.nodes.map(item => <NativeSelectOption key={item.name} value={item.name}>{stepTitle(item.name)}</NativeSelectOption>)}</NativeSelect></label>
+          <label className="block space-y-2 text-xs">Continue to<Select value={newTarget || null} disabled={editor.pending} onValueChange={value => setNewTarget(value ?? '')}><SelectTrigger aria-label="New transition target"><SelectValue placeholder="Choose a step">{newTarget ? stepTitle(newTarget) : undefined}</SelectValue></SelectTrigger><SelectContent>{agent.nodes.map(item => <SelectItem key={item.name} value={item.name}>{stepTitle(item.name)}</SelectItem>)}</SelectContent></Select></label>
           <Button type="button" variant="outline" disabled={!newCondition.trim() || !agent.nodes.some(item => item.name === newTarget)} onClick={() => { editor.operate([createTransitionOperation(agent, node.name, newTarget, newCondition)]); setNewCondition(''); setNewTarget(''); }}>Add transition</Button>
         </div></details>}
 
@@ -163,19 +157,14 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
     </fieldset></>}
     {!node && <fieldset disabled={editor.pending}>
 <div className="space-y-6 p-5 text-sm">
-    <div><h2 className="sr-only">{agent.name}</h2><p className="mt-1 text-xs text-text-muted">{agent.nodes.length} steps</p></div>
-    {onSave && <Button type="button" variant="outline" disabled={editor.dirty} onClick={() => {
-      editor.operate([...agent.nodes.map(item => ({ type: 'delete_node' as const, node: item.name })), { type: 'add_node', value: nodeSchema.parse({ name: 'start', end: true, task_messages: [{ role: 'system', content: 'Say goodbye.' }] }) }, { type: 'update_agent', changes: { name: 'New clinic agent', persona: '', initial_node: 'start' } }]);
-      onSelect('start');
-    }}>Create new agent</Button>}
     <label className="block space-y-2">Agent name<Input aria-label="Agent name" readOnly={!onSave} value={agent.name} onChange={event => editor.operate([{ type: 'update_agent', changes: { name: event.target.value } }])} /></label>
+    <label className="block space-y-2">Client guidelines<Textarea aria-label="Client guidelines" readOnly={!onSave} value={editor.guidelines} onChange={event => editor.editGuidelines(event.target.value)} className="min-h-32" /></label>
     <label className="block space-y-2">Agent instructions<Textarea aria-label="Agent instructions" readOnly={!onSave} value={agent.persona} onChange={event => editor.operate([{ type: 'update_agent', changes: { persona: event.target.value } }])} /></label>
 
-    <label className="block space-y-2">Initial node<NativeSelect aria-label="Initial node" disabled={!onSave} value={agent.initial_node} onChange={event => editor.operate([{ type: 'update_agent', changes: { initial_node: event.target.value } }])}>{!agent.nodes.some(item => item.name === agent.initial_node) && <NativeSelectOption value={agent.initial_node}>{agent.initial_node} (missing)</NativeSelectOption>}{agent.nodes.map(item => <NativeSelectOption key={item.name} value={item.name}>{stepTitle(item.name)}</NativeSelectOption>)}</NativeSelect></label>
-    <section><h3 className="mb-3 font-medium">Conversation steps</h3><div className="space-y-1">{agent.nodes.map(item => <Button key={item.name} type="button" variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-3 text-left" onClick={() => onSelect(item.name)}>
-      <MessageCircle className="shrink-0 text-text-subtle" /><span className="min-w-0"><span className="block truncate">{stepTitle(item.name)}</span><span className="mt-1 line-clamp-2 whitespace-normal text-xs font-normal leading-5 text-text-muted">{nodeDescription(item)}</span></span><ArrowRight className="ml-auto shrink-0 text-text-subtle" />
+    <label className="block space-y-2">Start step<Select disabled={!onSave || editor.pending} value={agent.initial_node} onValueChange={value => { if (value) editor.operate([{ type: 'update_agent', changes: { initial_node: value } }]); }}><SelectTrigger aria-label="Start step"><SelectValue>{agent.nodes.some(item => item.name === agent.initial_node) ? stepTitle(agent.initial_node) : `${agent.initial_node} (missing)`}</SelectValue></SelectTrigger><SelectContent>{!agent.nodes.some(item => item.name === agent.initial_node) && <SelectItem value={agent.initial_node}>{agent.initial_node} (missing)</SelectItem>}{agent.nodes.map(item => <SelectItem key={item.name} value={item.name}>{stepTitle(item.name)}</SelectItem>)}</SelectContent></Select></label>
+    <section><h3 className="mb-2 font-medium">Steps</h3><div className="space-y-1">{agent.nodes.map(item => <Button key={item.name} type="button" variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-2 text-left" onClick={() => onSelect(item.name)}>
+      <span className="min-w-0 truncate">{stepTitle(item.name)}</span><ArrowRight className="ml-auto shrink-0 text-text-subtle" />
     </Button>)}</div></section>
-    <RuntimeSettings agent={agent} />
   </div>
     </fieldset>}
     {onSave && <div className="sticky bottom-0 z-10 space-y-2 border-t border-ui-border bg-surface-raised px-5 py-3">
@@ -185,7 +174,7 @@ export function AgentInspector({ agent: committedAgent, selectedNodeId, onSelect
       <div className="flex items-center justify-between gap-2">
         <p role="status" className={cn("flex items-center gap-1.5 text-xs", editor.saved && !editor.dirty ? "text-accent-text" : "text-text-subtle", !editor.pending && !editor.dirty && !editor.saved && "sr-only")}>{editor.saved && !editor.dirty && <Check aria-hidden="true" className="size-3.5" />}{editor.pending ? 'Validating changes…' : editor.dirty ? 'Unsaved changes' : editor.saved ? 'Changes saved' : 'No changes'}</p>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <Button type="button" variant="ghost" size="sm" className="transition-colors" disabled={!editor.dirty || editor.pending} onClick={() => { cancel(); focusField(); }}>Cancel</Button>
+          <Button type="button" variant="ghost" size="sm" className="transition-colors" disabled={!editor.dirty && !editor.pending} onClick={() => { cancel(); focusField(); }}>Cancel</Button>
           <Button type="submit" size="sm" className="min-w-16 bg-accent-text text-white hover:bg-accent-text/90 transition-[background-color,scale] duration-150 ease-snappy active:not-focus-visible:scale-[0.98] motion-reduce:transition-none" disabled={!editor.dirty || editor.pending || editor.invalidCollection || editor.unfinishedField}>Save</Button>
         </div>
       </div>

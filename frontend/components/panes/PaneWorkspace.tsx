@@ -75,10 +75,10 @@ export function PaneWorkspace({ workspace, context, workspaceTitle = 'Conversati
     <div ref={container} style={{ '--pane-columns': `${value}fr 8px ${100 - value}fr` } as CSSProperties}
       className={cn('grid min-h-0 flex-1 grid-cols-1', isSplit && 'md:grid-cols-[var(--pane-columns)]')}>
       <section ref={workspaceRegion} id="workspace-pane" aria-label="Conversation workspace" tabIndex={-1}
-        className={cn('min-h-0 min-w-0 flex-col bg-workspace outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent', mobile === 'workspace' ? 'flex' : 'hidden', 'md:flex')}>
-        <PaneHeader actions={<div className="hidden items-center gap-1 md:flex">
+        className={cn('relative min-h-0 min-w-0 flex-col bg-workspace outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent', mobile === 'workspace' ? 'flex' : 'hidden', 'md:flex')}>
+        {workspaceTitle !== null ? <PaneHeader actions={<div className="hidden items-center gap-1 md:flex">
           {!open && <Button variant="ghost" size="icon" aria-label="Open details" title="Open details" onClick={() => show('context')}><PanelRightOpen aria-hidden="true" /></Button>}
-        </div>}><div className="text-sm font-medium">{workspaceTitle}</div></PaneHeader>
+        </div>}><div className="text-sm font-medium">{workspaceTitle}</div></PaneHeader> : !open && <Button variant="outline" size="icon" className="absolute right-4 top-4 z-10 hidden bg-surface-raised md:inline-flex" aria-label="Open details" title="Open details" onClick={() => show('context')}><PanelRightOpen aria-hidden="true" /></Button>}
         <div data-pane-content="workspace" className="min-h-0 flex-1 overflow-auto overscroll-contain" onFocusCapture={event => { rememberedFocus.current.workspace = event.target; }}>{typeof workspace === 'function' ? workspace(() => setOpen(true)) : workspace}</div>
       </section>
       {isSplit && <PaneDivider container={container} value={value} max={maxSplit} controls="workspace-pane context-pane" onResize={setSplit} onCommit={setSplit} />}

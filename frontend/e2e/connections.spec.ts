@@ -1,4 +1,7 @@
+import { seedOriginal } from './seed';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await seedOriginal(page); });
 
 async function center(locator: Locator) {
   const box = await locator.boundingBox();
@@ -32,7 +35,7 @@ for (const width of [1440, 390]) {
     await expect(card).toHaveAttribute('style', moved!);
     await page.screenshot({ path: testInfo.outputPath(`connected-${width}.png`) });
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await expect(page.getByLabel('Target node', { exact: true })).toHaveValue('confirm');
+    await expect(page.getByLabel('Target node', { exact: true })).toContainText('Confirm');
     await page.getByLabel('Transition condition', { exact: true }).fill('The caller wants to finish early.');
     await page.getByRole('button', { name: 'Add information', exact: true }).click();
     await page.getByLabel('Information name').fill('Insurance provider');
@@ -49,14 +52,14 @@ for (const width of [1440, 390]) {
     expect(Math.abs(own.x - other.x)).toBeGreaterThan(20);
     await drag(page, endpoint, card);
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await expect(page.getByLabel('Target node', { exact: true })).toHaveValue('offer_times');
+    await expect(page.getByLabel('Target node', { exact: true })).toContainText('Offer times');
     await expect(page.getByLabel('Transition condition', { exact: true })).toHaveValue('The caller wants to finish early.');
     await page.getByRole('button', { name: /Insurance provider Text/ }).click();
     await expect(page.getByLabel('Field description')).toHaveValue('Ask who provides the caller’s insurance.');
-    await expect(page.getByLabel('Required', { exact: true })).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: 'Required', exact: true })).toBeChecked();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.getByRole('button', { name: 'Connections', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Transition 2', exact: true }).getByLabel('Target node', { exact: true })).toHaveValue('confirm');
+    await expect(page.getByRole('region', { name: 'Transition 2', exact: true }).getByLabel('Target node', { exact: true })).toContainText('Confirm');
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await expect(card).toHaveAttribute('style', moved!);
     await page.getByRole('button', { name: 'Inspect transition: The caller wants to finish early.', exact: true }).click();
@@ -66,7 +69,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Function name')).toHaveValue('go_to_confirm');
     await expect(page.getByLabel('Transition condition', { exact: true })).toHaveValue('The caller wants to finish early.');
     await expect(page.getByRole('button', { name: 'Insurance provider Text Required', exact: true })).toBeVisible();
-    await expect(page.getByLabel('Target node', { exact: true })).toHaveValue('confirm');
+    await expect(page.getByLabel('Target node', { exact: true })).toContainText('Confirm');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
@@ -88,7 +91,8 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('form', { name: 'Add step', exact: true })).toHaveCount(0);
     await drag(page, trigger, { x: width < 768 ? 55 : 730, y: 450 });
     await page.getByLabel('Step name').fill('Quick goodbye');
-    await page.getByLabel('Step type').selectOption('end');
+    await page.getByLabel('Step type').click();
+    await page.getByRole('option', { name: 'End conversation', exact: true }).click();
     await page.getByLabel('New transition condition').fill('The caller wants to end the call.');
     await page.getByRole('form', { name: 'Add step', exact: true }).getByRole('button', { name: 'Add step', exact: true }).click();
     const created = page.getByRole('button', { name: 'Inspect Quick_goodbye', exact: true });
@@ -111,10 +115,10 @@ test('connect and reconnect directly on handles without React Flow selector erro
   await page.goto('/');
   const card = (id: string) => page.getByRole('button', { name: `Inspect ${id}`, exact: true });
   await drag(page, page.getByRole('button', { name: 'Add step after greeting', exact: true }), card('offer_times').locator('.react-flow__handle.target'));
-  await expect(page.getByLabel('Target node', { exact: true })).toHaveValue('offer_times');
+  await expect(page.getByLabel('Target node', { exact: true })).toContainText('Offer times');
   const edge = page.locator('.react-flow__edge[data-id*="go_to_offer_times"]');
   await drag(page, edge.locator('.react-flow__edgeupdater-target'), card('confirm').locator('.react-flow__handle.target'));
-  await expect(page.getByLabel('Target node', { exact: true })).toHaveValue('confirm');
+  await expect(page.getByLabel('Target node', { exact: true })).toContainText('Confirm');
   await drag(page, edge.locator('.react-flow__edgeupdater-source'), card('collect_details').locator('.react-flow__handle.source').first());
   await expect(edge).toHaveAttribute('aria-label', 'Edge from collect_details to confirm');
   await expect(page.locator('.react-flow__edge[data-id*="select_time"]')).toHaveAttribute('aria-label', 'Edge from offer_times to confirm');

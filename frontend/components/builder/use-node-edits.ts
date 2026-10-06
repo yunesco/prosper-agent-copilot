@@ -1,18 +1,23 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { SavedAgent } from '@/lib/agent/repository';
 import { reconnectStepOperations } from '@/lib/agent/authoring';
 import { editCollectedField, type FieldDraft } from '@/lib/agent/collected-fields';
 import { edgeSchema, type AgentConfig, type AgentNode } from '@/lib/agent/schema';
 import { stageAgentOperations, type AgentOperation } from '@/lib/agent/operations';
 
-export type SaveOperations = (operations: AgentOperation[]) => Promise<void>;
+export type SaveOperations = (operations: AgentOperation[], guidelines?: string, assertActive?: () => void) => Promise<void>;
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 
 // One transaction spans every step. The base object also detects revision changes
 // whose content happens to be identical; BuilderShell checks again after validation.
-export function useNodeEdits(agent: AgentConfig, selectedNodeId: string | null, onSave?: SaveOperations) {
-  const [draft, setDraft] = useState<{ base: AgentConfig; value: AgentConfig; operations: AgentOperation[] } | null>(null);
+export function useNodeEdits(agent: AgentConfig, selectedNodeId: string | null, onSave?: SaveOperations, savedRecord?: SavedAgent) {
+  const [guidelineDraft, setGuidelineDraft] = useState<{ base: SavedAgent | undefined; value: string } | null>(null);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current += 1; }, []);
+  const guidelines = guidelineDraft?.value ?? savedRecord?.guidelines ?? '';
+  const [draft, setDraft] = useState<{ base: AgentConfig; savedBase?: SavedAgent; value: AgentConfig; operations: AgentOperation[] } | null>(null);
   const [fieldEdits, setFieldEdits] = useState<Record<string, FieldDraft>>({});
   const [collections, setCollections] = useState<Record<string, { text: string; error: string }>>({});
   const [error, setError] = useState('');
@@ -21,12 +26,12 @@ export function useNodeEdits(agent: AgentConfig, selectedNodeId: string | null, 
   const inFlight = useRef(false);
   const value = draft?.value ?? agent;
   const node = value.nodes.find(node => node.name === selectedNodeId);
-  const dirty = !!draft && !same(draft.value, agent);
+  const dirty = (!!draft && !same(draft.value, agent)) || guidelines !== (savedRecord?.guidelines ?? '');
   const operate = (operations: AgentOperation[]) => {
     if (inFlight.current || !onSave) return;
     try {
       const next = stageAgentOperations(value, operations);
-      setDraft({ base: draft?.base ?? agent, value: next, operations: [...(draft?.operations ?? []), ...operations] });
+      setDraft({ base: draft?.base ?? agent, savedBase: draft?.savedBase ?? savedRecord, value: next, operations: [...(draft?.operations ?? []), ...operations] });
       setCollections(current => {
         const next = { ...current };
         for (const operation of operations) {
@@ -100,16 +105,32 @@ export function useNodeEdits(agent: AgentConfig, selectedNodeId: string | null, 
     if (node.end !== next.end) changes.end = next.end;
     if (Object.keys(changes).length) operate([{ type: 'update_node', node: node.name, changes }]);
   };
-  const cancel = () => { if (!inFlight.current) { setDraft(null); setCollections({}); setFieldEdits({}); setError(''); setSaved(false); } };
-  const save = async () => {
-    if (!onSave || !draft || !dirty || invalidCollection || unfinishedField || inFlight.current) return;
-    if (draft.base !== agent) { setError('This step changed since you started editing. Cancel to load the latest agent.'); return; }
-    inFlight.current = true; setPending(true); setError('');
-    try { await onSave(draft.operations); setDraft(null); setCollections({}); setFieldEdits({}); setSaved(true); }
-    catch (error) { setError(error instanceof Error ? error.message : 'Could not save changes. Try again.'); }
-    finally { inFlight.current = false; setPending(false); }
+  const cancel = () => {
+    generation.current += 1; inFlight.current = false; setPending(false);
+    setDraft(null); setGuidelineDraft(null); setCollections({}); setFieldEdits({}); setError(''); setSaved(false);
   };
-  return { agent: value, node, reconnect, fieldEdits, fieldEdit, finishField, unfinishedField, collections, collection, invalidCollection, dirty: dirty || invalidCollection || unfinishedField, pending, saved, error, update, operate, cancel, save };
+  const save = async (): Promise<boolean> => {
+    if (!onSave || invalidCollection || unfinishedField || inFlight.current) return false;
+    if (!dirty) return true;
+    if ((draft && (draft.base !== agent || draft.savedBase !== savedRecord)) || (guidelineDraft && guidelineDraft.base !== savedRecord)) {
+      setError('This step changed since you started editing. Cancel to load the latest agent.'); return false;
+    }
+    const token = ++generation.current;
+    const assertActive = () => { if (generation.current !== token) throw new Error('Edits were canceled or the active agent changed.'); };
+    inFlight.current = true; setPending(true); setError('');
+    try {
+      await onSave(draft?.operations ?? [], guidelines, assertActive);
+      assertActive(); setDraft(null); setGuidelineDraft(null); setCollections({}); setFieldEdits({}); setSaved(true); return true;
+    } catch (error) {
+      if (generation.current === token) setError(error instanceof Error ? error.message : 'Could not save changes. Try again.');
+      return false;
+    } finally { if (generation.current === token) { inFlight.current = false; setPending(false); } }
+  };
+  const editGuidelines = (text: string) => {
+    if (inFlight.current) return;
+    setGuidelineDraft({ base: guidelineDraft?.base ?? savedRecord, value: text }); setSaved(false); setError('');
+  };
+  return { guidelines, editGuidelines, agent: value, node, reconnect, fieldEdits, fieldEdit, finishField, unfinishedField, collections, collection, invalidCollection, dirty: dirty || invalidCollection || unfinishedField, pending, saved, error, update, operate, cancel, save };
 }
 
 export type AgentEditor = ReturnType<typeof useNodeEdits>;

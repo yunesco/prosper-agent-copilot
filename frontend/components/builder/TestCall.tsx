@@ -4,14 +4,18 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, MessageSquare, Phone, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { focusRing } from '@/components/ui/focus';
+import type { SavedAgent } from '@/lib/agent/repository';
 import type { useTestCall } from './use-test-call';
 
 type Call = ReturnType<typeof useTestCall>;
-export function TestCallControls({ call }: { call: Call }) {
+export function TestCallControls({ call, saved, dirty = false }: { call: Call; saved: SavedAgent; dirty?: boolean }) {
+  const identity = call.identity ?? saved;
   const labels = { idle: 'Ready to call', connecting: 'Connecting…', connected: 'Call connected', ended: 'Call ended', error: 'Call could not continue' };
   return <div className="flex min-h-full flex-col items-center justify-center gap-6 px-6 py-12 text-center">
     <div className="flex size-20 items-center justify-center rounded-full bg-surface text-base-content"><Phone className="size-7" aria-hidden="true" /></div>
     <div className="space-y-2">
+      <p className="max-w-full break-all text-xs text-text-muted">Saved agent {identity.id} · Revision {identity.revision}</p>
+      {dirty && <p className="text-sm text-text-muted">Unsaved drafts are excluded from Test Call.</p>}
       <h2 className="text-2xl font-semibold tracking-tight">Test your agent</h2>
       <p role="status" className="text-sm text-text-muted">{labels[call.status]}</p>
     </div>
