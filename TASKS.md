@@ -1,145 +1,149 @@
-# Pending implementation slices
+# Pending implementation tasks
 
-Architecture and scope: [`solution.md`](solution.md). Workflow: [`AGENTS.md`](AGENTS.md).
-Order: **05 → 06 → 07 → 08 → 09**. All of **05–06 must pass before 07 begins**.
-Manual development may continue while live checks are pending; pending live
-acceptance blocks Copilot.
-Remove completed work; do not append history or verification logs.
+Frozen scope: [solution.md](solution.md). Current code inventory and commands:
+[README.md](README.md). This is the only roadmap: remove completed work rather
+than appending history. All items below are pending; existing foundations are
+reused, not scheduled for a rebuild. Derive implementation from the existing code
+against the frozen spec; do not reopen architecture planning.
 
-For each implementation slice, retain focused behavioral and negative-path tests,
-`make verify`, `make e2e` for UI behavior, and desktop/mobile screenshot inspection
-for layout changes. Use injected fakes in deterministic tests. Actual calls are
-required for voice acceptance; mocks and unavailable live services do not close
-live criteria. Follow the verification procedures in [README.md](README.md#verification).
+## 1. Saved agent repository and context — NEXT
 
-## Voice interruption live acceptance
+**Status:** ready. **Dependencies:** existing operations, Python validation, draft
+editor, and current-agent Test Call bridge.
 
-Status: live comparison against the original voice pipeline pending.
+- [ ] Add a parsed saved-record contract with stable ID, revision, runtime agent,
+  and plain-text guidelines; implement an AgentRepository with localStorage.
+- [ ] Support creating a minimal valid agent and selecting the existing mocked
+  scheduler under the label “Mocked existing deployed agent.” Reuse fixtures.
+- [ ] Route manual Save through candidate operations, Python validation, and a
+  revision-checked repository commit. Commit graph and guideline drafts together.
+- [ ] Restore saved agents after refresh; Cancel restores saved values. Increment
+  revision once per meaningful commit, including guideline-only changes; not for
+  no-ops, selection, or geometry.
+- [ ] Reject commits whose agent ID or expected revision no longer matches the
+  active saved record; recheck after asynchronous validation. Surface malformed/
+  unavailable storage safely. Cross-browser-tab coordination is out of scope.
+- [ ] Protect dirty drafts on agent switch; isolate selection and asynchronous
+  completions by agent. Stop active calls on switch.
+- [ ] Keep Test Call on the exact saved payload and show its saved ID/revision;
+  clearly distinguish any unsaved draft from the call's configuration.
 
-- Run actual browser calls with the updated backend: silent headphone listening,
-  intentional interruption, and a paused multi-part answer. Capture interruption
-  timing, verify complete questions during silence, and verify no inference during
-  the incomplete pause. Check for false interruptions from VAD and stale partials
-  with the restored defaults, and interrupted/unplayed text in transcript events.
-- Preserve attempt evidence under ignored `evals/results/`. Synthetic microphone
-  silence alone does not establish the real headphone/microphone scenario.
+**Acceptance:** refresh preserves two distinct saved agents and their guidelines;
+Cancel and failed validation/storage leave saved state unchanged. Overlapping
+saves within the active app cannot overwrite a newer revision. Switching agents
+during a save cannot alter the new selection. A call after Save uses the committed payload,
+while a call with an unsaved draft uses the labeled saved version. Focused unit,
+integration, e2e, desktop/mobile inspection, and an actual call cover the change.
 
-## 05 — Complete manual agent authoring
+## 2. Integrated Copilot and reviewed structured proposals
 
-Status: implementation complete; actual-call acceptance pending.
+**Status:** pending. **Dependencies:** 1.
 
-- Verify an actual call through a manually inserted insurance step plus a saved
-  route change and confirm collection of the configured information, including
-  the selected choice value. Use the original scheduler in session; preserve the
-  flawed clinic fixture.
-- Verify an actual voice call after restoring the original model configuration:
-  greet once, wait through caller silence, ask for missing details, and wait for
-  the caller to select a slot before confirming. Compare model behavior with the
-  same prompts; a live API tool-call check does not establish turn-taking quality.
+- [ ] Integrate the existing chat presentation into Builder's Details | Copilot
+  pane using AI SDK state and a same-origin server API.
+- [ ] Implement `get_agent` and `propose_agent_patch` against the active saved
+  snapshot, guidelines, ID, revision, and relevant selected node/transition context.
+- [ ] Parse structured operation batches; use `applyAgentOperations()` and Python
+  candidate validation. Return validation errors to the model for repair.
+- [ ] Show summaries, affected graph elements, validation state, Dismiss, and Apply.
+  Apply explicitly commits the validated patch via the same repository path as
+  manual saves. Require manual drafts to be saved/canceled before Apply.
+- [ ] Keep chat through node selection; invalidate it on agent switches. Reject
+  stale proposals, including guideline-only revision changes and late responses.
+- [ ] Add structural node/transition references, focus-on-click, proposal and
+  discussion highlights, and a brief changed-elements indication after Apply.
+- [ ] Handle provider failure, malformed output, missing references, invalid
+  proposals, and unavailable validation without saved-state mutation.
+- [ ] Connect a real Copilot eval adapter; extend the synthetic rename-only harness
+  to capture actual tool execution and approval behavior.
 
-## 06 — Manual call review, repair, and retest
+**Acceptance:** a real model reads saved context and returns a validated structured
+proposal without changing the agent. Dismiss changes nothing; explicit Apply saves
+once. Invalid/stale proposals cannot Apply. Chat persists on selection but never
+leaks between agents. Test negative paths deterministically, verify browser
+interaction and desktop/mobile layout, and run a live Copilot eval.
 
-Status: depends on 05; completes the manual gate before 07 can begin.
+## 3. Story A: guidelines to working agent and real call
 
-- Add a clearly labelled switch to the fixture-loaded `clinic-scheduler`, marked
-  **mocked existing deployed agent**. Handle unsaved work, active calls, revision,
-  selection and drafts as specified in `solution.md`. Keep evidence scoped to its
-  agent; do not attribute mocked deployed calls to the manually built agent.
-- Show guidelines, successful/failed calls and the Friday issue with transcripts,
-  outcomes, graph paths and feedback. Opening the issue selects its call and
-  `offer_times` without mutating the agent. Handle missing references.
-- Prove Workflow B manually: inspect Friday evidence, locate/edit `offer_times`
-  and optionally its `select_time` description, Save and make a live retest. Enforce
-  Monday/Wednesday for new patients while preserving existing-patient scheduling
-  and conditional insurance collection. Do not add an insurance branch to this
-  targeted fix; verify existing patients skip insurance.
-- Separately prove Workflow A manually: start from the valid seed, use `demo-clinic`
-  guidelines to build name/DOB collection, explicit patient-type branching,
-  insurance only for new patients and Monday/Wednesday scheduling for Dr. Smith's
-  new patients. Inspect/edit, validate, Save and call the full branching agent.
-- Test switching, evidence scope, missing references and issue-to-step navigation;
-  cover the review/repair/retest UI and inspect desktop/mobile layouts. Run actual
-  calls for both manual workflows using the applicable conversation scenarios below.
+**Status:** pending. **Dependencies:** 1–2.
 
-## 07 — Copilot proposals and Apply
+- [ ] Exercise creation from a minimal valid agent with the demo clinic guidelines:
+  name, DOB, patient type, new-patient-only insurance, existing-patient bypass,
+  Dr. Smith's Monday/Wednesday new-patient restriction, eligible times,
+  confirmation, and clean end.
+- [ ] Ensure Copilot generates the complete graph as one reviewable validated
+  operation batch; human inspection and manual edits still work afterward.
+- [ ] Expand behavioral evals beyond exact rename operations to test required
+  branching, scheduling constraints, native payload preservation, and approval.
+- [ ] Cover missing data, ambiguity, valid short answers, corrections, information
+  supplied early, and required-data gating with focused deterministic tests. Fix
+  confirmed causes at the owning boundary while preserving the voice stack.
+- [ ] Run representative real calls: a generated-agent happy path and one meaningful
+  branching/edge case. Do not run a separate live call for every quality case.
 
-Status: blocked until all acceptance criteria in 05–06 pass, including live checks.
+**Acceptance:** paste guidelines → Copilot → validated proposal → Apply → inspect
+or edit → real Test Call. Both new- and existing-patient paths behave correctly;
+no disallowed new-patient slots, invented required information, stale corrected
+values, or unnecessary repeated questions in the focused test coverage. Record
+actual model evidence and the representative live calls; missing services leave
+live criteria open. These calls and the repaired Friday call in slice 5 establish
+the demo’s live voice behavior without requiring every scenario to run live.
 
-- Implement the architecture in `solution.md`: shared `frontend/lib/copilot/run()`
-  with injected validator, thin same-origin route, OpenAI provider and server-only
-  key, request saved snapshot/revision, bounded execution and real eval adapter.
-- Install/lock the provider dependency and document frontend credential setup.
-  Keep `useChat` in BuilderShell and add Details / Copilot tabs within the existing
-  pane, usable while a step is selected. Preserve conversation across pane/mode/
-  selection changes; agent switches reset conversation and invalidate old proposals.
-- Expose `get_agent` and `propose_agent_patch` over the completed manual operation
-  set. Copilot must not introduce editing capabilities absent from manual authoring.
-  The proposal tool constructs and Python-validates candidates, returns all errors
-  for repair, and never mutates saved state. No `validate_agent` tool.
-- Show concrete preview/validation status and Apply/Dismiss. Only explicit,
-  current-revision Apply commits through the same `applyAgentOperations()` used by
-  manual Save. Invalid, stale or unavailable validation cannot commit.
-- Test targeted edits, multi-error repair, malformed/empty proposals, provider and
-  validation failures, stale proposals after manual edits/switches, dismissal and
-  no approval. Assert real state preservation, not only a trace flag.
-- Run live `make eval-copilot`; inspect successful and failed proposals from the
-  actual loop in addition to deterministic and UI verification.
+## 4. Mocked call evidence and minimal production review
 
-## 08 — Copilot generation from guidelines
+**Status:** pending. **Dependencies:** 1. Implement after Story A to keep focus.
 
-Status: depends on 07 and the completed manual authoring/workflow foundation.
+- [ ] Extend the two existing call fixtures to 3–4 covering clean success, reported
+  failure, unflagged problem, and existing-patient booking; use stable call/agent
+  IDs, transcript, outcome, graph path, and optional feedback/source revision.
+- [ ] Correct the clean-success fixture: `new-patient-monday.json` currently offers
+  Friday to a new patient even though the booking ends on Monday. Keep the
+  intentional Friday failure as diagnostic evidence.
+- [ ] Make unflagged evidence reflect an actual repairable behavior in the mocked
+  saved graph, not an unrelated transcript defect or a prewritten issue answer.
+- [ ] Add recent call list, transcript, outcome/feedback, and graph navigation for
+  the explicitly selected mocked deployed agent.
+- [ ] Implement `get_calls` and `get_call` with active-agent filtering and ownership
+  checks, including unknown IDs and missing historical graph references.
 
-- Implement Workflow A from `demo-clinic` using the valid one-step seed defined in
-  `solution.md`. Replace/repurpose that seed in one atomic structural batch using
-  operations already supported manually.
-- Generate name/DOB collection, explicit patient-type routing, insurance only for
-  new patients and Monday/Wednesday restriction for Dr. Smith's new patients.
-  Validate, review, Apply, inspect/edit and live-test; failure preserves the prior agent.
-- Include conversation-quality instructions and the scenarios below in the
-  generation prompt/evals. Grade behavior and guideline adherence, allowing equivalent graphs.
-- Test structural operations via the actual Copilot, invalid generation, repaired
-  proposals and no approval. Run live `make eval-copilot` and actual generated-agent
-  calls for the applicable scenarios, alongside deterministic and UI verification.
+**Acceptance:** calls never leak to the new/generated agent. Each transcript/path
+supports its scenario and links to valid graph elements or an explicit historical
+missing-reference state. Historical calls remain unchanged after saved revisions.
+Test fixture integrity, tool isolation, and UI navigation; inspect changed layout.
 
-## 09 — Copilot diagnosis and repair
+## 5. Story B: evidence-backed diagnosis, targeted repair, retest
 
-Status: depends on 07 and 08; uses the call-review context completed in 06.
+**Status:** pending. **Dependencies:** 2 and 4; reuse Story A's call/eval path.
 
-- Implement read-only `get_call`/`get_calls` over supplied fixtures. Discover issues
-  with transcript evidence, including unflagged calls; no ingestion or background monitoring.
-- Diagnose the Friday failure using current fixture, call and guideline. Return
-  structured affected step/transition names and render those highlights; handle missing/stale references.
-- Target `offer_times` and optionally its transition description. Enforce new-patient
-  Monday/Wednesday without changing the existing-patient schedule or adding an
-  insurance branch. Preserve conditional insurance instructions; explicitly test
-  existing patients skip insurance. Full structural branching belongs to Workflow A.
-- Evaluate evidence, relevant highlights, minimal change, unrelated-field preservation,
-  approval/staleness and applicable conversation scenarios. Run live `make eval-copilot`
-  and actual post-fix calls for new and existing patients, including the Friday
-  restriction, alongside deterministic and UI verification.
-- Demonstrate both connected Copilot workflows, explicitly switching to the mocked
-  deployed agent before diagnosis; do not attribute its calls to the generated agent.
+- [ ] Let the user ask about the reported failed call. Ground diagnosis in saved
+  guidelines/configuration and call transcript/path/outcome/feedback.
+- [ ] Render concrete transcript-turn references and structural graph links with
+  highlights. Distinguish evidence from a hypothesis when context is insufficient.
+- [ ] Propose the smallest patch for the scheduling failure; preserve unrelated
+  configuration and existing-patient/insurance behavior.
+- [ ] Validate, review, Apply through the shared proposal flow, and immediately
+  allow a Test Call of the repaired saved revision.
+- [ ] Extend live and deterministic evals to check evidence grounding, repair
+  scope, stale/missing context, approval, and behavior after repair.
 
-## Pending conversation evaluations — manual 06, then Copilot 08 and 09
+**Acceptance:** failed call → evidence-backed cause → highlighted graph → targeted
+validated patch → Apply → real retest with correct scheduling. The patch preserves
+unrelated fields and paths. A model/tool failure cannot change saved state or
+invent an evidence citation. Actual live diagnosis and retest evidence are required.
 
-Apply these scenarios to the manually built and manually repaired agents first.
-Then use them in the 08 generation prompt and applicable actual calls against
-Copilot-generated/repaired agents. Grade behavior and transition timing, not exact
-phrasing. Apply visit-reason examples only where the agent asks for a visit reason.
+## 6. Optional stretch: on-demand discovery of an unflagged issue
 
-| Scenario | Expected behavior |
-| --- | --- |
-| Normal booking | Collect required details, offer an allowed time and confirm |
-| Unintelligible answer | Clarify without advancing or inventing information |
-| Unrelated/name-only visit reason | Clarify the reason before transitioning |
-| Valid short reason, such as “checkup” | Accept without unnecessary interrogation |
-| Missing required information | Ask for it before advancing |
-| Caller correction | Use the corrected value in subsequent steps and confirmation |
-| Information supplied early | Retain it without asking again unnecessarily |
+**Status:** optional / last. **Dependencies:** 3–5.
+**Stretch goal only after Stories A and B are complete and reliable.** Do not
+prioritize this over either core story or make it a core completion requirement.
 
-For manual 06 and applicable Copilot 08/09 calls, separately verify new-patient
-insurance collection, Friday rejection and Monday/Wednesday acceptance,
-existing-patient scheduling preservation, and skipping insurance for existing
-patients. Record expected/observed behavior and failures as described in
-[README.md](README.md#verification). Each slice must independently satisfy its
-applicable live criteria; remove pending criteria only when fulfilled.
+- [ ] Support “Review recent calls and tell me whether anything looks wrong” using
+  the active mocked agent's call tools and guidelines.
+- [ ] Detect the unflagged fixture's guideline violation with concrete evidence;
+  identify the responsible graph elements and offer a minimal validated repair.
+- [ ] Add positive and negative eval cases: discover the issue without consulting
+  the prewritten issue fixture, and do not label clean calls as failures.
+
+**Acceptance:** a live Copilot review discovers the unflagged problem, cites real
+transcript turns, and offers the normal human-approved repair/retest flow. No
+scheduled monitoring, background agents, ingestion, or analytics infrastructure.

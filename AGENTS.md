@@ -3,12 +3,16 @@
 Read `solution.md`, `README.md`, `TASKS.md`, then the selected slice's
 code/tests. `solution.md` owns scope; this file owns workflow. Track slices,
 dependencies, status and acceptance criteria only in `TASKS.md`. Other docs may
-link to it, but must not duplicate the roadmap. Keep docs accurate.
+link to it, but must not duplicate the roadmap. Keep docs accurate. Treat
+`solution.md` as frozen; implement against it without redesigning the architecture.
+Change its scope or interactions only when the user requests it.
 
 ## Boundaries
 
 - Implement one requested slice. No auth, organizations, database, EHR, production
-  analytics/ingestion, deployment/versioning, autonomous changes, or rules engine.
+  analytics/ingestion, production deployment/version-history UI, autonomous changes,
+  or rules engine. Stable saved-agent IDs, revision guards, and localStorage
+  persistence are in scope; revisions are concurrency tokens.
 - Preserve `backend/bot.py`'s voice stack. `backend/agent_builder/` owns Python
   validation/compilation; `frontend/lib/agent/` owns the TS contract and mutations.
 - Keep App Router pages/handlers thin; default to Server Components. Runtime HTTP
@@ -34,7 +38,14 @@ link to it, but must not duplicate the roadmap. Keep docs accurate.
 ## Changes and data
 
 - `propose_agent_patch` proposes only: preview → Python candidate validation →
-  explicit human Apply → shared `applyAgentOperations()`. Manual edits use the same path.
+  explicit human Apply → revision-checked save. Candidate construction and commit
+  use shared `applyAgentOperations()`; manual edits use the same mutation and
+  validation boundary. Apply saves the reviewed candidate, never a silent AI edit.
+- Keep runtime JSON inside a saved record with ID, revision, and plain-text
+  guidelines. Manual edits are drafts until Save; Cancel restores saved state.
+  Copilot reads saved context and Test Call executes the saved runtime JSON.
+  Guideline saves increment revision; reject stale writes/proposals and invalidate
+  in-flight context on agent switches. Persist through the local repository boundary.
 - Mutations must be pure, immutable, and atomic; failures leave the agent unchanged.
 - Use strict TS and parse untrusted JSON; never cast to `AgentConfig`. Preserve
   snake_case, defaults, and native payloads. Separate effects from domain logic.
@@ -51,7 +62,8 @@ link to it, but must not duplicate the roadmap. Keep docs accurate.
   shared theme tokens, and required library styles. Inline styles only serve dynamic
   geometry/library APIs.
 - Skills are optional: use one only when it materially helps the requested work.
-  Install only dependencies the slice needs. Update `solution.md` when interactions change.
+  Install only dependencies the slice needs. Preserve the frozen interactions in
+  `solution.md`; document user-requested interaction changes there.
 
 ## Verification
 
