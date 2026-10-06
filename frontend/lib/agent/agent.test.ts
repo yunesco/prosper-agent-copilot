@@ -100,3 +100,40 @@ test('addresses transitions by function after reordering and rejects ambiguous n
   expect(() => agentOperationSchema.parse({ type: 'update_edge', node: node.name, edge_index: 0, changes: { description: 'Old addressing' } })).toThrow();
   expect(() => agentOperationSchema.parse({ type: 'update_agent', changes: { model: 'not-a-model' } })).toThrow();
 });
+
+test('structural batches delete, rename and update by current names, preserving native JSON', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const before = structuredClone(agent);
+  const result = applyAgentOperations(agent, [
+    { type: 'add_node', value: { ...agent.nodes[3], name: 'insurance', end: false, edges: [] } },
+    { type: 'add_edge', node: 'insurance', value: { function: 'discard', description: '', target: 'confirm', properties: {}, required: [] } },
+    { type: 'add_edge', node: 'insurance', value: { function: 'record', description: '', target: 'offer_times', properties: { insurance: { type: 'string', extra: { native: [true, null] } } }, required: ['insurance'] } },
+    { type: 'delete_edge', node: 'insurance', function: 'discard' },
+    { type: 'update_edge', node: 'insurance', function: 'record', changes: { function: 'record_insurance' } },
+    { type: 'update_edge', node: 'insurance', function: 'record_insurance', changes: { description: 'Insurance collected' } },
+    { type: 'update_edge', node: 'collect_details', function: 'record_details', changes: { target: 'insurance' } },
+    { type: 'delete_node', node: 'greeting' },
+    { type: 'update_agent', changes: { initial_node: 'collect_details' } },
+  ]);
+  expect(result.initial_node).toBe('collect_details');
+  expect(result.nodes.at(-1)?.edges).toEqual([{ function: 'record_insurance', description: 'Insurance collected', target: 'offer_times', properties: { insurance: { type: 'string', extra: { native: [true, null] } } }, required: ['insurance'] }]);
+  expect(agent).toEqual(before);
+});
+
+test('structural failures cannot partially apply and renamed addresses expire immediately', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const before = structuredClone(agent);
+  for (const operations of [
+    [{ type: 'delete_node', node: 'greeting' }],
+    [{ type: 'delete_node', node: 'offer_times' }],
+    [{ type: 'add_node', value: agent.nodes[0] }],
+    [{ type: 'add_edge', node: 'greeting', value: agent.nodes[0].edges[0] }],
+    [{ type: 'delete_edge', node: 'greeting', function: 'missing' }],
+    [{ type: 'update_edge', node: 'greeting', function: 'choose_intent', changes: { function: 'renamed' } }, { type: 'delete_edge', node: 'greeting', function: 'choose_intent' }],
+  ]) {
+    const parsed = operations.map(operation => agentOperationSchema.parse(operation));
+    expect(() => applyAgentOperations(agent, parsed)).toThrow();
+    expect(agent).toEqual(before);
+  }
+  expect(() => agentOperationSchema.parse({ type: 'update_agent', changes: { voice_id: 'unsupported' } })).toThrow();
+});

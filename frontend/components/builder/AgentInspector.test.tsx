@@ -4,7 +4,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, expect, test, vi } from 'vitest';
 import { loadAgentFixture } from '@/lib/fixtures';
 import { applyAgentOperations } from '@/lib/agent/operations';
-import { AgentInspector } from './AgentInspector';
+import { AgentInspector as Inspector } from './AgentInspector';
+import { useNodeEdits } from './use-node-edits';
+import type { ComponentProps } from 'react';
+
+function AgentInspector(props: Omit<ComponentProps<typeof Inspector>, 'editor'>) {
+  const editor = useNodeEdits(props.agent, props.selectedNodeId, props.onSave);
+  return <Inspector {...props} editor={editor} />;
+}
 
 afterEach(cleanup);
 
@@ -15,9 +22,10 @@ test('instructions edit in place while important settings stay exposed', () => {
   expect(screen.queryByRole('button', { name: 'Edit instructions' })).not.toBeInTheDocument();
   expect(screen.queryByText('Advanced details')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Role instructions')).toHaveValue(agent.persona);
-  expect(screen.getByText(agent.model)).toBeVisible();
-  expect(screen.getByText(agent.voice_id)).toBeVisible();
-  expect(screen.getByText('Step behavior')).toBeVisible();
+  expect(screen.queryByText(agent.model)).not.toBeInTheDocument();
+  expect(screen.queryByText(agent.voice_id)).not.toBeInTheDocument();
+  expect(screen.queryByText('Step behavior')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Role instructions').closest('details')).not.toHaveAttribute('open');
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
 });
 
@@ -48,7 +56,7 @@ test('drafts survive selection and tab changes; Escape cancels without leaving t
   expect(screen.getByLabelText('Message 1 instructions')).not.toHaveValue('Draft');
   rerender(<AgentInspector agent={agent} selectedNodeId="collect_details" onSelect={onSelect} onSave={onSave} />);
   expect(screen.getByLabelText('Message 1 instructions')).toHaveValue('Draft');
-  fireEvent.click(screen.getByRole('button', { name: 'Transitions (1)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Connections' }));
   fireEvent.click(screen.getByRole('button', { name: 'General' }));
   fireEvent.keyDown(screen.getByLabelText('Message 1 instructions'), { key: 'Escape' });
   expect(onSelect).not.toHaveBeenCalled();
@@ -72,15 +80,16 @@ test('transition inspector exposes routing, tool name and collected fields toget
   const agent = loadAgentFixture('original-scheduler');
   const onSave = vi.fn().mockResolvedValue(undefined);
   const onSelect = vi.fn();
-  render(<AgentInspector agent={agent} selectedNodeId="collect_details" selectedTransitionIndex={0} onSelect={onSelect} onSave={onSave} />);
-  expect(screen.getByText('Function call')).toBeVisible();
-  expect(screen.getByText('record_details')).toBeVisible();
+  render(<AgentInspector agent={agent} selectedNodeId="collect_details" selectedTransitionFunction="record_details" onSelect={onSelect} onSave={onSave} />);
+  fireEvent.click(screen.getByText('Function details'));
+  expect(screen.getByLabelText('Function name')).toHaveValue('record_details');
   expect(screen.getByText('full_name', { exact: true })).toBeVisible();
   expect(screen.getByRole('combobox', { name: 'Target node' })).toHaveValue('offer_times');
   fireEvent.change(screen.getByRole('combobox', { name: 'Target node' }), { target: { value: 'confirm' } });
-  fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Ready to confirm' } });
+  fireEvent.change(screen.getByLabelText('Transition condition'), { target: { value: 'Ready to confirm' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-  await waitFor(() => expect(onSave).toHaveBeenCalledWith([{ type: 'update_edge', node: 'collect_details', function: 'record_details', changes: { description: 'Ready to confirm', target: 'confirm' } }]));
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  expect(applyAgentOperations(agent, onSave.mock.calls[0][0]).nodes[1].edges[0]).toEqual({ ...agent.nodes[1].edges[0], description: 'Ready to confirm', target: 'confirm' });
   expect(agent.nodes[1].edges[0].target).toBe('offer_times');
 });
 
@@ -95,7 +104,8 @@ test('empty goals accept continuous typing without losing focus', () => {
   expect(input).toHaveFocus();
   fireEvent.change(input, { target: { value: 'Hello' } });
   expect(input).toHaveValue('Hello');
-  expect(screen.getByText('End conversation')).toBeVisible();
+  expect(screen.getByRole('checkbox', { name: 'End conversation after this step' })).toBeChecked();
+  expect(screen.queryByText('Step behavior')).not.toBeInTheDocument();
 });
 
 test('explicit completion actions show the real behavior without an advanced disclosure', () => {
@@ -136,4 +146,48 @@ test('stale drafts cannot overwrite newer committed instructions', async () => {
   expect(onSave).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(screen.getByLabelText('Role instructions')).toHaveValue('Newer instructions');
+});
+
+test('one save includes agent and multiple step edits; invalid collection JSON survives navigation and cancel', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const props = { agent, onSelect: vi.fn(), onSave };
+  const { rerender } = render(<AgentInspector {...props} selectedNodeId={null} />);
+  fireEvent.change(screen.getByLabelText('Agent name'), { target: { value: 'Manual clinic' } });
+  rerender(<AgentInspector {...props} selectedNodeId="greeting" />);
+  fireEvent.change(screen.getByLabelText('Message 1 instructions'), { target: { value: 'Welcome' } });
+  rerender(<AgentInspector {...props} selectedNodeId="collect_details" selectedTransitionFunction="record_details" />);
+  fireEvent.click(screen.getByText('Edit collected fields'));
+  fireEvent.change(screen.getByLabelText('Collected fields JSON'), { target: { value: '{broken' } });
+  rerender(<AgentInspector {...props} selectedNodeId="confirm" />);
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  rerender(<AgentInspector {...props} selectedNodeId="collect_details" selectedTransitionFunction="record_details" />);
+  expect(screen.getByLabelText('Collected fields JSON')).toHaveValue('{broken');
+  fireEvent.change(screen.getByLabelText('Collected fields JSON'), { target: { value: JSON.stringify({ properties: { insurance: { type: 'string', native: [null] } }, required: ['insurance'] }) } });
+  fireEvent.change(screen.getByLabelText('Function name'), { target: { value: 'renamed' } });
+  rerender(<AgentInspector {...props} selectedNodeId="collect_details" selectedTransitionFunction="renamed" />);
+  fireEvent.change(screen.getByLabelText('Transition condition'), { target: { value: 'Collect insurance' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  const result = applyAgentOperations(agent, onSave.mock.calls[0][0]);
+  expect(result.name).toBe('Manual clinic');
+  expect(result.nodes[0].task_messages[0].content).toBe('Welcome');
+  expect(result.nodes[1].edges[0]).toMatchObject({ function: 'renamed', description: 'Collect insurance', required: ['insurance'] });
+});
+
+test('deleting a selected transition returns to its step and later updates address the surviving function', async () => {
+  const agent = loadAgentFixture('original-scheduler');
+  agent.nodes[0].edges.push({ ...agent.nodes[0].edges[0], function: 'survivor' });
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const onSelect = vi.fn();
+  const props = { agent, onSave, onSelect, selectedNodeId: 'greeting' };
+  const { rerender } = render(<AgentInspector {...props} selectedTransitionFunction="choose_intent" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Delete transition' }));
+  expect(onSelect).toHaveBeenCalledWith('greeting');
+  rerender(<AgentInspector {...props} selectedTransitionFunction={null} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Connections' }));
+  fireEvent.change(screen.getByLabelText('Transition condition'), { target: { value: 'Surviving transition' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+  expect(applyAgentOperations(agent, onSave.mock.calls[0][0]).nodes[0].edges).toEqual([{ ...agent.nodes[0].edges[1], description: 'Surviving transition' }]);
 });

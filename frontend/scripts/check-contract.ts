@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { agentFixtures } from '../lib/fixtures';
+import { createStepOperations } from '../lib/agent/authoring';
 import { applyAgentOperations } from '../lib/agent/operations';
 import { loadAgentFixture } from '../lib/fixtures';
 import { parseAgent } from '../lib/agent/schema';
@@ -10,6 +11,7 @@ import { parseAgent } from '../lib/agent/schema';
 const backend = fileURLToPath(new URL('../../backend/', import.meta.url));
 const cases: { id: string; input: unknown; accepted: boolean }[] = [
   ...Object.entries(agentFixtures).map(([id, input]) => ({ id, input, accepted: true })),
+  { id: 'generated-step-identifiers', accepted: true, input: applyAgentOperations(loadAgentFixture('original-scheduler'), createStepOperations(loadAgentFixture('original-scheduler'), 'Collect insurance — تأمين', 'collect_details', true, 'The caller needs insurance help.', 'Ask for insurance.').operations) },
   { id: 'defaults', accepted: true, input: { name: 'Defaults', initial_node: 'start', nodes: [{ name: 'start', end: true }] } },
   { id: 'native-json-and-edge-defaults', accepted: true, input: {
     name: 'Native fields', persona: 'Global', voice_id: 'voice', model: 'gpt-4o', initial_node: 'end', nodes: [{

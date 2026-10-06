@@ -32,7 +32,13 @@ and verification procedures. Workspace interaction decisions live below.
 - AI SDK for chat, streaming and tool state. React hooks own product state; no
   additional state library.
 - `backend/agent_builder/` owns runtime validation and Pipecat compilation.
-  Preserve `backend/bot.py`'s voice stack, provider versions and interruption defaults.
+  Preserve `backend/bot.py`'s voice stack and provider versions.
+  `backend/voice_turns.py` starts turns from VAD or final transcripts, preventing
+  stale ElevenLabs interims from cancelling replies. VAD alone never cancels a
+  reply: the first nonempty final transcript per turn broadcasts interruption,
+  before turn completion can trigger inference. Intentional interruptions wait
+  for finalization, including single-word answers and speech missed by VAD.
+  Smart Turn and VAD thresholds remain unchanged.
   `backend/voice_events.py` isolates the pinned RTVI observer compatibility fix:
   interruption discards queued, unplayed text before another response can emit it.
 - `frontend/lib/agent/` owns the TS wire contract and immutable atomic mutations.
@@ -61,7 +67,8 @@ to call-ending nodes. Cycles with exits are allowed. Explicit post-actions retai
 precedence over `end`; an overridden end flag alone is not a call ending.
 Every step is compiled during validation, including downstream steps.
 
-The demo supports the existing runtime model `gpt-4o`; arbitrary model values are
+The voice runtime uses the original `gpt-4o` through Pipecat’s existing Chat
+Completions service with the original provider defaults; arbitrary model values are
 rejected in Python, and `update_agent` cannot change `model`. This allowlist is a
 project constraint, not a claim about every model the provider supports.
 TypeScript checks shape and mutation preconditions, not a duplicate Python graph
@@ -163,10 +170,13 @@ supports the full branching structure through both manual authoring and generati
 
 ## Workspace interactions
 
-Preserve the existing light graphite/white theme with teal selection, compact
+Preserve the existing light graphite/white theme with graphite selection, compact
 headers, thin borders and system fonts. Use the local shadcn components and shared
 theme tokens. No navigation rail, separate chat sidebar, extra state/layout
-library, decorative motion or unsupported runtime settings.
+library, unsupported runtime settings. Use black primary buttons and transition pills with white text, neutral gray
+selection surfaces, and graphite step icons. Keep actions, focus rings, badges,
+and saved states monochrome. Pointer-opened Add step has a short entrance; press feedback stays
+subtle, keyboard actions stay immediate, and reduced motion disables movement.
 
 - The header identifies the agent and holds the Builder / Test Call pill. Builder
   shows the graph with a collapsible/resizable context pane, roughly 70/30 on desktop.
@@ -176,16 +186,35 @@ library, decorative motion or unsupported runtime settings.
   Clearing selection returns to agent context. Preserve the viewport while inspecting
   targets. Graph nodes support Enter/Space selection; Escape/canvas click clears it.
   Positions are deterministic presentation data, with pan/zoom/Fit and no drag-to-connect.
+  The graph displays the shared manual draft. A canvas plus button adds a standalone
+  step; users enter a readable step name and code generates unique IDs. A plus on each node adds a connected conversation or ending step. A trash
+  icon beside the selected node deletes it and its incident transitions in the same
+  draft. Deleting the initial step requires choosing a replacement before Save.
+  Creation asks for a readable name and conversation goal; the goal becomes the
+  step instructions immediately and is previewed on its card. Connections shows
+  incoming and outgoing links separately, including steps with no next step yet.
+  Connecting steps asks for a plain-language transition condition and generates a
+  unique tool name. Condition badges stay compact; internal function names are
+  editable under Function details, never used as the graph label. Existing empty
+  descriptions show Set condition so they can be repaired explicitly.
+  These controls follow the graph-adjacent interaction in the ElevenLabs reference;
+  the inspector holds instructions, start/end settings and transition details.
 - The divider supports pointer/keyboard resizing: arrows change 2 percentage points,
   Shift+arrow 10, Home/End bounds, double-click restores 70%, Escape cancels a drag.
   Reserve 320px for desktop details and restore focus when reopening the pane.
-- The inspector's General/Transitions section persists between nodes. Show exact
+- The inspector's General/Connections section persists between nodes. Show exact
   IDs, start/end badges, native actions, tool names and collected-field schemas.
   Start is the initial-node badge, not a separate runtime node. Voice/model are
   agent-wide read-only values; avoid unsupported per-node controls.
+- The workspace initially loads the original scheduler. **Create new agent** in
+  agent context starts a draft from the valid seed; Save commits it and Cancel
+  restores the previous agent. Finish or cancel an existing draft before creating.
 - Manual authoring supports agent name/instructions, adding/deleting steps and
   transitions, start/end behavior, function renaming, collected fields and required
   fields. Runtime voice/model settings stay read-only; preserve native payloads.
+- Keep step details focused: inherited role instructions use a disclosure; voice/model
+  appear only in agent context. Omit empty action/collected-field sections and repeated
+  helper text. Closing Add step restores trigger focus and preserves selection.
 - Goals, role overrides and transition descriptions are inline fields; routing uses
   a target select with Open target. Use agent instructions clears the role override.
   Native structured payloads remain accessible through disclosures.
@@ -201,6 +230,10 @@ library, decorative motion or unsupported runtime settings.
   Transcript uses final user text and playback-confirmed assistant segment progress,
   updating each segment in place. Generated but unplayed text stays hidden; playback
   timing may still differ slightly from what the caller hears. It persists until the next call or refresh.
+  The transcript follows incoming speech, including updates within a segment.
+  Scrolling back pauses following; Jump to latest resumes it. The log scrolls independently,
+  with graphite caller bubbles and light gray agent bubbles. Test Call keeps only
+  its heading, call status and action; omit explanatory notes.
 - `ChatPresentation` stays controlled by the AI SDK adapter; it owns only draft,
   clipboard feedback and scroll-following. Enter sends, Shift+Enter inserts a line,
   composition does not submit, and busy/blank submission is blocked. Preserve reading

@@ -29,7 +29,6 @@ from pipecat.runner.types import RunnerArguments, SmallWebRTCRunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.services.elevenlabs.stt import ElevenLabsRealtimeSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
-from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
@@ -37,6 +36,8 @@ from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
 from voice_events import VoiceRTVIProcessor
+from voice_llm import create_voice_llm
+from voice_turns import voice_turn_strategies
 
 # Load .env next to this file, so the bot runs the same from the repo root or backend/.
 load_dotenv(Path(__file__).parent / ".env", override=True)
@@ -67,12 +68,18 @@ async def run_bot(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         settings=ElevenLabsTTSService.Settings(voice=config.voice_id),
     )
-    llm = OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"], model=config.model)
+    llm = create_voice_llm(api_key=os.environ["OPENAI_API_KEY"], model=config.model)
+
+    async def on_confirmed_speech():
+        await context_aggregator.user().broadcast_interruption()
 
     context = LLMContext()
     context_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+            user_turn_strategies=voice_turn_strategies(on_confirmed_speech),
+        ),
     )
 
     pipeline = Pipeline(

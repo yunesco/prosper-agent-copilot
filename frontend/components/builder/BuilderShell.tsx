@@ -7,6 +7,8 @@ import { applyAgentOperations, type AgentOperation } from '@/lib/agent/operation
 import { validateAgent } from '@/lib/runtime/validation';
 import { stepTitle } from '@/lib/agent/graph';
 import { loadAgentFixture } from '@/lib/fixtures';
+import { useNodeEdits } from './use-node-edits';
+import { createStepOperations } from '@/lib/agent/authoring';
 import { AgentGraph } from './AgentGraph';
 import { AgentInspector } from './AgentInspector';
 import { GitBranch, MessageCircle, Phone } from 'lucide-react';
@@ -31,9 +33,20 @@ export function BuilderShell() {
     setAgent(candidate);
   };
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedTransitionIndex, setSelectedTransitionIndex] = useState<number | null>(null);
-  const selectNode = (id: string | null) => { setSelectedNodeId(id); setSelectedTransitionIndex(null); };
-  const selectTransition = (source: string, index: number) => { setSelectedNodeId(source); setSelectedTransitionIndex(index); };
+  const [selectedTransitionFunction, setSelectedTransitionFunction] = useState<string | null>(null);
+  const editor = useNodeEdits(agent, selectedNodeId, save);
+  const selectNode = (id: string | null) => { setSelectedNodeId(id); setSelectedTransitionFunction(null); };
+  const selectTransition = (source: string, index: number) => { setSelectedNodeId(source); setSelectedTransitionFunction(editor.agent.nodes.find(node => node.name === source)?.edges[index]?.function ?? null); };
+  const addStep = (name: string, source: string | null, end: boolean, condition: string, goal: string) => {
+    const { nodeId, operations } = createStepOperations(editor.agent, name, source, end, condition, goal);
+    editor.operate(operations);
+    selectNode(nodeId);
+  };
+  const deleteStep = (name: string) => {
+    const incoming: AgentOperation[] = editor.agent.nodes.flatMap(node => node.edges.filter(edge => edge.target === name && node.name !== name).map(edge => ({ type: 'delete_edge' as const, node: node.name, function: edge.function })));
+    editor.operate([...incoming, { type: 'delete_node', node: name }]);
+    selectNode(null);
+  };
   return <main className="flex h-dvh min-h-0 flex-col overflow-hidden bg-app-chrome pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
     <header className="flex shrink-0 flex-wrap items-center gap-x-8 gap-y-3 border-b border-ui-border bg-surface-raised px-4 py-3 md:px-6">
       <div className="flex min-w-0 items-center gap-4">
@@ -56,9 +69,9 @@ export function BuilderShell() {
     <PaneWorkspace
       workspaceTitle={mode === 'call' ? 'Test Call' : 'Workflow'}
       workspaceLabel={mode === 'call' ? 'Call' : 'Graph'}
-      contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{mode === 'call' ? 'Call transcript' : selectedTransitionIndex !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
-      workspace={openContext => <><div className={mode === 'builder' ? 'h-full' : 'hidden'}><AgentGraph agent={agent} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} /></div>{mode === 'call' && <TestCallControls call={call} />}</>}
-      context={<><div className={mode === 'builder' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}><AgentInspector onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionIndex={selectedTransitionIndex} /></div>{mode === 'call' && <CallTranscript call={call} />}</>}
+      contextTitle={<h2 className="flex items-center gap-2"><MessageCircle className="size-4 text-text-muted" />{mode === 'call' ? 'Call transcript' : selectedTransitionFunction !== null ? 'Transition' : selectedNodeId ? stepTitle(selectedNodeId) : 'Agent details'}</h2>}
+      workspace={openContext => <><div className={mode === 'builder' ? 'h-full' : 'hidden'}><AgentGraph agent={editor.agent} pending={editor.pending} onAddStep={(name, source, end, condition, goal) => { addStep(name, source, end, condition, goal); openContext(); }} onDeleteStep={name => { deleteStep(name); openContext(); }} selectedNodeId={selectedNodeId} onSelect={id => { selectNode(id); if (id !== null) openContext(); }} onSelectTransition={(source, index) => { selectTransition(source, index); openContext(); }} /></div>{mode === 'call' && <TestCallControls call={call} />}</>}
+      context={<><div className={mode === 'builder' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}><AgentInspector editor={editor} onSave={save} agent={agent} selectedNodeId={selectedNodeId} onSelect={selectNode} selectedTransitionFunction={selectedTransitionFunction} onRenameTransition={setSelectedTransitionFunction} /></div>{mode === 'call' && <CallTranscript call={call} />}</>}
     />
   </main>;
 }

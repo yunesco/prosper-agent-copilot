@@ -12,7 +12,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
     await goal.fill('Collect name and date of birth before continuing.');
     await page.screenshot({ path: testInfo.outputPath(`edit-${width}.png`) });
-    await page.getByRole('button', { name: 'Transitions (1)', exact: true }).click();
+    await page.getByRole('button', { name: 'Connections', exact: true }).click();
     await page.getByRole('button', { name: '→ offer_times' }).click();
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
     await page.getByRole('button', { name: /^Collect details/ }).click();
@@ -21,9 +21,9 @@ for (const width of [1440, 390]) {
     await goal.press('Control+Enter');
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     await expect(page.getByRole('button', { name: 'Inspect collect_details', exact: true, includeHidden: true })).toContainText('Collect name and date of birth');
-    await page.getByRole('button', { name: 'Transitions (1)', exact: true }).click();
+    await page.getByRole('button', { name: 'Connections', exact: true }).click();
     await page.getByRole('combobox', { name: 'Target node', exact: true }).selectOption('confirm');
-    await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Continue once details are complete.');
+    await page.getByRole('textbox', { name: 'Transition condition', exact: true }).fill('Continue once details are complete.');
     await page.screenshot({ path: testInfo.outputPath(`transition-edit-${width}.png`) });
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('form', { name: 'Node settings' }).getByRole('alert')).toContainText("'offer_times' is unreachable");
@@ -33,7 +33,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: '→ offer_times' }).click();
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
     await page.getByRole('button', { name: /^Collect details/ }).click();
-    await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('Continue once details are complete.');
+    await expect(page.getByRole('textbox', { name: 'Transition condition', exact: true })).toHaveValue('Continue once details are complete.');
     await expect(page.getByRole('combobox', { name: 'Target node', exact: true })).toHaveValue('offer_times');
     await page.getByRole('button', { name: 'General', exact: true }).click();
     await goal.fill('Do not commit an invalid edit');
@@ -41,7 +41,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('form', { name: 'Node settings' }).getByRole('alert')).toHaveText('Invalid candidate. Check the transition target.');
     await expect(goal).toHaveValue('Do not commit an invalid edit');
-    await expect(page.getByRole('button', { name: 'Inspect collect_details', exact: true, includeHidden: true })).toContainText('Collect name and date of birth');
+    await expect(page.getByRole('button', { name: 'Inspect collect_details', exact: true, includeHidden: true })).toContainText('Do not commit an invalid edit');
     await page.screenshot({ path: testInfo.outputPath(`edit-error-${width}.png`) });
     await page.unroute('**/api/runtime/validate');
     await page.route('**/api/runtime/validate', route => route.abort('connectionfailed'));

@@ -11,7 +11,7 @@ test('renders the accessible application shell', () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
   render(<Home />);
   expect(screen.getByRole('button', { name: 'Test Call' })).toBeEnabled();
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Agent name' })).toHaveValue('Prosper Scheduler');
   expect(screen.getByRole('main')).toBeInTheDocument();
   expect(screen.getByRole('heading', { level: 1, name: 'Agent builder' })).toBeVisible();
 });

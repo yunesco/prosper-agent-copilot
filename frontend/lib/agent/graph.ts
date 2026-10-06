@@ -1,7 +1,7 @@
 import type { Edge, Node } from '@xyflow/react';
 import type { AgentConfig, AgentNode } from './schema';
 
-export type StepData = { label: string; initial: boolean; terminal: boolean; endsConversation: boolean; description: string };
+export type StepData = { label: string; initial: boolean; terminal: boolean; endsConversation: boolean; description: string; onAdd?: () => void; onDelete?: () => void; pending?: boolean };
 export type StepNode = Node<StepData, 'step'>;
 export const stepTitle = (name: string) => name.replaceAll('_', ' ').replace(/^./, char => char.toUpperCase());
 
@@ -39,7 +39,7 @@ export function agentGraph(agent: AgentConfig): { nodes: StepNode[]; edges: Edge
     }),
     edges: agent.nodes.flatMap(node => node.edges.map((edge, index) => ({
       id: JSON.stringify([node.name, edge.function, index]), source: node.name, target: edge.target,
-      label: edge.description || edge.function, type: 'condition',
+      label: edge.description.trim() || 'Set condition', type: 'condition',
     }))),
   };
 }

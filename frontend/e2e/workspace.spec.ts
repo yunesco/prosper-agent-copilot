@@ -15,7 +15,7 @@ for (const [width, height] of [[1440, 900], [390, 844]]) {
     await expect(page.locator('main > header').getByRole('navigation', { name: 'Agent mode' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Test Call' })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('textbox')).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Agent name', includeHidden: true })).toHaveValue('Prosper Scheduler');
     await noOverflow(page);
     const shell = testInfo.outputPath(`shell-${width}.png`);
     await page.screenshot({ path: shell, fullPage: true });

@@ -1,9 +1,9 @@
 # Pending implementation slices
 
 Architecture and scope: [`solution.md`](solution.md). Workflow: [`AGENTS.md`](AGENTS.md).
-Order: **04 → 05 → 06 → 07 → 08 → 09**. All of **04–06 must pass before 07 begins**.
+Order: **05 → 06 → 07 → 08 → 09**. All of **05–06 must pass before 07 begins**.
 Manual development may continue while live checks are pending; pending live
-acceptance blocks Copilot. Staged work remains unverified until its checks pass.
+acceptance blocks Copilot.
 Remove completed work; do not append history or verification logs.
 
 For each implementation slice, retain focused behavioral and negative-path tests,
@@ -12,29 +12,20 @@ for layout changes. Use injected fakes in deterministic tests. Actual calls are
 required for voice acceptance; mocks and unavailable live services do not close
 live criteria. Follow the verification procedures in [README.md](README.md#verification).
 
-## 04 — Validation and reliable Test Call
+## Voice interruption live acceptance
 
-Status: existing validation/addressing and voice changes await verification.
+Status: actual calls pending.
 
-- Verify Python rejects duplicate step names, duplicate function names within a
-  step, invalid tool names, missing references, undefined required properties,
-  unreachable steps and missing paths to call-ending nodes. Allow cycles with
-  exits; explicit post-actions take precedence over `end`.
-- Verify every step compiles, including downstream steps, and validation returns
-  all discovered errors. Keep TS shape/mutation checks distinct from Python graph
-  validation; validate before commit and before voice allocation.
-- Verify transitions use `(node, function)` addresses; missing or ambiguous
-  addresses fail atomically and leave the saved agent unchanged.
-- Recheck actual calls with supplied Pipecat interruption defaults and transient
-  WebRTC disconnect recovery. Verify current saved-agent behavior before/after an
-  edit. Record actual observations; mocks do not satisfy this check.
-- In an actual call, interrupt the opening greeting and compare audio with the
-  transcript: unplayed text stays hidden, partial speech remains partial, and
-  progress updates do not duplicate assistant segments.
+- Run actual browser calls with the updated backend: silent headphone listening,
+  intentional interruption, and a paused multi-part answer. Capture interruption
+  timing, verify complete questions during silence, and verify no inference during
+  the incomplete pause. Final-transcript gating deliberately adds interruption latency.
+- Preserve attempt evidence under ignored `evals/results/`. Synthetic microphone
+  silence alone does not establish the real headphone/microphone scenario.
 
 ## 05 — Complete manual agent authoring
 
-Status: follows 04; manual development may proceed while live checks are pending.
+Status: ready.
 
 - Support creation from the valid one-step seed in `solution.md`, agent name and
   instructions, add/delete steps and transitions, start/end behavior, function
@@ -57,10 +48,14 @@ Status: follows 04; manual development may proceed while live checks are pending
   renaming, multi-step Save, cancellation and validation failures. Verify an actual
   call through a manually inserted insurance step plus a saved route change.
   Use the original scheduler in session; preserve the flawed clinic fixture.
+- Verify an actual voice call after restoring the original model configuration:
+  greet once, wait through caller silence, ask for missing details, and wait for
+  the caller to select a slot before confirming. Compare model behavior with the
+  same prompts; a live API tool-call check does not establish turn-taking quality.
 
 ## 06 — Manual call review, repair, and retest
 
-Status: depends on 05; completes the manual gate with 04 before 07 can begin.
+Status: depends on 05; completes the manual gate before 07 can begin.
 
 - Add a clearly labelled switch to the fixture-loaded `clinic-scheduler`, marked
   **mocked existing deployed agent**. Handle unsaved work, active calls, revision,
@@ -84,7 +79,7 @@ Status: depends on 05; completes the manual gate with 04 before 07 can begin.
 
 ## 07 — Copilot proposals and Apply
 
-Status: blocked until all acceptance criteria in 04–06 pass, including live checks.
+Status: blocked until all acceptance criteria in 05–06 pass, including live checks.
 
 - Implement the architecture in `solution.md`: shared `frontend/lib/copilot/run()`
   with injected validator, thin same-origin route, OpenAI provider and server-only
