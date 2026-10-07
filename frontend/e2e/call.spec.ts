@@ -127,7 +127,8 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
     // The saved graph stays visible and follows the agent's live transitions.
     const collect = page.getByRole('button', { name: 'Inspect collect_details', exact: true });
-    await expect(collect).not.toHaveAttribute('aria-current', 'step');
+    // Steps appear on the graph as the call reaches them, so a step not yet visited is not drawn.
+    await expect(collect).toHaveCount(0);
     await page.evaluate(() =>
       (window as unknown as { emitVoice: (message: unknown) => void }).emitVoice({
         type: 'server-message',
@@ -135,8 +136,22 @@ for (const width of [1440, 390]) {
       }),
     );
     await expect(collect).toHaveAttribute('aria-current', 'step');
+    await page.evaluate(() =>
+      (window as unknown as { emitVoice: (message: unknown) => void }).emitVoice({
+        type: 'server-message',
+        data: {
+          type: 'tool-call',
+          tool: 'check_availability',
+          arguments: { patient_type: 'new' },
+          result: { slots: [{ label: 'Monday, October 12 at 9:00 AM' }] },
+        },
+      }),
+    );
     await page.screenshot({ path: info.outputPath(`call-${width}.png`) });
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await expect(page.getByTestId('tool-call')).toContainText(
+      'check_availability → 1 open: Monday, October 12 at 9:00 AM',
+    );
     await expect(page.getByRole('log')).toContainText('I need an appointment.');
     await expect(page.getByRole('log').getByText('I can help with scheduling.', { exact: true })).toHaveCount(
       1,

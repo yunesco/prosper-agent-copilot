@@ -5,6 +5,45 @@ guidelines into an agent**, and **finding and fixing what goes wrong in producti
 for those two jobs and nothing else. The graph editor, validation, saved agents, call
 evidence and Test Call are there so a person can trust what the Copilot hands them.
 
+## What I optimised for
+
+A deployment team onboarding a new client: they read the client's public site and SOP, then need
+a working agent for *that* client's use case. Prosper's own public material lists scheduling,
+eligibility and benefits verification, billing, prior authorization and claims follow-up, with
+escalation to humans ([primary care page](https://www.getprosper.ai/outpatient-groups/primary-care),
+[a16z](https://a16z.com/announcement/investing-in-prosper-ai/)). So the Copilot builds agents
+that **act through tools, not through data pasted into prompts**.
+
+- Steps can call tools (`tools` on a step): `check_availability`, `book_appointment`,
+  `lookup_patient`, `verify_eligibility`, `transfer_to_human`. They run against a mocked clinic API
+  whose answers are computed from today's date and what is already booked, so availability is never
+  hardcoded, booking a slot removes it, and a taken slot returns a real 409.
+- Scheduling is built end to end. Eligibility and transfer prove the same pattern holds for a second
+  use case; claims, balances, prior auth and SMS are one registry entry each and are not built.
+- The Copilot knows the catalog. For something no tool covers it builds what the tools allow, says
+  what is missing, and uses `transfer_to_human`. It never invents a tool.
+- Where it would plug in: `mock_api.py` is the only file that pretends to be an EHR or payer.
+
+## What the demo proves
+
+In the order you would watch it:
+
+1. **Build from an SOP** into a lean graph that uses tools and has no times in any instruction.
+2. **Review a shipped agent.** The deployed Riverside agent is imperfect on purpose: the SOP has
+   five rules it silently misses (emergency, callback number, patient lookup, insurance check,
+   confirmation read-back). Review quotes each rule and names the step at fault. The flaws are
+   planted and listed here, so the result is reproducible, not cherry-picked.
+3. **Every fix gets a card.** Fix requests force the Copilot to end in a proposal; if it cannot, the
+   UI says why and offers Retry instead of leaving prose.
+4. **Detect from calls.** Without being told, it finds two unreported failures (chest pain while the
+   agent kept booking; a taken slot the agent confirmed anyway) with verified turn citations, and leaves clean calls alone.
+5. **Repair a flagged issue** with the smallest patch.
+6. **Test Call is real.** Tool calls show in the transcript (`book_appointment → confirmed A101`),
+   the booked slot disappears on the next call, and a new patient asking for Friday is refused by the API.
+
+The Copilot's work log reads like a short report, not a spinner: "Riverside: 7 steps, 2 using tools",
+"14 calls: 6 failed, 1 reported by the client", "Valid: 9 changes across 5 steps".
+
 ## The one idea
 
 An AI that edits your agent is scary, because a valid-looking graph can still be a bad call.
@@ -36,7 +75,7 @@ transcripts and cites turns. If it cites a turn it never read, the UI shows it a
 │        ▼                                 │                      │ (saved agent)
 │  AgentRepository (localStorage)  ◄── Apply, revision-checked ───┘
 │   id · revision · agent JSON · guidelines│
-│                                          │   Mock platform API: 12 synthetic calls
+│                                          │   Mock platform API: 14 synthetic calls
 │  Copilot server route (keys server-side) │   (list, filter, paginate, fetch one)
 └──────────────────────────────────────────┘
 ```
@@ -96,9 +135,12 @@ state. The Copilot only reads saved state, and Test Call only runs saved state, 
 test is what you saved. Apply refuses to run on top of an unsaved draft instead of merging.
 
 **Test Call shows the graph.** During a call the saved graph stays on screen next to the live
-transcript, and the step the agent is on is highlighted. The voice runtime reports each
-transition as an RTVI server message (`node-active`) on the existing data channel; the first
-step is implied by `bot-ready`. Each agent line is labelled with the step that generated it.
+transcript. Steps appear as the call reaches them and the current one is marked *Live*. The voice
+runtime reports each transition as an RTVI server message (`node-active`) on the existing data
+channel; the first step is implied by `bot-ready`. Each agent line is labelled with the step that
+generated it. Tool calls arrive the same way (`tool-call`) and show as their own line in the
+transcript, for example `book_appointment → confirmed A101: Monday, October 12 at 9:00 AM`, or the
+error when a slot was taken.
 
 **One mutation path.** Manual edits and Copilot proposals both go through
 `applyAgentOperations()`. It is pure and atomic: if any step fails, nothing changes.
@@ -111,9 +153,16 @@ unavailable, Apply stays disabled.
 **Progress is read from the stream, not guessed.** While the Copilot works, the status line names the
 current phase (thinking, reading the agent or a call, writing the graph with a live step count, checking
 with the validator, writing the summary) and an elapsed timer. Every label comes from an actual stream
-event; the model's own reasoning text is not shown.
+event; the model's own reasoning text is not shown. When a step finishes, the work log says what it
+found ("14 calls: 6 failed, 1 reported by the client"), built from the real tool output.
 
-**Four tools, no more.** `get_agent`, `get_calls`, `get_call`, `propose_agent_patch`. The model
+**A fix request always ends in a card.** The "Propose all changes" and "Propose change" buttons (now on
+ambiguous findings too, using the most reasonable reading and saying so) tell the server to expect a
+proposal. After a few reads the Copilot is forced to call `propose_agent_patch`. If it still cannot
+produce a valid change, the UI shows a *No change proposed* card with the reason and Retry, never silence.
+
+**Four Copilot tools, no more.** `get_agent`, `get_calls`, `get_call`, `propose_agent_patch`. (Voice agents have their own
+step tools, described above. The Copilot only *assigns* them; it cannot call them.) The model
 reasons about a change and submits one batch of typed operations; it does not get low-level
 edit tools or replacement JSON. Small surface, easy to evaluate and to trust.
 
@@ -152,7 +201,7 @@ transition requires, so a transition without required fields lets the agent move
 Quality checks cover that (and re-asking for known data), the Copilot's instructions require
 short answers, corrections and remembering early information, and live calls prove the rest.
 
-**Production calls are mocked behind an API.** Twelve synthetic calls for the deployed agent, served by a small
+**Production calls are mocked behind an API.** Fourteen synthetic calls for the deployed agent, served by a small
 mock platform API with listing, filtering, pagination and agent-scoped lookup. The UI and
 the tools use it the way they would use a real platform; swapping it in replaces one module.
 Calls stay historical: a repair never rewrites them.
@@ -164,6 +213,24 @@ setting and does not change the voice model.
 **Stack:** Next.js App Router (thin pages, server components by default), Tailwind and shadcn/ui,
 the AI SDK for chat and tool state, React hooks for workspace state, localStorage behind
 the repository, Python for validation and voice.
+
+## What is real, what is mocked
+
+| Real | Mocked |
+| --- | --- |
+| Voice stack, graph compiler, Python validator, Copilot, proposals, Apply, Test Call | Production calls (14 written by hand) |
+| Tool calling inside a live call: the model decides, the handler runs, the result is spoken | The clinic systems behind the tools: `mock_api.py`, in memory |
+| Rules the API enforces: new patients Monday and Wednesday only, no double booking | The patient list, insurance plans and the "existing load" on Dr. Smith's calendar |
+
+## Assumptions
+
+- The reader is a deployment engineer who has a client's SOP and wants a first working agent today.
+- A human reviews every change. Speed comes from the Copilot doing the reading and wiring, not from skipping review.
+- Data that lives in a clinic system (times, patient records, plan acceptance) must come from a tool at call time. If it is
+  written in a prompt it goes stale, and the Copilot is told not to do it.
+- Scheduling is the main case. Other use cases should be one tool entry each, not a new product.
+- The deployed demo agent misses five SOP rules on purpose: emergencies, callback number, patient lookup, insurance check and a
+  full confirmation. They are there so Review has real findings to show.
 
 ## What I did not build, and why
 
@@ -179,7 +246,7 @@ spent the time on the Copilot.
 | Autonomous changes | The human Apply step is the point |
 | Version history, rollback, deployment pipeline | Revisions are concurrency tokens only; production release is a separate problem |
 | Rules engine or behavior DSL | Guidelines stay plain text; the model compares them to the graph |
-| EHR or scheduling integration | Times and bookings are simulated and the agent is told not to invent more |
+| EHR, payer and IVR integrations | Mocked behind one module (`mock_api.py`); the tool contract is real, the backend is not. More tools (claims, balances, prior auth, SMS, cancel) are one registry entry each |
 | Pre-Apply replay of old calls against a candidate | The next step I would build; it would fill the "conversation checks" slot |
 | Templates, import/export, cloning, PDF/knowledge-base guidelines | Pasted text covers the use case |
 | Model or voice selectors, prompt playground | Not part of either job |
@@ -190,3 +257,7 @@ spent the time on the Copilot.
 - The Copilot's quality is measured by evals that score observed tool calls and cited
   turns on synthetic data. They do not measure voice quality.
 - Persistence is per browser; two tabs writing the same agent is not coordinated.
+- Tool results come from a canned, in-memory mock. They are realistic in shape (computed slots, 409s,
+  plan-specific copays) but are not a real EHR, and tool calls were exercised by unit tests and
+  live Copilot runs, not by a recorded voice call in this repo.
+- Fix requests are forced to propose; a vague free-text chat message is still allowed to answer in prose.

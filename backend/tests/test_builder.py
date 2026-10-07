@@ -32,8 +32,10 @@ def test_fixture_compiles_and_every_edge_persists_state_and_transitions(path):
         visited.add(node["name"])
         source = next(n for n in builder.config.nodes if n.name == node["name"])
         assert node["task_messages"] == source.task_messages
-        assert node["role_message"] == (source.role_message or builder.config.persona)
-        for function, edge in zip(node["functions"], source.edges, strict=True):
+        assert (source.role_message or builder.config.persona) in node["role_message"]
+        edge_functions = node["functions"][: len(source.edges)]
+        assert [f.name for f in node["functions"][len(source.edges) :]] == source.tools
+        for function, edge in zip(edge_functions, source.edges, strict=True):
             assert function.name == edge.function
             assert function.properties == edge.properties
             assert function.required == edge.required

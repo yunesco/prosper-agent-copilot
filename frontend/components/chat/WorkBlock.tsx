@@ -11,6 +11,8 @@ export type ChatActivity = {
   status: 'pending' | 'completed' | 'failed' | 'interrupted';
   /** Shown only when a step failed: the reason is the point of looking. */
   detail: string;
+  /** One line saying what the step found, shown under a completed step. */
+  result?: string;
   icon?: Icon;
 };
 /** Everything one assistant turn did, in one place: the live phase, the steps, and how long it took. */
@@ -102,6 +104,9 @@ export function WorkBlock({ work }: { work: ChatWork }) {
               </div>
               {step.status === 'failed' && (
                 <p className="py-1 pl-6 text-xs leading-5 text-error-text">{step.detail}</p>
+              )}
+              {step.status === 'completed' && step.result && (
+                <p className="pb-1 pl-6 text-xs leading-5">{step.result}</p>
               )}
             </li>
           );

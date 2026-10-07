@@ -12,8 +12,8 @@ sense and a live demo. The order below follows that.
 | --- | --- | --- | --- | --- |
 | 1 | SOP to agent, then a real call | Create an agent, test call, initial implementation | Hours of translating guidelines become a reviewed proposal and a call | 3 min |
 | 2 | Same call, existing patient | Branching graph, real runtime | The graph has real branches and the voice runs them | 1 min |
-| 3 | Reproduce the bug live | Production iteration | The failure is real and audible, not a staged screenshot | 1 min |
-| 4 | Investigate and repair | Production iteration | Cited evidence, smallest fix, human Apply, same call now passes | 3 min |
+| 3 | Review a shipped agent against its SOP | Initial implementation, iteration | The deployed agent looks fine but misses five SOP rules; Review finds each with a quote | 2 min |
+| 4 | Investigate and repair | Production iteration | Cited evidence, smallest fix, human Apply, then a live call books for real | 3 min |
 | 5 | Detect an unreported issue | "Even the detection is a burden" | It finds a violation nobody flagged and does not accuse clean calls | 2 min |
 | 6 | Interview from nothing | Initial implementation, vague input | It asks only what it needs, offers defaults, then builds | 2 min |
 | 7 | Guardrails | Judgment, trust | Nothing changes without review; ambiguity gets questions, not guesses | 1 min |
@@ -70,20 +70,24 @@ Then "Friday works."
 **Say:** "Same agent. New patients are limited to two days and asked about insurance. Existing
 patients skip insurance and get Friday. That rule lives in the graph."
 
-## Demo 3: reproduce the bug live
+## Demo 3: review the shipped agent against its SOP
 
-**Purpose.** Show the production problem for real before fixing it.
+**Purpose.** The agent already runs and looks right. Show the Copilot finding what a person would
+only find after an incident.
 
-1. Switch to **Riverside Family Clinic** (tagged *Deployed*). Test Call.
-2. Say: "Alex Example, January first, nineteen ninety. New patient, I have Demo Insurance."
-   When it offers times say "Friday works."
+1. Switch to **Riverside Family Clinic** (tagged *Deployed*). Its offer steps call
+   `check_availability` and `book_appointment`; no time is written in any instruction.
+2. Open **Copilot** and click **Review behavior**.
+3. Expect five potential mismatches, each with the saved SOP quote and the step at fault: no
+   **emergency** rule, no **callback number**, existing patients never verified with
+   `lookup_patient`, insurance never checked with `verify_eligibility`, and a one-line
+   **confirmation**.
+4. Click **Propose all changes** (or **Propose change** on one finding). Show the proposal; every fix
+   request ends in a proposal card, or an explicit *No change proposed* card with a reason and Retry.
+5. Preview, then **Apply**. Open the Copilot's work log: each step says what it found.
 
-**Expect:** a new patient must only be offered Monday or Wednesday. The saved slot field is free
-text (no enum), so nothing in the graph forces that. If the agent books Friday, that is the client's
-complaint reproduced; if it declines, say so and use the recorded call in demo 4 instead.
-
-**Say:** "A client reported this. Now the deployment team would read transcripts and find the
-step. Let's see the Copilot do it."
+**Say:** "The flaws were planted so you can reproduce them. Every finding quotes the client's
+own SOP, and I approve the fix."
 
 ## Demo 4: investigate and repair
 
@@ -95,9 +99,10 @@ step. Let's see the Copilot do it."
    turn), and names `offer_new_patient_times` as the cause. Point out that a citation only renders as a
    link if the Copilot actually read that turn.
 3. Show the proposal: one step changed, nothing else. Preview, then **Apply**.
-4. Run the **same call as demo 3**.
+4. Test Call as a new patient and ask for Friday, then book Monday or Wednesday.
 
-**Expect:** a new patient is offered Monday or Wednesday only and is told Friday is not available.
+**Expect:** the transcript shows `check_availability` and `book_appointment` lines. The mock scheduling
+API, not the prompt, enforces that a new patient has Monday and Wednesday only. Call again: the slot you booked is gone.
 
 **Say:** "Cited cause, smallest patch, I approved it, and the same call now passes. The old
 transcript stays as it was; we do not rewrite history."
@@ -107,7 +112,8 @@ transcript stays as it was; we do not rewrite history."
 **Purpose.** "Even the detection of these issues is a burden." Nobody reported anything here.
 
 1. On the deployed agent, press **Review recent calls with Copilot**.
-2. Expect it to flag the failed calls nobody reported: **New patient asks about Friday**,
+2. Expect it to flag the failed calls nobody reported: **Caller describes chest pain, agent keeps booking**,
+   **Slot taken during booking, agent confirms anyway**, **New patient asks about Friday**,
    **Caller asks for a time that was never offered** and **Existing patient booked a day Dr. Smith
    does not work**. Show a cited turn.
 3. Point out what it did not flag: the clean bookings, **Friday request correctly declined**,
@@ -172,4 +178,4 @@ next: replaying old calls against a candidate before Apply.
 
 - `make verify` and `make e2e` green.
 - `make eval-copilot` results (README, Evidence).
-- The real call outcomes for demos 1, 2 and 4, recorded in the README's Evidence section.
+- The real call outcomes for demos 1, 2 and 4 (with the tool lines visible), recorded in the README's Evidence section.

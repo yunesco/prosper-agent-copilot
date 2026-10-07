@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDown, LoaderCircle, MessageSquare, Phone, PhoneOff } from 'lucide-react';
+import { ArrowDown, LoaderCircle, MessageSquare, Phone, PhoneOff, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { focusRing } from '@/components/ui/focus';
 import { stepTitle } from '@/lib/agent/graph';
@@ -124,31 +124,42 @@ export function CallTranscript({ call }: { call: Call }) {
               </p>
             </div>
           )}
-          {call.transcript.map((line, index) => (
-            <div
-              key={index}
-              className={
-                line.role === 'user'
-                  ? 'ml-8 flex min-w-0 flex-col items-end gap-1.5'
-                  : 'mr-8 flex min-w-0 flex-col items-start gap-1.5'
-              }
-            >
-              <p className="px-1 text-xs font-medium text-text-muted">
-                {line.role === 'user' ? 'You' : 'Agent'}
-                {line.role === 'assistant' && line.node && (
-                  <span className="ml-2 rounded-full border border-ui-border px-2 py-0.5 font-normal">
-                    {stepTitle(line.node)}
-                  </span>
-                )}
-              </p>
+          {call.transcript.map((line, index) =>
+            line.tool ? (
               <p
-                dir="auto"
-                className={`max-w-full whitespace-pre-wrap rounded-xl px-4 py-3 text-sm leading-6 [overflow-wrap:anywhere] ${line.role === 'user' ? 'bg-surface' : 'bg-background'}`}
+                key={index}
+                data-testid="tool-call"
+                className="mr-8 flex min-w-0 items-center gap-2 rounded-lg border border-ui-border px-3 py-2 font-mono text-xs leading-5 text-text-muted [overflow-wrap:anywhere]"
               >
+                <Wrench aria-hidden="true" className="size-3.5 shrink-0" />
                 {line.text}
               </p>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={index}
+                className={
+                  line.role === 'user'
+                    ? 'ml-8 flex min-w-0 flex-col items-end gap-1.5'
+                    : 'mr-8 flex min-w-0 flex-col items-start gap-1.5'
+                }
+              >
+                <p className="px-1 text-xs font-medium text-text-muted">
+                  {line.role === 'user' ? 'You' : 'Agent'}
+                  {line.role === 'assistant' && line.node && (
+                    <span className="ml-2 rounded-full border border-ui-border px-2 py-0.5 font-normal">
+                      {stepTitle(line.node)}
+                    </span>
+                  )}
+                </p>
+                <p
+                  dir="auto"
+                  className={`max-w-full whitespace-pre-wrap rounded-xl px-4 py-3 text-sm leading-6 [overflow-wrap:anywhere] ${line.role === 'user' ? 'bg-surface' : 'bg-background'}`}
+                >
+                  {line.text}
+                </p>
+              </div>
+            ),
+          )}
         </div>
       </div>
       {!atBottom && call.transcript.length > 0 && (

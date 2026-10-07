@@ -121,7 +121,14 @@ export function candidateDiff(
       add(name, a, b, { kind: 'node', node: name });
       continue;
     }
-    for (const key of ['task_messages', 'role_message', 'pre_actions', 'post_actions', 'end'] as const)
+    for (const key of [
+      'task_messages',
+      'role_message',
+      'tools',
+      'pre_actions',
+      'post_actions',
+      'end',
+    ] as const)
       add(`${name}.${key}`, a[key], b[key], { kind: 'node', node: name });
     for (const fn of new Set([...a.edges, ...b.edges].map(edge => edge.function)))
       add(

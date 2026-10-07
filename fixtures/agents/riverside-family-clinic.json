@@ -117,7 +117,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "The caller is a new patient. Offer only these simulated Dr. Smith appointment times: Monday at 10 AM or Wednesday at 2 PM. New patients can only see Dr. Smith on Monday and Wednesday. Accept short answers such as 'Monday'."
+          "content": "The caller is a new patient. Call check_availability with patient_type 'new' and offer the first two slots it returns. When the caller picks one, call book_appointment with that slot's slot_id, their full name and patient_type 'new', then continue. Accept short answers such as 'Monday'."
         }
       ],
       "edges": [
@@ -140,6 +140,10 @@
             "selected_time"
           ]
         }
+      ],
+      "tools": [
+        "check_availability",
+        "book_appointment"
       ]
     },
     {
@@ -147,7 +151,7 @@
       "task_messages": [
         {
           "role": "developer",
-          "content": "The caller is an existing patient. Do not ask for insurance. Offer only these simulated Dr. Smith appointment times: Monday at 10 AM, Wednesday at 2 PM, or Friday at 2 PM. Existing patients may book any of those three times. Accept short answers such as 'Friday'."
+          "content": "The caller is an existing patient. Do not ask for insurance. Call check_availability with patient_type 'existing' and offer the first two slots it returns. When the caller picks one, call book_appointment with that slot's slot_id, their full name and patient_type 'existing', then continue. Accept short answers such as 'Friday'."
         }
       ],
       "edges": [
@@ -170,6 +174,10 @@
             "selected_time"
           ]
         }
+      ],
+      "tools": [
+        "check_availability",
+        "book_appointment"
       ]
     },
     {

@@ -103,6 +103,14 @@ async def run_bot(
 
     builder.on_node = announce_node
 
+    # Show each tool call and its result in the Test Call transcript.
+    async def announce_tool(name: str, args: dict, result: dict) -> None:
+        await worker.rtvi.send_server_message(
+            {"type": "tool-call", "tool": name, "arguments": args, "result": result}
+        )
+
+    builder.on_tool = announce_tool
+
     flow_manager = FlowManager(
         llm=llm,
         context_aggregator=context_aggregator,

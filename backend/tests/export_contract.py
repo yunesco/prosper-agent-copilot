@@ -17,7 +17,7 @@ for data in json.load(sys.stdin):
         builder.build_initial_node()
         for node in builder.config.nodes:
             compiled = builder._make_node(node)
-            for function, edge in zip(compiled.get("functions", []), node.edges, strict=True):
+            for function, edge in zip(compiled.get("functions", [])[: len(node.edges)], node.edges, strict=True):
                 assert function.properties == edge.properties
                 assert function.required == edge.required
         results.append({"ok": True, "agent": asdict(builder.config)})

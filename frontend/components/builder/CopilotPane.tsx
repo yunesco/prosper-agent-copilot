@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/Button';
 import { ChatPresentation } from '@/components/chat/ChatPresentation';
 import { referenceExists, type GraphReference, type Proposal } from '@/lib/agent/proposals';
 import type { SavedAgent } from '@/lib/agent/repository';
@@ -120,10 +121,22 @@ export function CopilotPane({
             review={review}
             record={record}
             busy={copilot.busy || applying}
-            onSend={text => copilot.send(text)}
+            onSend={(text, expect) => copilot.send(text, 'chat', expect)}
             onFocus={onFocus}
           />
         ))}
+        {copilot.noProposal && (
+          <section
+            aria-label="No change proposed"
+            className="mt-4 rounded-lg border border-ui-border p-4 text-sm"
+          >
+            <h3 className="font-medium">No change proposed</h3>
+            <p className="mt-1 text-xs leading-5 text-text-muted">{copilot.noProposal}</p>
+            <Button variant="outline" size="sm" className="mt-3 h-9" onClick={copilot.retry}>
+              Retry
+            </Button>
+          </section>
+        )}
         {copilot.proposals.map(item => (
           <ProposalCard
             key={item.proposal.id}

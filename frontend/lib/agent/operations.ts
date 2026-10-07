@@ -27,6 +27,7 @@ export const agentOperationSchema = z.discriminatedUnion('type', [
         .object({
           task_messages: nodeSchema.shape.task_messages.removeDefault(),
           role_message: nodeSchema.shape.role_message.removeDefault(),
+          tools: nodeSchema.shape.tools.removeDefault(),
           end: z.boolean(),
         })
         .partial()

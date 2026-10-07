@@ -1,10 +1,19 @@
 import { z } from 'zod';
 import type { AgentConfig } from '@/lib/agent/schema';
 import { requestCallAnswer } from './call-api';
+import { toolSummary } from './tool-summary';
 
-export type TranscriptLine = { role: 'user' | 'assistant'; text: string; segment?: number; node?: string };
+export type TranscriptLine = {
+  role: 'user' | 'assistant';
+  text: string;
+  segment?: number;
+  node?: string;
+  /** Set for a tool call the agent made (text is the one-line result), not for speech. */
+  tool?: string;
+};
 const eventSchema = z.object({ label: z.literal('rtvi-ai'), type: z.string(), data: z.unknown().optional() });
 const userText = z.object({ text: z.string(), final: z.boolean() });
+const toolCall = z.object({ type: z.literal('tool-call'), tool: z.string(), result: z.unknown() });
 const nodeActive = z.object({ type: z.literal('node-active'), node: z.string() });
 const botText = z.object({
   text: z.string(),
@@ -128,6 +137,13 @@ export function createVoiceCall(
           if (message.type === 'server-message') {
             const event = nodeActive.safeParse(message.data);
             if (event.success) callbacks.node?.(event.data.node);
+            const tool = toolCall.safeParse(message.data);
+            if (tool.success)
+              callbacks.transcript({
+                role: 'assistant',
+                text: toolSummary(tool.data.tool, tool.data.result),
+                tool: tool.data.tool,
+              });
           }
           if (message.type === 'bot-output') {
             const text = botText.safeParse(message.data);

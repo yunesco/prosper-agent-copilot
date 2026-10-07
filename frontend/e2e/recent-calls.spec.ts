@@ -13,7 +13,7 @@ for (const width of [1440, 390])
     await openCalls(page);
     const calls = page.getByRole('region', { name: 'Recent calls', exact: true });
     await calls.scrollIntoViewIfNeeded();
-    await expect(calls.getByRole('button', { name: /turns/ })).toHaveCount(12);
+    await expect(calls.getByRole('button', { name: /turns/ })).toHaveCount(14);
     await expect(calls.getByRole('button', { name: 'Review recent calls with Copilot' })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`calls-${width}.png`) });
     await calls.getByRole('button', { name: /Friday booked for a new patient/ }).click();

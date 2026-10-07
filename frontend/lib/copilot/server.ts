@@ -24,6 +24,7 @@ import {
   referenceExists,
   groundedReviewSchema,
 } from '../agent/proposals';
+import { TOOL_CATALOG } from '../agent/tools';
 import { conversationQualityIssues } from '../agent/conversation-quality';
 import { validateAgent, ValidationUnavailableError } from '../runtime/validation';
 import { getCall, listCalls, PlatformError } from '../platform/store';
@@ -32,6 +33,8 @@ const requestSchema = z.object({
   snapshot: savedAgentSchema,
   selected: graphReferenceSchema.nullable().optional(),
   intent: z.enum(['chat', 'review']),
+  // Set by the UI for explicit fix requests: the run must end in a proposal, not prose.
+  expect: z.literal('proposal').optional(),
   messages: z.array(z.unknown()).min(1).max(100),
 });
 export async function parseCopilotRequest(raw: unknown) {
@@ -140,7 +143,7 @@ Engineer the graph from first principles, as the smallest state machine that run
 - Do not add handoff, escalation, callback or emergency steps the SOP does not define. If the SOP mentions one without saying how it works, the instructions say the agent cannot do it and tell the caller what to do instead.
 - Collect each fact once, in the step that needs it, and carry it forward; later steps never ask for it again and never require it again as a property. Require on a transition only what the next step needs. A value restricted to a fixed set of options (patient type, appointment slot) is a string property with an enum of the exact option texts, listed in required; open values (name, date of birth) stay free text. Give each eligibility class its own transition, and offer one combined option such as "Monday at 10 AM" instead of separate day and time fields.
 - One closing step, and every path must be able to reach it.
-- Put the SOP's eligibility rules in the instructions of the step where they apply, with the concrete facts stated. Never invent hours, prices, availability or integrations; the agent says it does not know. Scheduling and booking are simulated.
+- Put the SOP's eligibility rules in the instructions of the step where they apply. Facts that live in a clinic system (open appointment times, whether a patient exists, whether insurance is accepted) are never written into instructions: give the step the tool that fetches them and say when to call it. Tools: ${TOOL_CATALOG.map(tool => `${tool.name} (${tool.description})`).join('; ')}. Set them with the step's tools list, never invent a tool name, and never describe a tool call in prose instead. Offer only what a tool returned, and tell the step what to do when a tool returns an error (for example a taken slot) or nothing. When the caller needs something no tool covers, build what the tools allow, say plainly what is missing, and use transfer_to_human for the rest. Never invent hours, prices or integrations.
 - A step's task_messages are short instructions to the voice agent, written with role "developer": bullets of what to do in this step, not lines to read aloud. Never write placeholders such as {name}; nothing fills them and the agent would say them aloud.
 - Collect missing information, clarify ambiguous answers, accept valid short answers and corrections, remember information supplied earlier, and do not advance before required answers are available.
 Quality warnings returned with a proposal are hints. Fix one only when it names a real problem, and never add steps or transitions just to silence it; a warning that the graph is too large means simplify. After proposing, say in two or three lines what the graph does and what you assumed.
@@ -162,6 +165,19 @@ const validatorUnavailable = (step?: { toolResults: { toolName: string; output: 
       result.output !== null &&
       'unavailable' in result.output,
   );
+// Reads (agent, calls, transcripts) get this many steps; after that a fix request must propose.
+const READ_STEPS = 6;
+const hasValidProposal = (steps: { toolResults: { toolName: string; output: unknown }[] }[]) =>
+  steps.some(step =>
+    step.toolResults.some(
+      result =>
+        result.toolName === 'propose_agent_patch' &&
+        typeof result.output === 'object' &&
+        result.output !== null &&
+        'valid' in result.output &&
+        result.output.valid === true,
+    ),
+  );
 export async function startCopilot(
   input: CopilotInput,
   options: {
@@ -180,7 +196,15 @@ export async function startCopilot(
         ? { toolChoice: { type: 'tool', toolName: 'get_agent' } }
         : validatorUnavailable(steps.at(-1))
           ? { toolChoice: 'none' }
-          : {},
+          : input.expect === 'proposal' && !hasValidProposal(steps)
+            ? // A fix request may read, then must propose; it cannot end the run in prose without a valid proposal.
+              {
+                toolChoice:
+                  stepNumber >= READ_STEPS
+                    ? { type: 'tool', toolName: 'propose_agent_patch' }
+                    : ('required' as const),
+              }
+            : {},
     stopWhen: stepCountIs(12),
     abortSignal: options.signal,
     maxRetries: PROVIDER_RETRIES,

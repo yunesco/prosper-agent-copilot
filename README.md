@@ -33,8 +33,8 @@ coding assistant in a pull-request flow:
 ## Demo script
 
 [DEMO.md](DEMO.md) maps each demo to the brief's requirements, with the exact calls to make and what
-to expect: SOP to agent, the live Friday failure and its repair, detection of an unreported issue,
-and the guardrails. Start with `npm run dev` and open <http://localhost:3000>.
+to expect: SOP to agent, a review of the deployed agent against its SOP, repair of a flagged call,
+detection of unreported issues, a live booking call with visible tool lines, and the guardrails. Start with `npm run dev` and open <http://localhost:3000>.
 
 ## What is real, mocked, and left out
 
@@ -43,8 +43,8 @@ and the guardrails. Start with `npm run dev` and open <http://localhost:3000>.
 | Voice (Pipecat, WebRTC, ElevenLabs, OpenAI) | Real, supplied stack unchanged |
 | Agent validation and compilation | Real, Python `AgentBuilder`, shared by manual edits and Copilot |
 | Copilot (tools, proposals, review) | Real, OpenAI via the AI SDK, server-side keys |
-| Production calls | **Mocked.** Twelve synthetic calls for the deployed agent behind a mock platform API (`/api/platform/…`) |
-| Scheduling availability | **Simulated** in instructions, no provider integration |
+| Production calls | **Mocked.** Fourteen synthetic calls for the deployed agent behind a mock platform API (`/api/platform/…`) |
+| Scheduling, patient records, eligibility | **Mocked API** (`backend/agent_builder/mock_api.py`): slots computed from today and existing bookings, double-booking refused, eligibility enforced by the API. Agents reach it through five tools; no EHR or payer integration |
 | Persistence | Browser `localStorage` behind an `AgentRepository` with revision checks |
 | Auth, teams, database, real call ingestion, background monitoring, analytics | Deliberately not built: none of it changes the two bottlenecks |
 
@@ -55,20 +55,20 @@ its handlers.
 
 ## Evidence
 
-`make eval-copilot` is a small live smoke set: it runs the real Copilot and the real Python validator on
-synthetic data and scores observed tool calls, not prose. It is not the gate. Model output varies,
-so scenarios that passed and failed on identical code were removed, and `make verify` (deterministic)
-is what must stay green. Latest run (2026-10-07, `gpt-5.5`, Responses API): all 11 scenarios passed. Scenarios: rename, targeted insurance clarification, grounded guideline
-review, vague one-liner interview, SOP creation, Friday diagnosis and repair, a repair that leaves
-unrelated steps alone, unflagged-call discovery, a clean call that must *not* be flagged, and a
-hostile instruction inside a pasted transcript that must not be obeyed. Voice behavior is not
-covered; see [TASKS.md](TASKS.md).
+`make verify` is the gate: it is deterministic and must stay green (lint, types, Python and
+TypeScript unit tests, the Python/TypeScript contract check, recorded evals). `make e2e` runs the built
+app in Chromium with voice and model mocked.
 
-Conversation quality has deterministic checks too: `conversationQualityIssues()` flags a
-transition that can fire before the step has collected anything, or that re-asks known data, and
-the SOP-creation evals score it. A test also pins the Copilot instructions on short answers,
-corrections and early information. Fixing it found a real defect: the deployed scheduler's intake
-transition only required `patient_type`, so it could advance without a name or date of birth.
+`make eval-copilot` is a small live smoke set that runs the real Copilot and the real Python validator on
+synthetic data. It scores the tools the model actually called, not its prose. Model output varies, so it
+is not a gate, and scenarios that passed and failed on identical code were removed rather than kept. It does not cover
+voice quality. Scenarios: rename, targeted insurance clarification, grounded guideline review, vague
+one-liner interview, SOP creation, Friday diagnosis and repair, a repair that leaves unrelated steps
+alone, unflagged-call discovery, a clean call that must *not* be flagged, and a hostile instruction
+inside a pasted transcript that must not be obeyed.
+
+Conversation quality has deterministic checks too: `conversationQualityIssues()` flags a transition that can
+fire before the step has collected anything, or re-asks known data.
 
 ## Setup
 
@@ -100,7 +100,7 @@ server-side, never in `NEXT_PUBLIC_*`, fixtures, logs, or commits.
 | `frontend/lib/copilot/` | Server-only model and tool loop, evidence parsing |
 | `frontend/lib/platform/`, `app/api/platform/` | Mock production-call API (schema, store, handlers) |
 | `frontend/lib/runtime/` | Validation, voice, and platform HTTP clients |
-| `backend/agent_builder/` | Authoritative validation, compilation, current-agent call endpoint |
+| `backend/agent_builder/` | Authoritative validation, compilation, current-agent call endpoint, step tools (`tools.py`) and the mock clinic API (`mock_api.py`) |
 | `backend/bot.py` | Supplied Pipecat voice pipeline |
 | `fixtures/`, `evals/` | Synthetic agents, guidelines, calls, SOP; eval scenarios and scoring |
 

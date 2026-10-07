@@ -23,6 +23,8 @@ import riversideNewPatientInventedTime from '../../fixtures/calls/riverside-new-
 import riversideNewPatientMonday from '../../fixtures/calls/riverside-new-patient-monday.json' with { type: 'json' };
 import riversideNewPatientNoInsurance from '../../fixtures/calls/riverside-new-patient-no-insurance.json' with { type: 'json' };
 import riversideOutOfScopeRefill from '../../fixtures/calls/riverside-out-of-scope-refill.json' with { type: 'json' };
+import riversideEmergencyKeptBooking from '../../fixtures/calls/riverside-emergency-kept-booking.json' with { type: 'json' };
+import riversideSlotTakenConfirmed from '../../fixtures/calls/riverside-slot-taken-confirmed.json' with { type: 'json' };
 import riversideIssue from '../../fixtures/issues/riverside-friday-booked.json' with { type: 'json' };
 import flaggedIssue from '../../fixtures/issues/friday-restriction.json' with { type: 'json' };
 import { parseAgent } from './agent/schema';
@@ -39,6 +41,8 @@ export const issueSchema = z.object({
 
 // Production-call history of the deployed Riverside demo agent (newest first).
 const riversideCalls = [
+  riversideEmergencyKeptBooking,
+  riversideSlotTakenConfirmed,
   riversideNewPatientMonday,
   riversideExistingPatientFriday,
   riversideNewPatientFridayBooked,

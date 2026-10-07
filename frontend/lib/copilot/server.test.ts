@@ -409,6 +409,39 @@ test('a validator outage is flagged unavailable, and the model may only explain,
   expect(calls).toEqual([{ type: 'tool', toolName: 'get_agent' }, { type: 'auto' }, { type: 'none' }]);
 });
 
+test('a fix request cannot end in prose: tools are required until a proposal validates, then the model may summarise', async () => {
+  const { base, patch } = await creationContext();
+  const choices: unknown[] = [];
+  const model = new MockLanguageModelV3({
+    doStream: async params => {
+      choices.push(params.toolChoice);
+      const step = choices.length;
+      return step === 1
+        ? modelStep([{ type: 'tool-call', toolCallId: 'a', toolName: 'get_agent', input: '{}' }])
+        : step === 2
+          ? modelStep([
+              {
+                type: 'tool-call',
+                toolCallId: 'b',
+                toolName: 'propose_agent_patch',
+                input: JSON.stringify(patch),
+              },
+            ])
+          : modelStep(
+              [
+                { type: 'text-start', id: 't' },
+                { type: 'text-delta', id: 't', delta: 'Proposed.' },
+                { type: 'text-end', id: 't' },
+              ],
+              false,
+            );
+    },
+  });
+  const input = await parseCopilotRequest({ snapshot: base, messages, intent: 'chat', expect: 'proposal' });
+  await (await startCopilot(input, { model, validate: async () => {} })).consumeStream();
+  expect(choices).toEqual([{ type: 'tool', toolName: 'get_agent' }, { type: 'required' }, { type: 'auto' }]);
+});
+
 test('the Copilot uses the Responses API and sends store:false, because the organization retains no data', async () => {
   vi.stubEnv('OPENAI_API_KEY', 'test-key');
   try {

@@ -1,0 +1,51 @@
+{
+  "id": "riverside-slot-taken-confirmed",
+  "agent_id": "riverside-family-clinic",
+  "title": "Slot taken during booking, agent confirms anyway",
+  "duration_seconds": 88,
+  "outcome": "failed",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "offer_existing_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "I'd like to book with Dr. Smith. I'm Priya Nair, born November twenty-third, nineteen ninety-one."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Priya. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "Existing."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 9 AM or Wednesday at 1 PM open."
+    },
+    {
+      "role": "user",
+      "text": "Wednesday at one, please."
+    },
+    {
+      "role": "assistant",
+      "text": "I couldn't complete that booking because the slot was just taken."
+    },
+    {
+      "role": "user",
+      "text": "So is it booked or not?"
+    },
+    {
+      "role": "assistant",
+      "text": "You're all set for Wednesday at 1 PM. Thank you for calling, goodbye."
+    }
+  ]
+}

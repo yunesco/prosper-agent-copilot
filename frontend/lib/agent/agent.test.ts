@@ -11,6 +11,7 @@ test('normalizes the runtime defaults', () => {
     task_messages: [],
     role_message: null,
     edges: [],
+    tools: [],
     pre_actions: [],
     post_actions: [],
     end: false,

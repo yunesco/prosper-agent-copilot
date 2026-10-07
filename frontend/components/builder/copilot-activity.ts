@@ -15,6 +15,45 @@ const outcomes = {
   interrupted: 'Tool interrupted before completion.',
 } as const;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const array = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+/** What a finished tool call found, read from its real output. Nothing here is inferred. */
+function resultLine(
+  name: string,
+  output: Record<string, unknown> | null,
+  input: unknown,
+): string | undefined {
+  if (!output) return undefined;
+  if (name === 'get_agent') {
+    const agent = isRecord(output.agent) ? output.agent : {};
+    const nodes = array(agent.nodes).filter(isRecord);
+    const withTools = nodes.filter(node => array(node.tools).length).length;
+    return `${agent.name ?? 'Agent'}: ${plural(nodes.length, 'step')}, ${withTools} using tools · revision ${output.revision}`;
+  }
+  if (name === 'get_calls') {
+    const calls = array(output.calls).filter(isRecord);
+    const failed = calls.filter(call => call.outcome === 'failed').length;
+    const reported = calls.filter(call => call.reported).length;
+    return `${plural(calls.length, 'call')}: ${failed} failed, ${reported} reported by the client`;
+  }
+  if (name === 'get_call')
+    return typeof output.id === 'string'
+      ? `${output.title}: ${output.outcome}, ${plural(array(output.transcript).length, 'turn')}, ${array(output.graph_path).join(' → ')}`
+      : undefined;
+  if (name === 'propose_agent_patch' && output.valid === true) {
+    const operations = isRecord(input) ? array(input.operations).filter(isRecord) : [];
+    const touched = new Set(
+      operations.map(op => (isRecord(op.value) ? String(op.value.name ?? op.node) : String(op.node))),
+    );
+    const warnings = array(output.quality_warnings).length;
+    return `Valid: ${plural(operations.length, 'change')} across ${plural(touched.size, 'step')}${warnings ? `, ${plural(warnings, 'quality warning')}` : ''}`;
+  }
+  return undefined;
+}
+
 /** One drawer entry per tool call in the conversation, derived from AI SDK tool parts. */
 export function copilotActivities(messages: UIMessage[], live: boolean): ChatActivity[] {
   return messages.flatMap(message =>
@@ -43,13 +82,15 @@ export function copilotActivities(messages: UIMessage[], live: boolean): ChatAct
             : status === 'failed'
               ? 'The proposal could not be validated.'
               : outcomes[status];
-      return [{ id: part.toolCallId, ...(tools[name] ?? tools.propose_agent_patch), status, detail }];
+      const result =
+        status === 'completed'
+          ? resultLine(name, output as Record<string, unknown> | null, part.input)
+          : undefined;
+      return [{ id: part.toolCallId, ...(tools[name] ?? tools.propose_agent_patch), status, detail, result }];
     }),
   );
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 const toolName = (part: Parameters<typeof isToolUIPart>[0] & { type: string }) =>
   part.type === 'dynamic-tool' ? (part as { toolName: string }).toolName : part.type.slice(5);
 

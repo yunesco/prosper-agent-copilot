@@ -25,7 +25,7 @@ export function BehaviorReviewCard({
   review: BehaviorReview;
   record: SavedAgent;
   busy: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, expect?: 'proposal') => void;
   onFocus: (ref: GraphReference) => void;
 }) {
   const current = review.agentId === record.id && review.revision === record.revision;
@@ -69,6 +69,7 @@ export function BehaviorReviewCard({
                         `${index + 1}. ${item.behavior}\nFinding: ${item.finding}\nGuideline: ${item.excerpt}\nReferences: ${JSON.stringify(item.references)}`,
                     ),
                   ].join('\n\n'),
+                  'proposal',
                 )
               }
             >
@@ -145,7 +146,7 @@ export function BehaviorReviewCard({
                 )}
               </div>
             </details>
-            {item.status === 'potential_mismatch' && (
+            {item.status !== 'aligned' && (
               <Button
                 variant="outline"
                 size="sm"
@@ -153,11 +154,14 @@ export function BehaviorReviewCard({
                 disabled={disabled}
                 onClick={() =>
                   onSend(
-                    `Propose a targeted change for this model-review finding: ${item.behavior}. ${item.finding}`,
+                    item.status === 'ambiguous'
+                      ? `Propose a targeted change for this ambiguous model-review finding: ${item.behavior}. ${item.finding} Use the most reasonable reading, state the assumption in your summary, and keep the change easy to revise.`
+                      : `Propose a targeted change for this model-review finding: ${item.behavior}. ${item.finding}`,
+                    'proposal',
                   )
                 }
               >
-                Propose change
+                {item.status === 'ambiguous' ? 'Propose change (assume default)' : 'Propose change'}
               </Button>
             )}
           </div>

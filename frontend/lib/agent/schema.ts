@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toolNames } from './tools';
 
 // Keep wire names identical to backend/agent_builder/schema.py.
 // Unknown AgentConfig/node/edge fields are stripped, matching Python.
@@ -28,6 +29,12 @@ export const nodeSchema = z.object({
   task_messages: z.array(jsonObject).default([]),
   role_message: z.string().nullable().default(null),
   edges: z.array(edgeSchema).default([]),
+  tools: z
+    .array(z.string())
+    .default([])
+    .describe(
+      `Actions this step may take besides transitioning, run against the clinic systems. Only these names exist: ${toolNames.join(', ')}. Use them for data (availability, patient records, insurance) instead of writing that data into instructions. Leave [] if the step needs none.`,
+    ),
   pre_actions: z.array(jsonObject).default([]),
   post_actions: z.array(jsonObject).default([]),
   end: z.boolean().default(false),
