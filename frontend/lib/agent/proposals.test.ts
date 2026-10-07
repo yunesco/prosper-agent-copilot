@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import { z } from 'zod';
 import {
   candidateDiff,
   commitProposal,
@@ -8,6 +9,7 @@ import {
   groundReview,
   referenceExists,
 } from './proposals';
+import { applyAgentOperations } from './operations';
 import { loadAgentFixture } from '../fixtures';
 import { LocalAgentRepository } from './repository';
 const base = {
@@ -187,4 +189,90 @@ test('model review schema only permits verbatim source passages', () => {
       behaviors: [{ ...finding, excerpt: 'Existing patients do not need insurance.' }],
     }).success,
   ).toBe(false);
+});
+
+test('model review schema is accepted by OpenAI strict structured outputs for quoted guidelines', () => {
+  const guidelines =
+    'Accept short answers such as "yes" or "Monday". Never invent availability.\n\nUse C:\\notes.';
+  const schema = groundedReviewSchema(guidelines);
+  const json = z.toJSONSchema(schema, { io: 'input' }) as unknown as {
+    properties: { behaviors: { items: { properties: { excerpt: { enum: string[] } } } } };
+  };
+  const options = json.properties.behaviors.items.properties.excerpt.enum;
+  // Strict mode rejects quotes, backslashes and line breaks in enum literals, and duplicate values.
+  expect(options.some(option => /["\\\n\r\t]/.test(option))).toBe(false);
+  expect(new Set(options).size).toBe(options.length);
+  const quoted = options.find(option => option.includes("'yes'"))!;
+  const parsed = schema.parse({
+    summary: 'Review',
+    behaviors: [
+      {
+        behavior: 'Short answers',
+        excerpt: quoted,
+        references: [],
+        finding: 'Compare',
+        status: 'aligned',
+        clarification: null,
+      },
+    ],
+  });
+  // The grounded excerpt is the exact source text, quotes included.
+  expect(guidelines.includes(parsed.behaviors[0].excerpt)).toBe(true);
+  expect(parsed.behaviors[0].excerpt).toContain('"yes" or "Monday"');
+});
+
+describe('structural gate', () => {
+  const stuck = [{ type: 'update_node', node: 'confirm', changes: { end: false } }];
+  const trap = [
+    {
+      type: 'update_edge',
+      node: 'offer_times',
+      function: 'select_time',
+      changes: { target: 'collect_details' },
+    },
+  ];
+  const propose = (agent = base.agent, operations: unknown[] = stuck) =>
+    constructProposal({ ...base, agent }, { ...(patch as object), operations }, async () => {});
+
+  test('blocks a proposal that introduces a dead-end step', async () => {
+    await expect(propose()).rejects.toThrow(/Step confirm has no transition/);
+  });
+  test('blocks a proposal that introduces a loop which can never end the call', async () => {
+    await expect(propose(base.agent, trap)).rejects.toThrow(/cannot reach any step that ends the call/);
+  });
+  test('does not run Python validation for a structurally broken candidate', async () => {
+    const validate = vi.fn(async () => {});
+    await expect(constructProposal(base, { ...patch, operations: stuck }, validate)).rejects.toThrow();
+    expect(validate).not.toHaveBeenCalled();
+  });
+  test('an agent that was already broken can still be edited, so one old defect never blocks every change', async () => {
+    const broken = applyAgentOperations(base.agent, stuck as never);
+    const proposal = await propose(broken, patch.operations);
+    expect(proposal.candidate.name).toBe('New name');
+  });
+});
+
+describe('hostile proposals', () => {
+  const start = base.agent.initial_node;
+  test.each([
+    ['deleting the start step', [{ type: 'delete_node', node: start }]],
+    [
+      'pointing a transition at a missing step',
+      [
+        {
+          type: 'update_edge',
+          node: start,
+          function: base.agent.nodes[0].edges[0].function,
+          changes: { target: 'ghost' },
+        },
+      ],
+    ],
+  ])('%s is rejected and persists nothing', async (_, operations) => {
+    const { repository, write } = repo();
+    await expect(
+      constructProposal(base, { ...patch, operations } as unknown as typeof patch, async () => {}),
+    ).rejects.toThrow();
+    expect(write).not.toHaveBeenCalled();
+    expect((await repository.getAgent(base.id)).revision).toBe(1);
+  });
 });

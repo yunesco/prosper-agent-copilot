@@ -29,7 +29,7 @@ is very short, do 1, 4 and 5.
 - Use a fresh browser profile or clear site data, so the saved agents are the seeded ones.
 - Allow the microphone once, headphones on (otherwise the agent hears itself), quiet room.
 - Do one throwaway Test Call beforehand to warm up the voice runtime.
-- Have `fixtures/demo-sop.md` open to copy. Keep `fixtures/ambiguous-sop.md` for demo 7.
+- Have `fixtures/demo-sop.md` open to copy.
 - Run `make verify` and `make eval-copilot` once earlier, so you can say they pass without waiting.
 
 ## Demo 1: SOP to agent, then a real call
@@ -74,12 +74,13 @@ patients skip insurance and get Friday. That rule lives in the graph."
 
 **Purpose.** Show the production problem for real before fixing it.
 
-1. Switch to **Riverside Clinic Scheduler** (tagged *Deployed*). Test Call.
+1. Switch to **Riverside Family Clinic** (tagged *Deployed*). Test Call.
 2. Say: "Alex Example, January first, nineteen ninety. New patient, I have Demo Insurance."
    When it offers times say "Friday works."
 
-**Expect:** the agent offers Friday and books it for a new patient. That is the client's
-complaint, reproduced.
+**Expect:** a new patient must only be offered Monday or Wednesday. The saved slot field is free
+text (no enum), so nothing in the graph forces that. If the agent books Friday, that is the client's
+complaint reproduced; if it declines, say so and use the recorded call in demo 4 instead.
 
 **Say:** "A client reported this. Now the deployment team would read transcripts and find the
 step. Let's see the Copilot do it."
@@ -88,10 +89,10 @@ step. Let's see the Copilot do it."
 
 **Purpose.** The second workflow: from a complaint to a verified fix.
 
-1. In **Details > Recent calls** open **Reported Friday booking issue**. Show the numbered
+1. In **Details > Recent calls** open **Friday booked for a new patient**. Show the numbered
    transcript and the linked graph steps. Click **Investigate with Copilot**.
 2. Show the answer: it read the call, cites turns (click one, it opens the transcript at that
-   turn), and names `offer_times` as the cause. Point out that a citation only renders as a
+   turn), and names `offer_new_patient_times` as the cause. Point out that a citation only renders as a
    link if the Copilot actually read that turn.
 3. Show the proposal: one step changed, nothing else. Preview, then **Apply**.
 4. Run the **same call as demo 3**.
@@ -106,14 +107,15 @@ transcript stays as it was; we do not rewrite history."
 **Purpose.** "Even the detection of these issues is a burden." Nobody reported anything here.
 
 1. On the deployed agent, press **Review recent calls with Copilot**.
-2. Expect it to flag **Existing-patient Monday booking**: the agent asked an existing patient
-   for insurance, against the guidelines, even though the call was marked successful. Show
-   the cited turn.
-3. Point out what it did not flag: the clean bookings, and the call where an existing patient
-   volunteered new insurance (the agent only noted it, which is allowed).
+2. Expect it to flag the failed calls nobody reported: **New patient asks about Friday**,
+   **Caller asks for a time that was never offered** and **Existing patient booked a day Dr. Smith
+   does not work**. Show a cited turn.
+3. Point out what it did not flag: the clean bookings, **Friday request correctly declined**,
+   **Existing patient mentions new insurance** (the agent only noted it, which is allowed) and
+   the out-of-scope refill call.
 4. Show that it offers the same human-reviewed repair.
 
-**Say:** "A booking marked successful is not proof it followed the rules. The Copilot reads
+**Say:** "An outcome is not proof it followed the rules. The Copilot reads
 the transcripts against the guidelines, and it is just as important that it stays quiet on
 the clean ones."
 
@@ -133,12 +135,9 @@ assume, then a full proposal, with a summary saved as the agent's guidelines.
 
 **Purpose.** Judgment and trust. Show the failure modes the design avoids.
 
-- **Ambiguity.** On a blank agent paste `fixtures/ambiguous-sop.md` (Harbor Dental: "urgent
-  cases", "severe cases", "kids need a guardian") and ask it to build. It should ask clarifying
-  questions instead of guessing the thresholds.
 - **Draft safety.** Edit a step by hand without saving, then try to Apply a proposal. It tells
   you to Save or Cancel first. Nothing is merged silently.
-- **Review behavior.** On the clinic agent click **Review behavior**, then **Propose all
+- **Review behavior.** On the deployed agent click **Review behavior**, then **Propose all
   changes**: a model review with verbatim guideline excerpts, turned into one atomic proposal.
 - **Evals.** Show the green `make eval-copilot` result: it scores tool calls and cited turns,
   including the clean call that must not be flagged.

@@ -1,0 +1,60 @@
+{
+  "id": "riverside-new-patient-monday",
+  "agent_id": "riverside-family-clinic",
+  "title": "Monday booking",
+  "duration_seconds": 92,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, I'd like to see Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Of course. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Noah Lindqvist. February second, nineteen ninety."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Noah. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New patient."
+    },
+    {
+      "role": "assistant",
+      "text": "What is your insurance provider?"
+    },
+    {
+      "role": "user",
+      "text": "United Plan."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Monday at ten."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Noah Lindqvist, Monday at 10 AM. A confirmation will be sent. Thank you for calling, goodbye."
+    }
+  ]
+}

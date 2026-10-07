@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { agentSchema, type AgentConfig } from './schema';
 import { agentOperationSchema, applyAgentOperations } from './operations';
+import { structuralIssues } from './conversation-quality';
 import { commitAgent, type AgentRepository, type SavedAgent } from './repository';
 
 export const graphReferenceSchema = z.union([
@@ -31,17 +32,32 @@ export const reviewContentSchema = z
   .strict();
 // Constrain model quotes to exact source passages, rather than asking it to
 // reproduce punctuation from memory. This selects evidence; it infers no rules.
+// OpenAI strict structured outputs reject `"`, `\` and line breaks inside enum literals, so the
+// model-facing enum shows a plain-text form and the schema maps the choice back to the exact passage.
+const MAX_REVIEW_PASSAGES = 250;
 export function groundedReviewSchema(guidelines: string) {
-  const passages = [
-    guidelines.trim(),
-    ...Array.from(new Intl.Segmenter('en', { granularity: 'sentence' }).segment(guidelines), item =>
-      item.segment.trim(),
-    ),
-  ].filter(Boolean);
-  if (!passages.length) throw new Error('Add and save guidelines before reviewing behavior.');
+  const passages = new Set(
+    [
+      guidelines.trim(),
+      ...Array.from(new Intl.Segmenter('en', { granularity: 'sentence' }).segment(guidelines), item =>
+        item.segment.trim(),
+      ),
+    ].filter(Boolean),
+  );
+  if (!passages.size) throw new Error('Add and save guidelines before reviewing behavior.');
+  const source = new Map<string, string>();
+  // OpenAI strict mode caps enum size; stay below it so long guidelines degrade to fewer citable passages, never to a failed request.
+  for (const passage of [...passages].slice(0, MAX_REVIEW_PASSAGES)) {
+    const shown = passage.replace(/\s+/g, ' ').replaceAll('"', "'").replaceAll('\\', '/');
+    if (!source.has(shown)) source.set(shown, passage);
+  }
   return reviewContentSchema.extend({
     behaviors: z
-      .array(reviewContentSchema.shape.behaviors.element.extend({ excerpt: z.enum(passages) }))
+      .array(
+        reviewContentSchema.shape.behaviors.element.extend({
+          excerpt: z.enum([...source.keys()]).transform(shown => source.get(shown)!),
+        }),
+      )
       .max(6),
   });
 }
@@ -50,14 +66,16 @@ export const behaviorReviewSchema = reviewContentSchema.extend({
   revision: z.number().int().positive(),
 });
 export type BehaviorReview = z.infer<typeof behaviorReviewSchema>;
+/** The model's review did not match the saved context; distinct from a request or provider failure. */
+export class GroundingError extends Error {}
 export function groundReview(base: SavedAgent, input: unknown): BehaviorReview {
   const review = reviewContentSchema.parse(input);
   if (!base.guidelines.trim()) throw new Error('Add and save guidelines before reviewing behavior.');
   for (const item of review.behaviors) {
     if (!base.guidelines.includes(item.excerpt))
-      throw new Error('Review cited an excerpt absent from saved guidelines.');
+      throw new GroundingError('Review cited an excerpt absent from saved guidelines.');
     if (item.references.some(ref => !referenceExists(base.agent, ref)))
-      throw new Error('Review cited an unavailable graph element.');
+      throw new GroundingError('Review cited an unavailable graph element.');
   }
   return { ...review, agentId: base.id, revision: base.revision };
 }
@@ -115,18 +133,6 @@ export function candidateDiff(
   }
   return changes;
 }
-export function configurationChecks(before: AgentConfig, after: AgentConfig) {
-  return [
-    {
-      name: 'Voice and model configuration',
-      unchanged: exact([before.voice_id, before.model]) === exact([after.voice_id, after.model]),
-    },
-    ...before.nodes.map(node => ({
-      name: `${node.name} configuration`,
-      unchanged: exact(node) === exact(after.nodes.find(item => item.name === node.name)),
-    })),
-  ];
-}
 export async function constructProposal(
   base: SavedAgent,
   raw: unknown,
@@ -138,6 +144,11 @@ export async function constructProposal(
   const candidate = applyAgentOperations(base.agent, input.operations);
   if (!candidateDiff(base.agent, candidate, { before: base.guidelines, after: input.guidelines }).length)
     throw new Error('Proposal makes no configuration changes.');
+  // Only defects this proposal introduces block it; an existing agent's older problems must not trap every edit.
+  const existing = new Set(structuralIssues(base.agent));
+  const introduced = structuralIssues(candidate).filter(issue => !existing.has(issue));
+  if (introduced.length)
+    throw new Error(`Proposal would leave the agent unable to complete calls: ${introduced.join(' ')}`);
   await validate(candidate);
   return proposalSchema.parse({ ...input, candidate, id: crypto.randomUUID(), validation: { valid: true } });
 }

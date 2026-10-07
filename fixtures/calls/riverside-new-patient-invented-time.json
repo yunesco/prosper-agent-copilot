@@ -1,0 +1,68 @@
+{
+  "id": "riverside-new-patient-invented-time",
+  "agent_id": "riverside-family-clinic",
+  "title": "Caller asks for a time that was never offered",
+  "duration_seconds": 88,
+  "outcome": "failed",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "I want to schedule with Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Sure. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Priya Raman, November ninth, nineteen ninety-five."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Priya. Are you a new or existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New patient."
+    },
+    {
+      "role": "assistant",
+      "text": "And your insurance provider?"
+    },
+    {
+      "role": "user",
+      "text": "Aetna."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith is available Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Neither works. Could I do Tuesday afternoon, like three o'clock?"
+    },
+    {
+      "role": "assistant",
+      "text": "Tuesday at 3 PM is fine. I've noted that."
+    },
+    {
+      "role": "user",
+      "text": "Great, thank you."
+    },
+    {
+      "role": "assistant",
+      "text": "You're all set for Tuesday at 3 PM. Goodbye."
+    }
+  ]
+}

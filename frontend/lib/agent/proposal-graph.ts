@@ -1,9 +1,12 @@
 import type { AgentConfig, AgentNode } from './schema';
+import { nodeDescription } from './graph';
 import { exact } from './proposals';
 
 export type ProposalGraphChange = 'added' | 'changed';
 export type ProposalGraphChanges = {
   nodes: ReadonlyMap<string, ProposalGraphChange>;
+  /** Saved step text for changed steps whose displayed instructions differ. */
+  previousDescriptions: ReadonlyMap<string, string>;
   transitions: ReadonlyMap<string, ReadonlyMap<string, ProposalGraphChange>>;
 };
 
@@ -16,6 +19,7 @@ const nodeContent = (node: AgentNode) => ({
 export function proposalGraphChanges(before: AgentConfig, after: AgentConfig): ProposalGraphChanges {
   const previous = new Map(before.nodes.map(node => [node.name, node]));
   const nodes = new Map<string, ProposalGraphChange>();
+  const previousDescriptions = new Map<string, string>();
   const transitions = new Map<string, ReadonlyMap<string, ProposalGraphChange>>();
   for (const node of after.nodes) {
     const prior = previous.get(node.name);
@@ -23,8 +27,11 @@ export function proposalGraphChanges(before: AgentConfig, after: AgentConfig): P
     else if (
       exact(nodeContent(prior)) !== exact(nodeContent(node)) ||
       (before.initial_node === node.name) !== (after.initial_node === node.name)
-    )
+    ) {
       nodes.set(node.name, 'changed');
+      if (nodeDescription(prior) !== nodeDescription(node))
+        previousDescriptions.set(node.name, nodeDescription(prior));
+    }
     const priorEdges = new Map(prior?.edges.map(edge => [edge.function, edge]));
     const edges = new Map<string, ProposalGraphChange>();
     for (const edge of node.edges) {
@@ -34,5 +41,5 @@ export function proposalGraphChanges(before: AgentConfig, after: AgentConfig): P
     }
     if (edges.size) transitions.set(node.name, edges);
   }
-  return { nodes, transitions };
+  return { nodes, previousDescriptions, transitions };
 }

@@ -1,0 +1,15 @@
+{
+  "id": "repair-preserves-unrelated",
+  "agent_id": "clinic-scheduler",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "Investigate call existing-patient-insurance. If the agent broke the saved guidelines, propose the smallest fix and leave every unrelated step as it is.",
+  "expected": {
+    "tools_in_order": ["get_agent", "get_call", "propose_agent_patch"],
+    "must_read_calls": ["existing-patient-insurance"],
+    "answer_cites": [{ "call_id": "existing-patient-insurance", "turns": [3, 4] }],
+    "changed_nodes": ["collect_details"],
+    "patch_touches": ["collect_details"],
+    "requires_approval": true
+  }
+}

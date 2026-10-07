@@ -1,0 +1,68 @@
+{
+  "id": "riverside-new-patient-friday-unreported",
+  "agent_id": "riverside-family-clinic",
+  "title": "New patient asks about Friday",
+  "duration_seconds": 81,
+  "outcome": "failed",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Um, hi. I need to see Dr. Smith, I think I'm a new patient?"
+    },
+    {
+      "role": "assistant",
+      "text": "Of course. Could I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Marcus Oyelaran, that's O-Y-E-L-A-R-A-N. March third, ninety-one."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Marcus. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New, yeah."
+    },
+    {
+      "role": "assistant",
+      "text": "What is your insurance provider?"
+    },
+    {
+      "role": "user",
+      "text": "I'm with Cascade Health."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith can see you Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Do you have anything Friday? I'm off work then."
+    },
+    {
+      "role": "assistant",
+      "text": "Yes, Friday at 2 PM is open. Shall I book that?"
+    },
+    {
+      "role": "user",
+      "text": "Please."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked for Friday at 2 PM. Goodbye."
+    }
+  ]
+}

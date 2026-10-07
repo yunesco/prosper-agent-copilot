@@ -26,7 +26,7 @@ for (const width of [1440, 390]) {
     await selector.click();
     await page
       .getByRole('group', { name: 'Agents' })
-      .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+      .getByRole('button', { name: /^Riverside Family Clinic/ })
       .click();
     await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
     await expect(selector).toContainText('Untitled agent');
@@ -35,10 +35,10 @@ for (const width of [1440, 390]) {
     await selector.click();
     await page
       .getByRole('group', { name: 'Agents' })
-      .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+      .getByRole('button', { name: /^Riverside Family Clinic/ })
       .click();
     await page.getByRole('button', { name: 'Cancel edits and switch', exact: true }).click();
-    await expect(selector).toContainText('Riverside Clinic Scheduler');
+    await expect(selector).toContainText('Riverside Family Clinic');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await revealAgentFields(page);
     await page.getByLabel('Client guidelines').fill('Clinic saved guidelines');
@@ -61,13 +61,13 @@ for (const width of [1440, 390]) {
     await selector.click();
     await page
       .getByRole('group', { name: 'Agents' })
-      .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+      .getByRole('button', { name: /^Riverside Family Clinic/ })
       .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await revealAgentFields(page);
     await expect(page.getByLabel('Client guidelines')).toHaveValue('Clinic saved guidelines');
     await page.reload();
-    await expect(selector).toContainText('Riverside Clinic Scheduler');
+    await expect(selector).toContainText('Riverside Family Clinic');
     const doc = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!), STORAGE_KEY);
     expect(doc.agents.map((a: { revision: number }) => a.revision)).toEqual([2, 2]);
   });
@@ -88,7 +88,7 @@ test('failed save-and-switch retains draft; cancel during validation and switchi
   await selector.click();
   await page
     .getByRole('group', { name: 'Agents' })
-    .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+    .getByRole('button', { name: /^Riverside Family Clinic/ })
     .click();
   await page.getByRole('button', { name: 'Save and switch', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Candidate rejected');
@@ -114,7 +114,7 @@ test('failed save-and-switch retains draft; cancel during validation and switchi
   await selector.click();
   await page
     .getByRole('group', { name: 'Agents' })
-    .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+    .getByRole('button', { name: /^Riverside Family Clinic/ })
     .click();
   await page.getByRole('button', { name: 'Cancel edits and switch', exact: true }).click();
   await selector.click();
@@ -156,9 +156,9 @@ test('agent geometry is isolated and retained through switches without revision 
   await selector.click();
   await page
     .getByRole('group', { name: 'Agents' })
-    .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+    .getByRole('button', { name: /^Riverside Family Clinic/ })
     .click();
-  await expect(page.getByRole('button', { name: 'Inspect collect_details', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Inspect collect_identity', exact: true })).toBeVisible();
   await selector.click();
   await page
     .getByRole('group', { name: 'Agents' })
@@ -258,7 +258,7 @@ test('agents can be renamed from the switcher, including the deployed one, and p
   await expect(selector).toBeVisible();
   await selector.click();
   await page.getByRole('button', { name: 'Rename Untitled agent', exact: true }).click();
-  await page.getByLabel('Rename Untitled agent').fill('Riverside Clinic Scheduler');
+  await page.getByLabel('Rename Untitled agent').fill('Riverside Family Clinic');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('An agent with this name already exists.')).toBeVisible();
   await page.getByLabel('Rename Untitled agent').fill('Front desk');
@@ -267,9 +267,9 @@ test('agents can be renamed from the switcher, including the deployed one, and p
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Front desk');
 
   // The switcher stays open after a rename; a non-open agent is renamed without switching to it.
-  await page.getByRole('button', { name: 'Rename Riverside Clinic Scheduler', exact: true }).click();
-  await page.getByLabel('Rename Riverside Clinic Scheduler').fill('Riverside (live)');
-  await page.getByLabel('Rename Riverside Clinic Scheduler').press('Enter');
+  await page.getByRole('button', { name: 'Rename Riverside Family Clinic', exact: true }).click();
+  await page.getByLabel('Rename Riverside Family Clinic').fill('Riverside (live)');
+  await page.getByLabel('Rename Riverside Family Clinic').press('Enter');
   await expect(page.getByRole('button', { name: /^Riverside \(live\)/ })).toBeVisible();
   await expect(selector).toContainText('Front desk');
   await page.keyboard.press('Escape');
@@ -291,7 +291,7 @@ test('Delete agent confirms inline, works on any agent, and the last agent is pr
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Untitled agent/ })).toBeVisible();
   // Deleting a different agent leaves the open one untouched.
-  await page.getByRole('button', { name: 'Delete Riverside Clinic Scheduler', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete Riverside Family Clinic', exact: true }).click();
   await page.getByRole('button', { name: 'Delete agent', exact: true }).click();
   await expect(selector).toContainText('Untitled agent');
   // The last agent cannot be deleted.

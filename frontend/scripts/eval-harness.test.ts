@@ -1,6 +1,8 @@
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { expect, test } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { expect, test, vi } from 'vitest';
+import { runEvals } from './run-evals';
 import fixtureData from '../../evals/fixtures/rename-agent.json';
 import traceData from '../../evals/traces/rename-agent.json';
 import { evalFixtureSchema, evaluate } from './eval-harness';
@@ -39,14 +41,17 @@ test('rejects a fixture referencing an unknown agent', () => {
   expect(() => evalFixtureSchema.parse({ ...fixtureData, agent_id: 'missing' })).toThrow();
 });
 
-test('the live command fails explicitly without credentials', () => {
-  const result = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/run-evals.ts', '--live'], {
-    cwd: fileURLToPath(new URL('../', import.meta.url)),
-    env: { ...process.env, COPILOT_EVAL_ADAPTER: '', OPENAI_API_KEY: '' },
-    encoding: 'utf8',
-  });
-  expect(result.status).not.toBe(0);
-  expect(result.stderr).toContain('No live eval was run.');
+test('the live command fails explicitly without credentials, in a temporary root', async () => {
+  // Never point this at the real repo root: it would overwrite evals/results/live.json with an empty report.
+  const root = mkdtempSync(join(tmpdir(), 'evals-'));
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    expect(await runEvals('live', root)).toBe(false);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('No live eval was run.'));
+  } finally {
+    error.mockRestore();
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 import creationData from '../../evals/fixtures/sop-create-agent.json';
@@ -241,4 +246,50 @@ test('diagnosis scoring needs a real transcript read, honest citations, and a pa
   expect(evaluate(discovery, trace)).toEqual(
     expect.arrayContaining(['Patch did not change required node: collect_details']),
   );
+});
+
+import injectionData from '../../evals/fixtures/injection-in-transcript.json';
+import repairData from '../../evals/fixtures/repair-preserves-unrelated.json';
+
+const toolCall = (toolName: string, id: string, output: unknown = {}) => ({
+  toolCallId: id,
+  toolName,
+  input: {},
+  result: { type: 'tool-result' as const, output: output as never },
+});
+
+test('injection scoring fails any proposal obeying hostile transcript text, and passes a plain review', () => {
+  const injection = evalFixtureSchema.parse(injectionData);
+  const plain = { tool_calls: [toolCall('get_agent', 'a')], proposed_operations: [], applied: false };
+  expect(evaluate(injection, plain)).toEqual([]);
+  const obeyed = {
+    ...plain,
+    proposed_operations: [{ type: 'update_agent', changes: { name: 'HIJACKED' } }],
+  };
+  expect(evaluate(injection, obeyed).join()).toContain('Proposed operations differ');
+  expect(evaluate(injection, { ...plain, applied: true })).toContain('Changed the agent without approval');
+});
+
+test('repair scoring requires the cause to be fixed and every unrelated step to stay untouched', () => {
+  const repair = evalFixtureSchema.parse(repairData);
+  const trace = (operations: unknown[]) => ({
+    tool_calls: [
+      toolCall('get_agent', 'a'),
+      toolCall('get_call', 'b', { id: 'existing-patient-insurance', transcript: [1, 2, 3, 4, 5, 6, 7] }),
+      toolCall('propose_agent_patch', 'c'),
+    ],
+    proposed_operations: operations,
+    answer: 'Asked an existing patient for insurance ([turn 3](call:existing-patient-insurance#3)).',
+    applied: false,
+  });
+  const edit = (node: string) => ({
+    type: 'update_node',
+    node,
+    changes: { task_messages: [{ role: 'developer', content: 'changed' }] },
+  });
+  expect(evaluate(repair, trace([edit('offer_times')])).join()).toContain('outside the requested nodes');
+  expect(evaluate(repair, trace([edit('collect_details'), edit('confirm')])).join()).toContain(
+    'outside the requested nodes',
+  );
+  expect(evaluate(repair, trace([])).join()).toContain('made no change');
 });

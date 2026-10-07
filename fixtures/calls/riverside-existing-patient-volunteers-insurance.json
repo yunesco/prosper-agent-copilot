@@ -1,0 +1,43 @@
+{
+  "id": "riverside-existing-patient-volunteers-insurance",
+  "agent_id": "riverside-family-clinic",
+  "title": "Existing patient mentions new insurance",
+  "duration_seconds": 58,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "offer_existing_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, I'm Grace Okafor, existing patient. By the way my insurance changed to Cascade Health."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Grace, I've noted that. May I have your date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "July eighth, nineteen eighty-one."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 10 AM, Wednesday at 2 PM, or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Monday."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Grace Okafor, Monday at 10 AM. A confirmation will be sent. Goodbye."
+    }
+  ]
+}

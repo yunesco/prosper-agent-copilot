@@ -95,6 +95,24 @@ def test_cycles_with_an_exit_compile():
     assert target["name"] == "start"
 
 
+def test_transitions_are_announced_only_when_observed():
+    builder = AgentBuilder.from_dict({
+        "name": "Loop", "initial_node": "start", "nodes": [
+            {"name": "start", "edges": [{"function": "finish", "description": "Finish", "target": "end"}]},
+            {"name": "end", "end": True}],
+    })
+    function = builder.build_initial_node()["functions"][0]
+    asyncio.run(function.handler({}, SimpleNamespace(state={})))  # unset: silent no-op
+    seen = []
+
+    async def record(name):
+        seen.append(name)
+
+    builder.on_node = record
+    asyncio.run(function.handler({}, SimpleNamespace(state={})))
+    assert seen == ["end"]
+
+
 def test_reports_all_graph_errors_together():
     from agent_builder.builder import AgentValidationError
     with pytest.raises(AgentValidationError) as caught:

@@ -45,7 +45,7 @@ test('call rows load from the platform API, open the full call, and the transcri
   await waitFor(() => expect(onOpen).toHaveBeenCalledExactlyOnceWith(call));
   unmount();
   render(<CallDetails call={call} record={record} onBack={vi.fn()} onFocus={vi.fn()} />);
-  expect(screen.getByRole('button', { name: 'Back to agent details' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Back to recent calls' })).toHaveFocus();
   expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
   expect(screen.getAllByRole('listitem')).toHaveLength(call.transcript.length);
   expect(screen.getByText(call.transcript[0].text)).toBeVisible();

@@ -24,11 +24,11 @@ page.on('request', request => {
 });
 try {
   await page.goto(process.env.VOICE_FRONTEND_URL || 'http://localhost:3000');
-  await page.getByLabel('Client guidelines').fill('Synthetic saved-context check. Say the saved violet marker.');
   await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
+  await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByLabel('Message 1 instructions').fill('Immediately say exactly: "The saved violet lighthouse is ready." Then say goodbye and end the call. Do not ask questions.');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.getByText('Changes saved', { exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: 'Changes saved' }).waitFor();
   await page.reload();
   const saved = await page.evaluate(() => {
     const doc = JSON.parse(localStorage.getItem('prosper.agents.v1'));
@@ -36,6 +36,7 @@ try {
   });
   result.identity = { id: saved.id, revision: saved.revision };
   await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
+  await page.getByRole('tab', { name: 'Details', exact: true }).click();
   await page.getByLabel('Message 1 instructions').fill('Say exactly: "The unsaved orange submarine is ready."');
   await page.getByRole('button', { name: 'Test Call', exact: true }).click();
   await page.getByText('Unsaved drafts are excluded from Test Call.').waitFor();

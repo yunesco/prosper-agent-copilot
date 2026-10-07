@@ -1,0 +1,68 @@
+{
+  "id": "riverside-new-patient-friday-declined",
+  "agent_id": "riverside-family-clinic",
+  "title": "Friday request correctly declined",
+  "duration_seconds": 104,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "I want a doctor's appointment, Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Happy to help. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Hannah Brooks, May twentieth, nineteen ninety-four."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Hannah. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New."
+    },
+    {
+      "role": "assistant",
+      "text": "What insurance provider do you have?"
+    },
+    {
+      "role": "user",
+      "text": "Cigna."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Is Friday possible?"
+    },
+    {
+      "role": "assistant",
+      "text": "I'm sorry, Dr. Smith only sees new patients on Monday and Wednesday. Would Monday at 10 AM or Wednesday at 2 PM work?"
+    },
+    {
+      "role": "user",
+      "text": "Okay, Wednesday then."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Hannah Brooks, Wednesday at 2 PM. A confirmation will be sent. Goodbye."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "riverside-out-of-scope-refill",
+  "agent_id": "riverside-family-clinic",
+  "title": "Prescription refill request",
+  "duration_seconds": 41,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "end_call"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, I need a refill on my blood pressure medication."
+    },
+    {
+      "role": "assistant",
+      "text": "I'm sorry, this line only books new appointments with Dr. Smith, so I can't help with refills. Thank you for calling, goodbye."
+    }
+  ]
+}

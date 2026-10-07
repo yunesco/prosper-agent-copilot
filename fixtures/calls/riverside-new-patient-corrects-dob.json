@@ -1,0 +1,68 @@
+{
+  "id": "riverside-new-patient-corrects-dob",
+  "agent_id": "riverside-family-clinic",
+  "title": "Caller corrects a misheard date of birth",
+  "duration_seconds": 112,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hello, I need an appointment with Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Certainly. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Aisha Karim. Born September fourteenth, eighty-nine."
+    },
+    {
+      "role": "assistant",
+      "text": "I heard September fourteenth, nineteen eighty-nine. Is that right?"
+    },
+    {
+      "role": "user",
+      "text": "No, it's the fourth. September fourth."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks for the correction: September fourth, nineteen eighty-nine. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New."
+    },
+    {
+      "role": "assistant",
+      "text": "What insurance provider do you have?"
+    },
+    {
+      "role": "user",
+      "text": "Harbor Mutual."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith can see you Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Wednesday, please."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Aisha Karim, Wednesday at 2 PM. A confirmation will be sent. Goodbye."
+    }
+  ]
+}

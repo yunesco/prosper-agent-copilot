@@ -13,7 +13,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Union
+from typing import Awaitable, Callable, Optional, Union
 
 from loguru import logger
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
@@ -35,6 +35,9 @@ class AgentBuilder:
     def __init__(self, config: AgentConfig):
         self.config = config
         self._nodes_by_name = {n.name: n for n in config.nodes}
+        # Set by the runtime to observe transitions (e.g. to tell a Test Call client
+        # which step is active). Unset for ordinary runs.
+        self.on_node: Optional[Callable[[str], Awaitable[None]]] = None
         self._validate()
 
     # ---- loading -----------------------------------------------------------
@@ -135,6 +138,8 @@ class AgentBuilder:
             flow_manager.state.update(args)
             logger.info(f"[{edge.function}] -> {edge.target} | collected: {args}")
             next_node = self._make_node(self._nodes_by_name[edge.target])
+            if self.on_node:
+                await self.on_node(edge.target)
             return {"status": "success", **args}, next_node
 
         return FlowsFunctionSchema(

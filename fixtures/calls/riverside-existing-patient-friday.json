@@ -1,0 +1,43 @@
+{
+  "id": "riverside-existing-patient-friday",
+  "agent_id": "riverside-family-clinic",
+  "title": "Existing patient books Friday",
+  "duration_seconds": 63,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "offer_existing_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, it's Carlos Mendes, I'm an existing patient and I'd like to see Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Carlos. May I have your date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "December first, nineteen seventy-nine."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 10 AM, Wednesday at 2 PM, or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Friday works for me."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Carlos Mendes, Friday at 2 PM. A confirmation will be sent. Thank you, goodbye."
+    }
+  ]
+}

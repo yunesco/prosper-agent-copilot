@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openDetails } from './seed';
+import { openCalls, openDetails } from './seed';
 import { constructProposal } from '../lib/agent/proposals';
 import { loadAgentFixture, loadDemoContext } from '../lib/fixtures';
 import { STORAGE_KEY, type SavedAgent } from '../lib/agent/repository';
@@ -47,6 +47,8 @@ test('retry repeats a failed behavior review and preserves a newly typed draft',
       return;
     }
     expect(parts).toEqual(originalParts);
+    // A retry replaces the failed request; it must not leave the same user turn in the history twice.
+    expect(request.messages.filter((message: { role: string }) => message.role === 'user')).toHaveLength(1);
     const chunks = [
       { type: 'start', messageId: 'retried-review' },
       { type: 'text-start', id: 'review-text' },
@@ -126,14 +128,14 @@ for (const width of [1440, 390])
     await openDetails(page);
     await page.screenshot({ path: info.outputPath(`details-${width}.png`) });
     await send(page);
-    await page.getByText('View changes', { exact: true }).click();
-    await expect(
-      page
-        .locator('details')
-        .filter({ has: page.getByText('View changes', { exact: true }) })
-        .getByText('collect_details.task_messages', { exact: true }),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'collect_details', exact: true }).click();
+    const review = page.getByRole('region', { name: 'Proposal review', exact: true });
+    await expect(review.getByText('Instructions updated', { exact: true })).toBeVisible();
+    await expect(review.getByText('Why these changes', { exact: true })).toBeVisible();
+    await expect(review.getByText(patch.explanation, { exact: true })).not.toBeVisible();
+    await review.getByRole('button', { name: 'View changes to Collect details' }).click();
+    await expect(review.getByText('Instructions', { exact: true })).toBeVisible();
+    await expect(review.locator('ins').first()).toBeVisible();
+    await review.getByRole('button', { name: 'Show step on canvas' }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await page.getByLabel('Message Copilot').fill('Keep this draft');
     await page.getByRole('tab', { name: 'Details', exact: true }).click();
@@ -147,7 +149,7 @@ for (const width of [1440, 390])
     expect(saved.agent).toEqual(proposal.candidate);
     await expect(page.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Test Call', exact: true }).last().click();
-    if (width < 768) await page.getByRole('button', { name: 'Call', exact: true }).click();
+    if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await expect(page.getByText(/clinic-scheduler · Revision 2/)).toBeVisible();
     await page.getByRole('button', { name: 'Builder', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
@@ -175,18 +177,18 @@ test('draft blocking, cancel and Dismiss', async ({ page }) => {
 test('recent call ownership, transcript retained during graph navigation', async ({ page }) => {
   await seed(page);
   await page.goto('/');
-  await openDetails(page);
+  await openCalls(page);
   await page.getByRole('button', { name: /Reported Friday booking issue/ }).click();
   await expect(page.getByText('Transcript', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'offer_times', exact: true }).click();
   await expect(page.getByText('Transcript', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to agent details' }).click();
+  await page.getByRole('button', { name: 'Back to recent calls' }).click();
   await page.getByLabel('Saved agent', { exact: true }).click();
   await page
     .getByRole('group', { name: 'Agents' })
     .getByRole('button', { name: /^Untitled agent/ })
     .click();
-  await openDetails(page);
+  await openCalls(page);
   await expect(page.getByText('No recent calls for this agent.')).toBeVisible();
 });
 
@@ -255,7 +257,7 @@ test('rejected validation is shown as failed activity without an Apply action', 
   await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
   await page.getByLabel('Message Copilot').fill('Change the scheduling step.');
   await page.getByLabel('Message Copilot').press('Enter');
-  await page.locator('summary').filter({ hasText: 'Activity' }).click();
+  // A failed step opens the work block by itself.
   await expect(
     page.getByRole('tabpanel', { name: 'Copilot' }).getByText('Failed', { exact: true }),
   ).toBeVisible();
@@ -381,4 +383,32 @@ for (const width of [1440, 390])
     const saved = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).agents[0], STORAGE_KEY);
     expect(saved.revision).toBe(2);
     expect(saved.agent).toEqual(proposal.candidate);
+  });
+
+for (const width of [1440, 390])
+  test(`one block says what Copilot is doing, with elapsed time, then collapses to how long it took at ${width}`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await seed(page);
+    await mockProposal(page);
+    // Registered last, so it runs first: hold the response, then hand it to the mock above.
+    await page.route('**/api/copilot', async route => {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      await route.fallback();
+    });
+    await page.goto('/');
+    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
+    await page.getByLabel('Message Copilot').fill('Existing patients should skip insurance.');
+    await page.getByLabel('Message Copilot').press('Enter');
+    const block = page.getByRole('article', { name: 'Copilot response' });
+    await expect(block).toContainText('Thinking…');
+    await expect(block.getByRole('timer')).toBeVisible();
+    // Progress lives in one place: nothing above the composer repeats it.
+    await expect(page.getByRole('timer')).toHaveCount(1);
+    await page.screenshot({ path: info.outputPath(`progress-${width}.png`) });
+    await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeEnabled();
+    await expect(page.getByRole('timer')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Worked for \d+s/ })).toBeVisible();
   });

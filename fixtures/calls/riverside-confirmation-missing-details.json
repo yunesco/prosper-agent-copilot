@@ -1,0 +1,60 @@
+{
+  "id": "riverside-confirmation-missing-details",
+  "agent_id": "riverside-family-clinic",
+  "title": "Wednesday booking",
+  "duration_seconds": 69,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "I'd like to book with Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Happy to help. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Lena Hoffmann, April seventeenth, nineteen eighty-three."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Lena. Are you a new or existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New."
+    },
+    {
+      "role": "assistant",
+      "text": "What insurance provider do you have?"
+    },
+    {
+      "role": "user",
+      "text": "I don't have insurance right now."
+    },
+    {
+      "role": "assistant",
+      "text": "No problem, I've noted that. Dr. Smith can see you Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Wednesday at two."
+    },
+    {
+      "role": "assistant",
+      "text": "You're all set for Wednesday at 2 PM. Goodbye."
+    }
+  ]
+}

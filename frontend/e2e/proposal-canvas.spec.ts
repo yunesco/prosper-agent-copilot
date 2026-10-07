@@ -97,7 +97,7 @@ async function send(page: Page, ready = true) {
   await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
   await page.getByLabel('Message Copilot', { exact: true }).fill('Build the proposed workflow for review.');
   await page.getByLabel('Message Copilot', { exact: true }).press('Enter');
-  if (ready) await expect(page.getByRole('button', { name: 'Inspect on canvas', exact: true })).toBeVisible();
+  if (ready) await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeVisible();
 }
 async function expectExactApply(page: Page, base: SavedAgent, proposal: Proposal) {
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
@@ -129,9 +129,10 @@ for (const width of [1440, 390])
     const before = await storage(page);
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await send(page);
-    // Desktop reveals the completed candidate automatically; the card brings mobile to its graph.
+    // Desktop reveals the candidate automatically; the contextual step action also reveals it on mobile.
     if (width >= 768) await expect(banner(page)).toContainText('Proposed workflow');
-    await page.getByRole('button', { name: 'Inspect on canvas', exact: true }).click();
+    await page.getByRole('button', { name: 'View changes to Collect details' }).click();
+    await page.getByRole('button', { name: 'Show step on canvas', exact: true }).click();
     await expect(banner(page)).toBeVisible();
     await expect(canvas(page).locator('.react-flow__node')).toHaveCount(target.nodes.length);
     await expect(canvas(page).getByText('Proposed · New', { exact: true })).toHaveCount(target.nodes.length);
@@ -153,7 +154,7 @@ for (const width of [1440, 390])
     expect(await storage(page)).toBe(before);
     await expectExactApply(page, base, proposal);
     await page.getByRole('button', { name: 'Test Call', exact: true }).last().click();
-    if (width < 768) await page.getByRole('button', { name: 'Call', exact: true }).click();
+    if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await expect(page.getByText(`Saved agent ${base.id} · Revision 2`, { exact: true })).toBeVisible();
   });
 
@@ -224,9 +225,10 @@ for (const ending of ['invalid', 'interrupted'] as const)
     await page.goto('/');
     const before = await storage(page);
     await send(page, false);
-    if (ending === 'interrupted') await expect(page.getByText('Interrupted', { exact: true })).toBeVisible();
+    if (ending === 'interrupted')
+      await expect(page.getByText('Interrupted', { exact: true }).filter({ visible: true })).toHaveCount(1);
     else {
-      await page.locator('summary').filter({ hasText: 'Activity' }).click();
+      // A failed step opens the work block by itself.
       await expect(page.getByText('Synthetic candidate validation failed.', { exact: true })).toBeVisible();
     }
     await expect(banner(page)).toHaveCount(0);
@@ -234,4 +236,76 @@ for (const ending of ['invalid', 'interrupted'] as const)
     await expect(page.getByRole('button', { name: 'Apply', exact: true })).toHaveCount(0);
     await expect(canvas(page).getByRole('button', { name: 'Inspect follow_up', exact: true })).toHaveCount(0);
     expect(await storage(page)).toBe(before);
+  });
+
+for (const width of [1440, 390])
+  test(`grouped review handles long step names and inline diffs at ${width}`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await seed(page);
+    const longName = 'follow_up_with_the_patient_about_their_appointment_and_accessibility_requirements';
+    const operations: AgentOperation[] = [
+      {
+        type: 'update_agent',
+        changes: { persona: `${existing.agent.persona} Keep follow-up instructions brief.` },
+      },
+      {
+        type: 'update_node',
+        node: 'collect_details',
+        changes: {
+          task_messages: [
+            {
+              role: 'developer',
+              content: 'Collect the patient details and confirm any accessibility requirements.',
+            },
+          ],
+        },
+      },
+      ...incremental.map(operation =>
+        operation.type === 'add_node'
+          ? { ...operation, value: { ...operation.value, name: longName } }
+          : operation.type === 'add_edge'
+            ? { ...operation, value: { ...operation.value, target: longName } }
+            : operation,
+      ),
+    ];
+    const proposal = await mockProposal(page, existing, operations);
+    await page.goto('/');
+    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    const before = await storage(page);
+    await send(page);
+    const review = page.getByRole('region', { name: 'Proposal review', exact: true });
+    await expect(review.getByRole('region', { name: 'Global changes' })).toBeVisible();
+    await expect(review.getByRole('region', { name: 'Step changes' }).getByRole('listitem')).toHaveCount(3);
+    await expect(review.getByText('Instructions updated', { exact: true })).toBeVisible();
+    await expect(review.getByText('1 transition added', { exact: true })).toBeVisible();
+    await expect(review.getByText('Step added', { exact: true })).toBeVisible();
+    await review.evaluate(element => element.scrollIntoView({ block: 'start' }));
+    expect(await review.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`proposal-review-${width}.png`) });
+    const view = review.getByRole('button', { name: 'View changes to Collect details' });
+    await view.focus();
+    await page.keyboard.press('Enter');
+    await expect(review.getByRole('button', { name: 'Hide changes to Collect details' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await expect(review.locator('ins').filter({ visible: true }).first()).toBeVisible();
+    expect(await storage(page)).toBe(before);
+    await page.screenshot({ path: info.outputPath(`proposal-review-expanded-${width}.png`) });
+    await review.getByRole('button', { name: 'Hide changes to Collect details' }).click();
+    await review.getByRole('button', { name: 'View changes to Offer times' }).click();
+    await review.getByRole('button', { name: 'Show step on canvas', exact: true }).click();
+    const selected = canvas(page).locator('.react-flow__node.selected');
+    await expect(selected).toHaveAttribute('data-id', 'offer_times');
+    await expect(selected).toBeInViewport();
+    await expect
+      .poll(async () => {
+        const nodeBounds = await selected.boundingBox();
+        const graphBounds = await canvas(page).boundingBox();
+        if (!nodeBounds || !graphBounds) return Infinity;
+        return Math.abs(nodeBounds.y + nodeBounds.height / 2 - graphBounds.y - graphBounds.height / 2);
+      })
+      .toBeLessThan(50);
+    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await expectExactApply(page, existing, proposal);
   });

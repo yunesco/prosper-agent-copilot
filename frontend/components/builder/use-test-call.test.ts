@@ -40,3 +40,37 @@ test('pins an immutable saved snapshot and rejects callbacks after stop, restart
   unmount();
   expect(calls[1].stop).toHaveBeenCalledOnce();
 });
+
+test('highlights the live step and pins each line to the step that generated it', () => {
+  const calls: { callbacks: Parameters<typeof createVoiceCall>[1] }[] = [];
+  vi.mocked(createVoiceCall).mockImplementation((_audio, callbacks) => {
+    calls.push({ callbacks });
+    return { start: vi.fn(async () => {}), stop: vi.fn() };
+  });
+  const agent = loadAgentFixture('original-scheduler');
+  const record = { id: 'saved', revision: 1, guidelines: '', agent };
+  const { result } = renderHook(() => useTestCall(record, { current: document.createElement('audio') }));
+  act(() => result.current.start());
+  const { callbacks } = calls[0];
+  expect(result.current.activeNodeId).toBeNull();
+  act(() => callbacks.connected());
+  expect(result.current.activeNodeId).toBe(agent.initial_node);
+  // Segment 1 is generated under the first step, but its spoken text arrives after the transition.
+  act(() => {
+    callbacks.transcript({ role: 'user', text: 'Hi' });
+    callbacks.segmentStarted?.(1);
+    callbacks.node?.('collect_details');
+    callbacks.segmentStarted?.(2);
+    callbacks.transcript({ role: 'assistant', text: 'Hello', segment: 1 });
+    callbacks.transcript({ role: 'assistant', text: 'Your name?', segment: 2 });
+    callbacks.transcript({ role: 'assistant', text: 'Hello there', segment: 1 });
+  });
+  expect(result.current.activeNodeId).toBe('collect_details');
+  expect(result.current.transcript.map(line => [line.text, line.node])).toEqual([
+    ['Hi', agent.initial_node],
+    ['Hello there', agent.initial_node],
+    ['Your name?', 'collect_details'],
+  ]);
+  act(() => result.current.stop());
+  expect(result.current.activeNodeId).toBeNull();
+});

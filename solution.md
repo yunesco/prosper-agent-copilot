@@ -36,10 +36,53 @@ transcripts and cites turns. If it cites a turn it never read, the UI shows it a
 │        ▼                                 │                      │ (saved agent)
 │  AgentRepository (localStorage)  ◄── Apply, revision-checked ───┘
 │   id · revision · agent JSON · guidelines│
-│                                          │   Mock platform API: 7 synthetic calls
+│                                          │   Mock platform API: 12 synthetic calls
 │  Copilot server route (keys server-side) │   (list, filter, paginate, fetch one)
 └──────────────────────────────────────────┘
 ```
+
+## How a Copilot request flows
+
+1. **The browser sends a structured request.** The saved agent snapshot (ID, revision, JSON,
+   guidelines), the chat messages and the intent go to `/api/copilot`. The server parses it with
+   zod and rejects anything malformed or stale (`parseCopilotRequest`).
+2. **The model gets tools, not free rein.**
+   - `get_agent` is forced as the first call (`toolChoice`).
+   - The only way to change anything is `propose_agent_patch`. Its input is a zod schema
+     (`patchInputSchema`), and each operation (`add_node`, `update_edge` and so on) is a typed
+     union.
+   - The model can't emit replacement JSON or a new tool.
+3. **The server builds the candidate itself.** `constructProposal` applies the operations with
+   `applyAgentOperations`. That function is pure and atomic, and any failure leaves the agent
+   unchanged. The Python backend then validates the result (`validateAgent`), because it is the
+   authority.
+4. **The model never saves anything.** The human sees a preview and clicks Apply. Only then does
+   a revision-checked save happen.
+5. **The review is structured too.** The model's quoted excerpts must be one of the guideline
+   sentences, and the references must exist in the graph.
+
+**Why this design.** The model is good at deciding *what* to change and bad at being reliable
+about *how* a change is applied, so it only does the first. Everything after its decision is
+ordinary code we can test:
+
+- *It can't invent a different way to build an agent.* The tool and operation schemas are the
+  whole vocabulary. A hallucinated tool, field or replacement JSON fails parsing before anything
+  happens, instead of being interpreted.
+- *Copilot edits and manual edits share one boundary.* Both go through
+  `applyAgentOperations()` and the Python validator, so Copilot can never produce something a
+  person couldn't, and one set of tests covers both.
+- *A bad proposal is an error, not a corrupted agent.* Operations are pure and atomic, validation
+  runs before preview, and a validation error goes back to the model for at most two corrections.
+- *Trust stays with the human.* The model has no save capability. Apply is explicit and
+  revision-checked, so a stale or wrong proposal is rejected rather than overwriting newer work.
+- *Quoted evidence is real.* Constraining excerpts to the guideline text and references to
+  existing graph elements means a review can't cite something that isn't there.
+
+The AI SDK supplies the plumbing (schema-to-tool conversion, the tool loop, streaming to the
+chat UI), not the safety. The safety comes from our schemas, pure operations and Python
+validation, which would hold with any client. What the model still decides is the content of a
+proposal (which steps, enums and wording), which is why conversation-quality checks and live
+evals exist, and why a preview and human Apply stay in the loop.
 
 ## Decisions
 
@@ -52,6 +95,11 @@ part of the record.
 state. The Copilot only reads saved state, and Test Call only runs saved state, so what you
 test is what you saved. Apply refuses to run on top of an unsaved draft instead of merging.
 
+**Test Call shows the graph.** During a call the saved graph stays on screen next to the live
+transcript, and the step the agent is on is highlighted. The voice runtime reports each
+transition as an RTVI server message (`node-active`) on the existing data channel; the first
+step is implied by `bot-ready`. Each agent line is labelled with the step that generated it.
+
 **One mutation path.** Manual edits and Copilot proposals both go through
 `applyAgentOperations()`. It is pure and atomic: if any step fails, nothing changes.
 
@@ -60,18 +108,35 @@ can never end, and compile failures. TypeScript only parses shapes. Two validato
 drift, and the one that decides is the one that runs the call. If validation is
 unavailable, Apply stays disabled.
 
+**Progress is read from the stream, not guessed.** While the Copilot works, the status line names the
+current phase (thinking, reading the agent or a call, writing the graph with a live step count, checking
+with the validator, writing the summary) and an elapsed timer. Every label comes from an actual stream
+event; the model's own reasoning text is not shown.
+
 **Four tools, no more.** `get_agent`, `get_calls`, `get_call`, `propose_agent_patch`. The model
 reasons about a change and submits one batch of typed operations; it does not get low-level
 edit tools or replacement JSON. Small surface, easy to evaluate and to trust.
+
+**Lean graphs, designed from first principles.** The Copilot is told to draw the smallest state machine that
+runs the call: one step per stage (typically 3 to 6, never more than 8), one transition per real way forward
+(never more than 3), and the whole-call rules (corrections, off-topic, "I don't know", stopping) written once in
+the agent's persona and not as extra steps or transitions. A step is already a loop that holds until its
+required fields are valid, so enums and required fields do the insisting. These rules follow published practice
+for conversation-flow agents (few transitions, happy path first, global rules in the global prompt). A
+size warning on the proposal flags a bloated graph, and the live evals score it.
 
 **Smallest fix wins.** Repairs prefer editing one step's instructions, then one transition,
 and add or remove steps only when nothing else works. A repair touches the one step at
 fault and leaves the rest of the agent alone.
 
-**The proposal is a diff you can read.** Outcome, why, behavior affected, the changed
-elements highlighted in blue on the canvas, then separate sections for Python validation,
-exact configuration checks and the model's own review. "Conversation checks" says *not run*
-because a valid graph is not proof of a good call.
+**The proposal is a diff you can read.** The chat card shows the outcome and compact
+Global changes and Step changes rows with readable names and factual summaries. View
+expands each row’s readable before/after diff inline, with real line breaks and no JSON
+syntax; Why these changes discloses the explanation and behavior affected. Each existing
+or added step has one contextual canvas action that focuses it; the candidate remains
+highlighted in blue on the canvas. One Dismiss / Apply footer acts on the whole validated
+proposal. A quiet line says the flow is valid and has not been tested on a call yet, because
+a valid graph is not proof of a good call.
 
 **Three ways in.**
 - *Build:* paste an SOP and get a full workflow, or start from nothing and the Copilot
@@ -87,7 +152,7 @@ transition requires, so a transition without required fields lets the agent move
 Quality checks cover that (and re-asking for known data), the Copilot's instructions require
 short answers, corrections and remembering early information, and live calls prove the rest.
 
-**Production calls are mocked behind an API.** Seven synthetic calls, served by a small
+**Production calls are mocked behind an API.** Twelve synthetic calls for the deployed agent, served by a small
 mock platform API with listing, filtering, pagination and agent-scoped lookup. The UI and
 the tools use it the way they would use a real platform; swapping it in replaces one module.
 Calls stay historical: a repair never rewrites them.
@@ -124,6 +189,4 @@ spent the time on the Copilot.
 
 - The Copilot's quality is measured by evals that score observed tool calls and cited
   turns on synthetic data. They do not measure voice quality.
-- Voice behavior is shown by a few real calls (see the README's Evidence section), not
-  by an automated suite.
 - Persistence is per browser; two tabs writing the same agent is not coordinated.

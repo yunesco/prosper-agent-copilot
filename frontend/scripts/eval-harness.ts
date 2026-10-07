@@ -33,6 +33,7 @@ export const evalFixtureSchema = z
         requires_branch: z.literal(true).optional(),
         // The candidate must not let the call advance before information exists, or re-ask it.
         conversation_quality: z.literal(true).optional(),
+        requires_enum: z.literal(true).optional(),
         // The reply must ask at least this many questions (counted as question marks).
         answer_min_questions: z.number().int().positive().optional(),
         candidate_mentions: z.array(z.string().min(1)).min(1).optional(),
@@ -150,6 +151,7 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
     expectation.min_added_nodes ||
     expectation.requires_branch ||
     expectation.conversation_quality ||
+    expectation.requires_enum ||
     expectation.candidate_mentions
   ) {
     const base = loadEvalAgent(fixture.agent_id);
@@ -180,6 +182,17 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
       )
         failures.push('Candidate has no branching step.');
       if (expectation.conversation_quality) failures.push(...conversationQualityIssues(candidate));
+      if (
+        expectation.requires_enum &&
+        !candidate.nodes.some(node =>
+          node.edges.some(edge =>
+            Object.values(edge.properties).some(
+              schema => !!schema && typeof schema === 'object' && 'enum' in schema,
+            ),
+          ),
+        )
+      )
+        failures.push('Candidate constrains no closed-set value with an enum.');
       if (expectation.candidate_mentions) {
         const text = candidate.nodes
           .flatMap(node => [JSON.stringify(node.task_messages), ...node.edges.map(edge => edge.description)])

@@ -43,3 +43,12 @@ export async function openDetails(page: Page) {
   }
   if ((await tab.count()) && (await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
 }
+
+export async function openCalls(page: Page) {
+  const tab = page.getByRole('tab', { name: 'Calls', exact: true });
+  if (!(await tab.count())) {
+    const switcher = page.getByRole('button', { name: 'Details', exact: true });
+    if (await switcher.count()) await switcher.click();
+  }
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+}

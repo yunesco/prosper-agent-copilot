@@ -4,7 +4,7 @@ import { ChatPresentation } from '@/components/chat/ChatPresentation';
 import { referenceExists, type GraphReference, type Proposal } from '@/lib/agent/proposals';
 import type { SavedAgent } from '@/lib/agent/repository';
 import type { Copilot } from './use-copilot';
-import { copilotActivities } from './copilot-activity';
+import { copilotActivities, copilotPhase } from './copilot-activity';
 import { copilotEmptyState } from './copilot-prompts';
 import { BehaviorReviewCard } from './BehaviorReviewCard';
 import { EvidenceChip } from './EvidenceChip';
@@ -55,7 +55,9 @@ export function CopilotPane({
         <span className="text-text-muted">{label} — unavailable in current graph</span>
       );
   };
-  const activity = copilotActivities(copilot.messages, copilot.busy && !copilot.stopped && !copilot.error);
+  const live = copilot.busy && !copilot.stopped && !copilot.error;
+  const progress = copilot.busy ? copilotPhase(copilot.messages, copilot.intent) : undefined;
+  const turns = copilot.messages.filter(message => message.role !== 'system');
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="max-h-1/4 shrink-0 overflow-y-auto border-b border-ui-border px-5 py-3">
@@ -79,14 +81,21 @@ export function CopilotPane({
         resolveLink={resolveLink}
         empty={copilotEmptyState(record.agent, record.guidelines, selected)}
         revealKey={copilot.reviews.length ? `${record.id}:${copilot.reviews.length}` : undefined}
-        messages={copilot.messages
-          .filter(message => message.role !== 'system')
-          .map(message => ({
+        messages={turns.map(message => {
+          const assistant = message.role !== 'user';
+          const steps = assistant ? copilotActivities([message], live && message === turns.at(-1)) : [];
+          const running = live && assistant && message === turns.at(-1);
+          return {
             id: message.id,
-            role: message.role === 'user' ? 'user' : 'assistant',
+            role: assistant ? ('assistant' as const) : ('user' as const),
             text: message.parts.flatMap(part => (part.type === 'text' ? [part.text] : [])).join('\n'),
-          }))}
-        activities={activity}
+            work:
+              steps.length || running
+                ? { steps, running, label: progress, seconds: copilot.seconds[message.id] }
+                : undefined,
+          };
+        })}
+        progress={progress}
         status={
           copilot.error
             ? 'error'

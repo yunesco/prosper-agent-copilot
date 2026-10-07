@@ -1,6 +1,13 @@
 import { expect, test } from 'vitest';
 import { readdirSync } from 'node:fs';
-import { agentFixtures, loadAgentFixture, loadDemoContext, type AgentFixtureId } from './fixtures';
+import {
+  agentFixtures,
+  callsForAgent,
+  loadAgentFixture,
+  loadDemoContext,
+  loadRiversideDemo,
+  type AgentFixtureId,
+} from './fixtures';
 
 test('loads independent fixtures and resolves every call, guideline and issue reference', () => {
   for (const id of Object.keys(agentFixtures) as AgentFixtureId[])
@@ -82,4 +89,27 @@ test('historical calls stay isolated and preserve the reported failure', async (
   const agent = loadAgentFixture('clinic-scheduler');
   agent.nodes[1].task_messages = [{ role: 'developer', content: 'Repaired local draft' }];
   expect(JSON.stringify(callsForAgent('clinic-scheduler'))).toBe(before);
+});
+
+test('the seeded Riverside demo is a sound first draft with realistic, traceable production history', async () => {
+  const { structuralIssues } = await import('./agent/conversation-quality');
+  const { readFileSync } = await import('node:fs');
+  const demo = loadRiversideDemo();
+  expect(structuralIssues(demo.agent)).toEqual([]);
+  expect(demo.guidelines).toBe(readFileSync('../fixtures/demo-sop.md', 'utf8').trimEnd());
+  const calls = callsForAgent('riverside-family-clinic');
+  expect(calls.length).toBeGreaterThanOrEqual(10);
+  const failed = calls.filter(call => call.outcome === 'failed');
+  expect(failed.length).toBeGreaterThanOrEqual(3);
+  // Some failures are reported by the client and some are only visible by reading the transcript.
+  expect(failed.some(call => call.client_feedback)).toBe(true);
+  expect(failed.some(call => !call.client_feedback)).toBe(true);
+  // The history also holds clean calls the Copilot must not accuse, and a successful call that violates the SOP.
+  expect(calls.filter(call => call.outcome === 'successful' && !call.client_feedback).length).toBeGreaterThan(
+    5,
+  );
+  // The weaknesses the failures trace to are really in the saved configuration.
+  const slot = demo.agent.nodes.find(node => node.name === 'offer_new_patient_times')!.edges[0];
+  expect(slot.properties.selected_day).toEqual({ type: 'string', description: expect.any(String) });
+  expect(JSON.stringify(slot.properties)).not.toContain('enum');
 });

@@ -50,3 +50,9 @@ test('only calls read through get_call in this conversation can be cited, within
   expect(citationVerified(read, 'listed-only', 1)).toBe(false);
   expect(citationVerified(read, 'invented', 1)).toBe(false);
 });
+
+test('malformed percent-encoding in model-authored links is rejected instead of throwing during render', () => {
+  for (const href of ['call:new-patient%zz#3', 'call:%E0%A4%A#1', 'graph:%', 'graph:offer_times/%E0%A4%A'])
+    expect(() => parseEvidenceHref(href), href).not.toThrow();
+  expect(parseEvidenceHref('call:new-patient%zz#3')).toBeNull();
+});

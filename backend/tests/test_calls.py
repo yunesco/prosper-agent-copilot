@@ -68,3 +68,11 @@ def test_bad_json_graph_and_transport_failure():
     assert response.status_code == 503
     assert 'private' not in response.text
     launch.assert_not_called()
+
+
+@pytest.mark.parametrize('body', [b'\xff\xfe', b'[' * 100_000, b''])
+def test_hostile_call_bodies_never_allocate_voice(body):
+    client, handler, launch = setup()
+    assert client.post('/test/offer', content=body).status_code == 422
+    handler.handle_web_request.assert_not_called()
+    launch.assert_not_called()

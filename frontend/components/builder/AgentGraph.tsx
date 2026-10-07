@@ -100,6 +100,7 @@ function GraphCanvas({
   proposalChanges,
   focusRequest,
   highlights = [],
+  activeNodeId = null,
   initialPositions,
   onPositionsChange,
   agent,
@@ -117,6 +118,8 @@ function GraphCanvas({
   proposalChanges?: ProposalGraphChanges;
   focusRequest?: { node: string; token: number } | null;
   highlights?: GraphReference[];
+  /** Step a live call is on; styled separately from selection and never opens the inspector. */
+  activeNodeId?: string | null;
   initialPositions?: Record<string, XYPosition>;
   onPositionsChange?: (positions: Record<string, XYPosition>) => void;
   selectedTransitionFunction?: string | null;
@@ -194,6 +197,13 @@ function GraphCanvas({
     onPositionsChange?.(positions);
   }, [onPositionsChange, positions]);
   const [measurements, setMeasurements] = useState<Record<string, Size>>({});
+  // A step revealed mid-call is not in React Flow until it is measured, so follow
+  // the live step only once its size is known.
+  const activeMeasured = activeNodeId !== null && !!measurements[activeNodeId];
+  useEffect(() => {
+    if (activeNodeId && activeMeasured)
+      void fitView({ nodes: [{ id: activeNodeId }], padding: 0.8, maxZoom: 1, duration: 300 });
+  }, [activeNodeId, activeMeasured, fitView]);
   const layout = useMemo(
     () => layoutGraph(graph.nodes, graph.edges, measurements, positions),
     [graph, measurements, positions],
@@ -212,6 +222,8 @@ function GraphCanvas({
     const element = container.current;
     // Hidden mobile panes have fallback dimensions; frame only after real node measurements.
     if (
+      // While a call is live, the live step owns the viewport.
+      activeNodeId !== null ||
       fitted.current === topology ||
       !viewportInitialized ||
       !nodesInitialized ||
@@ -227,6 +239,7 @@ function GraphCanvas({
     });
   }, [
     topology,
+    activeNodeId,
     viewportInitialized,
     nodesInitialized,
     canvasWidth,
@@ -298,7 +311,9 @@ function GraphCanvas({
         data: {
           ...node.data,
           readOnly,
+          active: node.id === activeNodeId,
           proposalChange: proposalChanges?.nodes.get(node.id),
+          previousDescription: proposalChanges?.previousDescriptions.get(node.id),
           pending,
           connecting: connecting !== null && connecting !== node.id,
           onAdd: !readOnly && onAddStep ? () => openAdd(node.id) : undefined,
@@ -314,6 +329,7 @@ function GraphCanvas({
         ariaLabel: `Inspect ${node.id}`,
         domAttributes: {
           'aria-pressed': node.id === selectedNodeId,
+          'aria-current': node.id === activeNodeId ? ('step' as const) : undefined,
           onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
             if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
               event.preventDefault();
@@ -330,6 +346,7 @@ function GraphCanvas({
       graph,
       measurements,
       connecting,
+      activeNodeId,
       selectedNodeId,
       onSelect,
       onAddStep,

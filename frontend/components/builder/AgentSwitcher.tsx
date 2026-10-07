@@ -3,10 +3,8 @@ import { Check, ChevronsUpDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { SavedAgent } from '@/lib/agent/repository';
+import { DEPLOYED_ID, type SavedAgent } from '@/lib/agent/repository';
 import { cn } from '@/lib/utils';
-
-export const DEPLOYED_ID = 'clinic-scheduler';
 
 /** Returns the trimmed name, or the reason it cannot be used. `ownId` lets an agent keep its own name. */
 export function validateAgentName(

@@ -25,17 +25,17 @@ test('initializes two independent validated records once and reloads selection',
   expect(doc.selectedId).toBe('generated');
   expect(doc.agents.map(a => [a.id, a.revision])).toEqual([
     ['generated', 1],
-    ['clinic-scheduler', 1],
+    ['riverside-family-clinic', 1],
   ]);
   expect(doc.agents[0].agent.nodes[0]).toMatchObject({ name: 'start', end: true });
-  expect(doc.agents[1].agent).toEqual(loadAgentFixture('clinic-scheduler'));
+  expect(doc.agents[1].agent).toEqual(loadAgentFixture('riverside-family-clinic'));
   expect(validate).toHaveBeenCalledTimes(2);
-  repository.selectAgent('clinic-scheduler');
+  repository.selectAgent('riverside-family-clinic');
   expect((await new LocalAgentRepository(() => storage, validate).initialize()).selectedId).toBe(
-    'clinic-scheduler',
+    'riverside-family-clinic',
   );
   expect(validate).toHaveBeenCalledTimes(2);
-  expect((await repository.getAgent('clinic-scheduler')).revision).toBe(1);
+  expect((await repository.getAgent('riverside-family-clinic')).revision).toBe(1);
 });
 
 test.each(['{', '{"version":2}', JSON.stringify({ version: 1, selectedId: 'missing', agents: [] })])(
@@ -134,7 +134,7 @@ test('context generations reject switch-away/switch-back and canceled candidates
       if (generation !== captured) throw new Error('stale context');
     },
   );
-  repository.selectAgent('clinic-scheduler');
+  repository.selectAgent('riverside-family-clinic');
   generation++;
   repository.selectAgent(base.id);
   generation++;
@@ -172,4 +172,44 @@ test('deleteAgent removes an agent, selects its neighbour, and keeps the last on
   expect(() => repo.deleteAgent(second.id)).toThrow('last agent');
   expect(() => repo.deleteAgent('missing')).toThrow('not found');
   expect((await repo.getAgent(second.id)).id).toBe(second.id);
+});
+
+test('unicode, emoji, markup and very long text round-trip verbatim through storage', async () => {
+  const { repository } = setup();
+  const doc = await repository.initialize();
+  const record = doc.agents[0];
+  const name = '<img src=x onerror=alert(1)> **Clínica** 🏥 Ωmega';
+  const guidelines = `# ${'long line '.repeat(20_000)}\n<script>1</script> 日本語 🧑‍⚕️`;
+  const saved = await commitAgent(
+    repository,
+    record,
+    [{ type: 'update_agent', changes: { name } }],
+    guidelines,
+    () => {},
+  );
+  const reloaded = await repository.getAgent(record.id);
+  expect(reloaded).toEqual(saved);
+  expect(reloaded.agent.name).toBe(name);
+  expect(reloaded.guidelines).toBe(guidelines);
+});
+
+test('a second tab holding an older revision cannot overwrite the newer save', async () => {
+  const { repository, storage } = setup();
+  const doc = await repository.initialize();
+  const original = doc.agents[0];
+  const otherTab = new LocalAgentRepository(
+    () => storage,
+    async () => {},
+  );
+  await commitAgent(
+    repository,
+    original,
+    [{ type: 'update_agent', changes: { name: 'Tab one' } }],
+    '',
+    () => {},
+  );
+  await expect(
+    commitAgent(otherTab, original, [{ type: 'update_agent', changes: { name: 'Tab two' } }], '', () => {}),
+  ).rejects.toThrow(/changed/);
+  expect((await repository.getAgent(original.id)).agent.name).toBe('Tab one');
 });

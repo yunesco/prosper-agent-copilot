@@ -1,0 +1,52 @@
+{
+  "id": "riverside-new-patient-no-insurance",
+  "agent_id": "riverside-family-clinic",
+  "title": "New patient without insurance",
+  "duration_seconds": 99,
+  "outcome": "successful",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "I'd like an appointment, I'm new."
+    },
+    {
+      "role": "assistant",
+      "text": "Welcome. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Ethan Park. January thirtieth, ninety-eight."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Ethan. What insurance provider do you have?"
+    },
+    {
+      "role": "user",
+      "text": "I'm uninsured at the moment."
+    },
+    {
+      "role": "assistant",
+      "text": "No problem, I've noted no insurance. Dr. Smith has Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Monday works."
+    },
+    {
+      "role": "assistant",
+      "text": "Booked: Ethan Park, Monday at 10 AM. A confirmation will be sent. Goodbye."
+    }
+  ]
+}

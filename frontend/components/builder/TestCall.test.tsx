@@ -10,6 +10,8 @@ const call: ReturnType<typeof useTestCall> = {
   status: 'connected',
   active: true,
   error: '',
+  activeNodeId: null,
+  visitedNodeIds: [],
   start: vi.fn(),
   stop: vi.fn(),
   transcript: [{ role: 'assistant', text: 'Hello', segment: 1 }],

@@ -49,6 +49,47 @@ test('tools read only captured saved context; review has no patch capability; er
   });
   expect(snapshot.agent.name).toBe('Riverside Clinic Scheduler');
 });
+test('proposals report quality warnings for free-text restricted choices, dead ends and traps, and none for a sound agent', async () => {
+  const tools = copilotTools(
+    { ...snapshot, id: 'clinic-scheduler' },
+    'chat',
+    vi.fn(async () => {}),
+  );
+  const propose = (operations: object[]) =>
+    tools.propose_agent_patch.execute!(
+      {
+        agentId: 'clinic-scheduler',
+        baseRevision: 3,
+        outcome: 'Change',
+        explanation: 'Test',
+        behavior: 'Test',
+        operations,
+      },
+      options,
+    ) as Promise<{ valid: boolean; quality_warnings: string[] }>;
+  const restrict = {
+    type: 'update_node',
+    node: 'offer_times',
+    changes: {
+      task_messages: [
+        { role: 'developer', content: 'Offer only Monday at 10 AM. The caller must choose one.' },
+      ],
+    },
+  };
+  const sound = await propose([restrict]);
+  expect(sound).toMatchObject({ valid: true, quality_warnings: [] });
+  const freeText = await propose([
+    restrict,
+    {
+      type: 'update_edge',
+      node: 'offer_times',
+      function: 'select_time',
+      changes: { properties: { slot: { type: 'string' } }, required: ['slot'] },
+    },
+  ]);
+  expect(freeText.valid).toBe(true);
+  expect(freeText.quality_warnings).toEqual([expect.stringContaining('collects slot as free text')]);
+});
 test('call tools expose only the active agent’s calls with numbered turns and fail closed otherwise', async () => {
   const deployed = { ...snapshot, id: 'clinic-scheduler' };
   const tools = copilotTools(deployed, 'chat', vi.fn());
@@ -285,7 +326,7 @@ test('explicit SOP generation produces one full validated candidate without savi
     'propose_agent_patch',
   ]);
   const output = steps[1].toolResults[0].output;
-  expect(output).toMatchObject({ valid: true });
+  expect(output).toMatchObject({ valid: true, quality_warnings: expect.any(Array) });
   const parsed = z.object({ proposal: proposalSchema }).parse(output).proposal;
   expect(parsed.candidate.nodes.map(node => node.name)).toEqual([
     'start',
@@ -321,3 +362,71 @@ test.each(['Python rejected unreachable step', 'Validation service unavailable']
     expect(write).not.toHaveBeenCalled();
   },
 );
+
+test('a validator outage is flagged unavailable, and the model may only explain, never rewrite the graph', async () => {
+  const { ValidationUnavailableError } = await import('../runtime/validation');
+  const { base, patch } = await creationContext();
+  const validate = vi.fn(async () => {
+    throw new ValidationUnavailableError('Validation service unavailable. Your changes were not saved.');
+  });
+  const output = await copilotTools(base, 'chat', validate).propose_agent_patch.execute!(patch, options);
+  expect(output).toMatchObject({ valid: false, unavailable: true });
+  // A rejection the model can fix (not an outage) is never flagged.
+  validate.mockRejectedValueOnce(new Error('unknown node'));
+  expect(await copilotTools(base, 'chat', validate).propose_agent_patch.execute!(patch, options)).toEqual({
+    valid: false,
+    error: 'unknown node',
+  });
+  const calls: unknown[] = [];
+  const model = new MockLanguageModelV3({
+    doStream: async params => {
+      calls.push(params.toolChoice);
+      const step = calls.length;
+      return step === 1
+        ? modelStep([{ type: 'tool-call', toolCallId: 'a', toolName: 'get_agent', input: '{}' }])
+        : step === 2
+          ? modelStep([
+              {
+                type: 'tool-call',
+                toolCallId: 'b',
+                toolName: 'propose_agent_patch',
+                input: JSON.stringify(patch),
+              },
+            ])
+          : modelStep(
+              [
+                { type: 'text-start', id: 't' },
+                { type: 'text-delta', id: 't', delta: 'The validator is down.' },
+                { type: 'text-end', id: 't' },
+              ],
+              false,
+            );
+    },
+  });
+  const input = await parseCopilotRequest({ snapshot: base, messages, intent: 'chat' });
+  const result = await startCopilot(input, { model, validate });
+  await result.consumeStream();
+  expect(calls).toEqual([{ type: 'tool', toolName: 'get_agent' }, { type: 'auto' }, { type: 'none' }]);
+});
+
+test('the Copilot uses the Responses API and sends store:false, because the organization retains no data', async () => {
+  vi.stubEnv('OPENAI_API_KEY', 'test-key');
+  try {
+    const { copilotModel } = await import('./server');
+    expect(copilotModel().provider).toContain('responses');
+  } finally {
+    vi.unstubAllEnvs();
+  }
+  const seen: unknown[] = [];
+  const model = new MockLanguageModelV3({
+    doStream: async params => {
+      seen.push(params.providerOptions);
+      return modelStep([{ type: 'tool-call', toolCallId: 'a', toolName: 'get_agent', input: '{}' }], false);
+    },
+  });
+  const { base } = await creationContext();
+  const input = await parseCopilotRequest({ snapshot: base, messages, intent: 'chat' });
+  await (await startCopilot(input, { model })).consumeStream();
+  expect(seen[0]).toMatchObject({ openai: { store: false } });
+  expect(seen[0]).not.toHaveProperty('openai.reasoningEffort');
+});

@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
 import { loadAgentFixture } from '@/lib/fixtures';
 import { instructions } from '@/lib/copilot/server';
-import { conversationQualityIssues } from './conversation-quality';
+import { conversationQualityIssues, sizeIssues } from './conversation-quality';
 import { applyAgentOperations } from './operations';
-import type { AgentConfig } from './schema';
+import { parseAgent, type AgentConfig } from './schema';
 
 const clinic = loadAgentFixture('clinic-scheduler');
 
@@ -36,7 +36,7 @@ test('flags a field that is required again downstream', () => {
       node: 'offer_times',
       function: 'select_time',
       changes: {
-        properties: { slot: { type: 'string' }, full_name: { type: 'string' } },
+        properties: { slot: { type: 'string', enum: ['Monday at 10 AM'] }, full_name: { type: 'string' } },
         required: ['slot', 'full_name'],
       },
     },
@@ -79,6 +79,153 @@ test.each([
   ['does not advance without required answers', /do not advance before required answers are available/i],
   ['states eligibility rules in the instructions', /eligibility rules in the instructions/i],
   ['forbids invented placeholders', /never write placeholders/i],
+  ['constrains closed-set values with enums', /enum of the exact option texts/i],
+  ['gives each eligibility class its own enum', /eligibility class its own transition/i],
+  [
+    'treats quality warnings as hints, never a reason to add parts',
+    /never add steps or transitions just to silence it/i,
+  ],
+  ['designs from the happy path and names a step limit', /happy path[\s\S]*never more than 8/i],
+  ['keeps transitions few', /never more than three/i],
+  ['puts whole-call rules once in the persona', /live once in the agent's persona/i],
+  ['keeps side cases out of the graph', /Side cases are not steps/i],
+  ['never re-collects an earlier field on a later transition', /never require it again as a property/i],
 ])('Copilot instructions require that generated agents %s', (_, pattern) => {
   expect(instructions).toMatch(pattern);
+});
+
+test('flags a restricted choice that is collected as free text, and accepts an enum', () => {
+  const restricted = (properties: Record<string, string | string[]>) =>
+    applyAgentOperations(clinic, [
+      {
+        type: 'update_node',
+        node: 'offer_times',
+        changes: {
+          task_messages: [
+            {
+              role: 'developer',
+              content: 'Offer only Monday at 10 AM or Friday at 2 PM. The caller must choose one.',
+            },
+          ],
+        },
+      },
+      {
+        type: 'update_edge',
+        node: 'offer_times',
+        function: 'select_time',
+        changes: { properties: { slot: properties }, required: ['slot'] },
+      },
+    ]);
+  expect(conversationQualityIssues(restricted({ type: 'string' }))).toEqual([
+    expect.stringContaining('offer_times: select_time collects slot as free text'),
+  ]);
+  expect(
+    conversationQualityIssues(restricted({ type: 'string', enum: ['Monday at 10 AM', 'Friday at 2 PM'] })),
+  ).toEqual([]);
+});
+
+test('flags a step that is a dead end and a loop that can never end the call', () => {
+  const stuck = applyAgentOperations(clinic, [
+    { type: 'update_node', node: 'confirm', changes: { end: false } },
+  ]);
+  expect(conversationQualityIssues(stuck)).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining('Step confirm has no transition and does not end the call'),
+    ]),
+  );
+  const loop = applyAgentOperations(clinic, [
+    {
+      type: 'update_edge',
+      node: 'offer_times',
+      function: 'select_time',
+      changes: { target: 'collect_details' },
+    },
+  ]);
+  expect(conversationQualityIssues(loop)).toEqual(
+    expect.arrayContaining([expect.stringContaining('cannot reach any step that ends the call')]),
+  );
+});
+
+test('escape routes (exit to an end step, correction back to an earlier step) are not flagged as under-collecting or re-asking', () => {
+  const withEscapes = applyAgentOperations(clinic, [
+    {
+      type: 'add_edge',
+      node: 'offer_times',
+      value: {
+        function: 'caller_cancels',
+        description: 'Caller cancels.',
+        target: 'confirm',
+        properties: {},
+        required: [],
+      },
+    },
+    {
+      type: 'add_edge',
+      node: 'offer_times',
+      value: {
+        function: 'corrected_details',
+        description: 'Caller corrects their details.',
+        target: 'collect_details',
+        properties: { patient_type: { type: 'string', enum: ['new', 'existing'] } },
+        required: ['patient_type'],
+      },
+    },
+  ]);
+  expect(conversationQualityIssues(withEscapes)).toEqual([]);
+});
+
+test('a plain "only" in step text does not demand an enum, but an offer-only restriction does', () => {
+  const insurance = applyAgentOperations(clinic, [
+    {
+      type: 'update_node',
+      node: 'offer_times',
+      changes: {
+        task_messages: [
+          {
+            role: 'developer',
+            content: 'Insurance is required for new patients only. Collect the provider.',
+          },
+        ],
+      },
+    },
+    {
+      type: 'update_edge',
+      node: 'offer_times',
+      function: 'select_time',
+      changes: { properties: { provider: { type: 'string' } }, required: ['provider'] },
+    },
+  ]);
+  expect(conversationQualityIssues(insurance)).toEqual([]);
+});
+
+test('a graph that is bigger than a phone call needs is flagged, a lean one is not', () => {
+  const node = (name: string, targets: string[]) => ({
+    name,
+    task_messages: [{ role: 'developer' as const, content: 'Do the step.' }],
+    edges: targets.map((target, index) => ({
+      function: `${name}_${index}`,
+      description: 'When done.',
+      target,
+      properties: { value: { type: 'string' as const } },
+      required: ['value'],
+    })),
+    ...(targets.length ? {} : { end: true }),
+  });
+  const agent = (nodes: ReturnType<typeof node>[]) =>
+    parseAgent({ name: 'Size test', initial_node: nodes[0].name, nodes });
+  const lean = agent([node('a', ['b']), node('b', ['c', 'end']), node('c', ['end']), node('end', [])]);
+  expect(sizeIssues(lean)).toEqual([]);
+  const wide = agent([
+    node('a', ['b', 'c', 'end', 'b']),
+    node('b', ['end']),
+    node('c', ['end']),
+    node('end', []),
+  ]);
+  expect(sizeIssues(wide)).toEqual([expect.stringMatching(/Step a has 4 transitions; keep at most 3/)]);
+  const long = agent([
+    ...Array.from({ length: 9 }, (_, index) => node(`s${index}`, [`s${index + 1}`])),
+    node('s9', []),
+  ]);
+  expect(sizeIssues(long)).toEqual([expect.stringMatching(/The graph has 10 steps; most calls need 3 to 6/)]);
+  expect(conversationQualityIssues(long).some(issue => issue.includes('10 steps'))).toBe(true);
 });

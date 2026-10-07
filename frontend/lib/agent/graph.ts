@@ -6,6 +6,8 @@ export type StepData = {
   depth: number;
   readOnly?: boolean;
   proposalChange?: ProposalGraphChange;
+  /** Saved text of a changed step, shown as an inline diff against `description`. */
+  previousDescription?: string;
   label: string;
   initial: boolean;
   terminal: boolean;
@@ -17,6 +19,8 @@ export type StepData = {
   onDelete?: () => void;
   connecting?: boolean;
   pending?: boolean;
+  /** The step a live Test Call is currently on. */
+  active?: boolean;
 };
 export type StepNode = Node<StepData, 'step'>;
 export const stepTitle = (name: string) =>
@@ -43,6 +47,20 @@ export function nodeDescription(node: AgentNode): string {
     .replace(/\s+/g, ' ')
     .trim();
   return text || 'No text instructions. Select to inspect this step.';
+}
+
+/**
+ * The part of an agent a live call has reached: the first step, every visited step
+ * and the transitions between them. Presentation only; the input is not mutated.
+ */
+export function revealedAgent(agent: AgentConfig, visited: readonly string[]): AgentConfig {
+  const shown = new Set([agent.initial_node, ...visited]);
+  return {
+    ...agent,
+    nodes: agent.nodes
+      .filter(node => shown.has(node.name))
+      .map(node => ({ ...node, edges: node.edges.filter(edge => shown.has(edge.target)) })),
+  };
 }
 
 /** Presentation only. Runtime objects are neither mutated nor embedded in graph state. */

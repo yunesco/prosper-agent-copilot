@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/Button';
 
-export type ContextPane = 'details' | 'copilot';
-const tabs: ContextPane[] = ['copilot', 'details'];
-const label = { details: 'Details', copilot: 'Copilot' };
+export type ContextPane = 'details' | 'calls' | 'copilot';
+const tabs: ContextPane[] = ['copilot', 'calls', 'details'];
+const label = { details: 'Details', calls: 'Calls', copilot: 'Copilot' };
 
-/** Details | Copilot tablist with arrow-key navigation. */
+/** Copilot | Calls | Details tablist with arrow-key navigation. */
 export function ContextTabs({
   pane,
   onChange,

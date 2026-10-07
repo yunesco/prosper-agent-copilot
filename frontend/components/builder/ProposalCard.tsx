@@ -1,16 +1,13 @@
 'use client';
 
-import { Check, ChevronRight } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Bot, Check, ChevronRight, FileText, MessageSquare, Scan, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { focusRing } from '@/components/ui/focus';
-import {
-  candidateDiff,
-  configurationChecks,
-  type GraphReference,
-  type Proposal,
-} from '@/lib/agent/proposals';
+import { referenceExists, type GraphReference, type Proposal } from '@/lib/agent/proposals';
+import { proposalReviewRows, proposalReviewTexts, type ProposalReviewRow } from '@/lib/agent/proposal-review';
 import type { SavedAgent } from '@/lib/agent/repository';
-import { GraphLink } from './GraphLink';
+import { DiffText } from './DiffText';
 
 const proposalGuidance: Record<string, string> = {
   'Out of date': 'The saved agent has changed. Ask Copilot for a fresh proposal.',
@@ -21,6 +18,57 @@ const proposalGuidance: Record<string, string> = {
   'Validating proposal…': 'Wait for the response to finish before reviewing this proposal.',
 };
 const disclosureClass = `flex cursor-pointer list-none items-center gap-2 rounded py-2 font-medium ${focusRing}`;
+
+const rowIcons = { instructions: Bot, guidelines: FileText, settings: Settings2, step: MessageSquare };
+
+function ChangeRow({ row, onInspect }: { row: ProposalReviewRow; onInspect?: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const id = useId();
+  const Icon = rowIcons[row.kind];
+  return (
+    <li className="min-w-0 py-3 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-text-muted">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h5 className="font-medium leading-5">{row.title}</h5>
+          <p className="mt-1 text-xs leading-5 text-text-muted">{row.summary}</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label={`${expanded ? 'Hide' : 'View'} changes to ${row.title}`}
+          aria-expanded={expanded}
+          aria-controls={id}
+          onClick={() => setExpanded(value => !value)}
+        >
+          {expanded ? 'Hide' : 'View'}
+        </Button>
+      </div>
+      <div
+        id={id}
+        hidden={!expanded}
+        className="mt-3 space-y-3 rounded-lg border border-ui-border bg-background p-3"
+      >
+        {row.changes.map((change, index) => (
+          <div key={index} className="space-y-2">
+            <p className="text-xs font-medium">{change.label}</p>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap font-sans text-xs leading-5 [overflow-wrap:anywhere]">
+              <DiffText {...proposalReviewTexts(change.before, change.after)} />
+            </pre>
+          </div>
+        ))}
+        {onInspect && (
+          <Button variant="link" size="sm" className="px-0" onClick={onInspect}>
+            <Scan aria-hidden="true" />
+            Show step on canvas
+          </Button>
+        )}
+      </div>
+    </li>
+  );
+}
 
 /** A validated candidate for human review. Only an explicit Apply saves it. */
 export function ProposalCard({
@@ -48,12 +96,7 @@ export function ProposalCard({
   onTest: () => void;
   onPreview?: (proposal: Proposal, reference?: GraphReference) => void;
 }) {
-  const changes = base
-    ? candidateDiff(base.agent, proposal.candidate, {
-        before: base.guidelines,
-        after: proposal.guidelines,
-      })
-    : [];
+  const rows = base ? proposalReviewRows(base, proposal) : [];
   const ready = state === 'Ready to apply';
   const historical =
     !ready &&
@@ -73,86 +116,68 @@ export function ProposalCard({
           {state}
         </p>
       </Heading>
-      {ready && onPreview && (
-        <Button variant="outline" className="w-full" onClick={() => onPreview(proposal)}>
-          Inspect on canvas
-        </Button>
-      )}
-      <dl className="space-y-3">
-        <div>
-          <dt className="font-medium">Why</dt>
-          <dd className="mt-1 text-text-muted">{proposal.explanation}</dd>
-        </div>
-        <div>
-          <dt className="font-medium">Behavior affected</dt>
-          <dd className="mt-1 text-text-muted">{proposal.behavior}</dd>
-        </div>
-        <div>
-          <dt className="font-medium">Implementation</dt>
-          <dd className="mt-1 text-text-muted">
-            {base ? changes.map(change => change.label).join(', ') : 'Saved context is unavailable.'}
-          </dd>
-        </div>
-      </dl>
-      {base && (
-        <details className="group border-t border-ui-border pt-1">
-          <summary className={disclosureClass}>
-            <ChevronRight className="size-4 shrink-0 group-open:rotate-90" aria-hidden="true" />
-            View changes
-          </summary>
-          <div className="space-y-4 pb-2">
-            {changes.map((change, index) => (
-              <div key={index} className="space-y-2 border-t border-ui-border pt-3">
-                <p className="font-medium">{change.label}</p>
-                {change.reference && (
-                  <GraphLink
-                    reference={change.reference}
-                    record={ready && onPreview ? { ...record, agent: proposal.candidate } : record}
-                    onFocus={ref => (ready && onPreview ? onPreview(proposal, ref) : onFocus(ref))}
-                  />
-                )}
-                <p className="text-xs text-text-muted">Before</p>
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded bg-surface p-3 text-xs leading-5 [overflow-wrap:anywhere]">
-                  {JSON.stringify(change.before, null, 2)}
-                </pre>
-                <p className="text-xs text-text-muted">After</p>
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded bg-surface p-3 text-xs leading-5 [overflow-wrap:anywhere]">
-                  {JSON.stringify(change.after, null, 2)}
-                </pre>
-              </div>
-            ))}
+      <details className="group/why border-t border-ui-border pt-1">
+        <summary className={disclosureClass}>
+          <ChevronRight className="size-4 shrink-0 group-open/why:rotate-90" aria-hidden="true" />
+          Why these changes
+        </summary>
+        <dl className="space-y-3 pb-2 text-text-muted">
+          <div>
+            <dt className="font-medium text-base-content">Why</dt>
+            <dd className="mt-1">{proposal.explanation}</dd>
           </div>
-        </details>
+          <div>
+            <dt className="font-medium text-base-content">Behavior affected</dt>
+            <dd className="mt-1">{proposal.behavior}</dd>
+          </div>
+        </dl>
+      </details>
+      {base ? (
+        <div className="space-y-4 rounded-xl bg-proposal-soft/50 p-3">
+          {[
+            { title: 'Global changes', items: rows.filter(row => row.kind !== 'step') },
+            { title: 'Step changes', items: rows.filter(row => row.kind === 'step') },
+          ]
+            .filter(group => group.items.length)
+            .map(group => (
+              <section
+                key={group.title}
+                aria-label={group.title}
+                className="space-y-3 border-ui-border not-first:border-t not-first:pt-4"
+              >
+                <h4 className="text-xs font-medium text-text-muted">{group.title}</h4>
+                <ul className="divide-y divide-ui-border">
+                  {group.items.map(row => {
+                    const reference = row.reference;
+                    const canInspect =
+                      reference &&
+                      referenceExists(ready && onPreview ? proposal.candidate : record.agent, reference);
+                    return (
+                      <ChangeRow
+                        key={row.id}
+                        row={row}
+                        onInspect={
+                          reference && !row.removed && canInspect
+                            ? () => {
+                                if (ready && onPreview) onPreview(proposal, reference);
+                                else onFocus(reference);
+                              }
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+        </div>
+      ) : (
+        <p className="text-xs text-text-muted">Saved context is unavailable.</p>
       )}
-      <div className="space-y-2 border-t border-ui-border pt-3 text-xs leading-5">
-        <p>
-          <span className="font-medium">Graph validation</span>
-          <span className="text-text-muted"> · Passed Python validation</span>
-        </p>
-        {base && (
-          <details className="group">
-            <summary className={`${disclosureClass} py-1`}>
-              <ChevronRight className="size-3.5 shrink-0 group-open:rotate-90" aria-hidden="true" />
-              Configuration checks
-            </summary>
-            <ul className="space-y-2 py-2 text-text-muted">
-              {configurationChecks(base.agent, proposal.candidate).map(check => (
-                <li key={check.name}>
-                  {check.name} · {check.unchanged ? 'Unchanged' : 'Changed'}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-        <p>
-          <span className="font-medium">Model review</span>
-          <span className="text-text-muted"> · Explanation above; not an executed test</span>
-        </p>
-        <p>
-          <span className="font-medium">Conversation checks</span>
-          <span className="text-text-muted"> · Not run</span>
-        </p>
-      </div>
+      <p className="flex items-start gap-1.5 text-xs leading-5 text-text-muted">
+        <Check className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        Flow is valid · Not tested on a call yet
+      </p>
       {(ready || proposalGuidance[state]) && (
         <footer className="space-y-3 border-t border-ui-border pt-3">
           <p className="text-xs leading-5 text-text-muted">
@@ -163,7 +188,7 @@ export function ProposalCard({
               : proposalGuidance[state]}
           </p>
           {ready && (
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" disabled={applying} onClick={() => onDismiss()}>
                 Dismiss
               </Button>

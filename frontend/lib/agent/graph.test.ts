@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { loadAgentFixture } from '../fixtures';
-import { agentGraph } from './graph';
+import { agentGraph, revealedAgent } from './graph';
 
 test('maps every runtime node and transition without changing runtime data', () => {
   const agent = loadAgentFixture('original-scheduler');
@@ -63,5 +63,25 @@ test('converging transitions have separately addressed target handles', () => {
   expect(graph.nodes.find(node => node.id === 'confirm')?.data.incoming.map(item => item.id)).toEqual(
     incoming.map(edge => edge.targetHandle),
   );
+  expect(agent).toEqual(before);
+});
+
+test('a live call reveals only reached steps and the transitions between them', () => {
+  const agent = loadAgentFixture('original-scheduler');
+  const before = structuredClone(agent);
+  const start = revealedAgent(agent, []);
+  expect(start.nodes.map(node => node.name)).toEqual([agent.initial_node]);
+  expect(start.nodes[0].edges).toEqual([]);
+  const next = agent.nodes[0].edges[0].target;
+  const two = revealedAgent(agent, [next, 'unknown-step']);
+  expect(two.nodes.map(node => node.name)).toEqual([agent.initial_node, next]);
+  expect(two.nodes[0].edges.map(edge => edge.target)).toEqual([next]);
+  expect(agentGraph(two).nodes).toHaveLength(2);
+  expect(
+    revealedAgent(
+      agent,
+      agent.nodes.map(node => node.name),
+    ).nodes,
+  ).toEqual(agent.nodes);
   expect(agent).toEqual(before);
 });

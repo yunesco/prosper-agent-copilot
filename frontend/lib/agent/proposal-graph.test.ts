@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 import { loadAgentFixture } from '../fixtures';
+import { nodeDescription } from './graph';
 import { proposalGraphChanges } from './proposal-graph';
 
 test('marks added steps and transitions while preserving inputs and unchanged paths', () => {
@@ -63,4 +64,16 @@ test('global settings alone do not falsely mark graph elements', () => {
   const before = loadAgentFixture('original-scheduler');
   const after = { ...before, name: 'Renamed agent' };
   expect(proposalGraphChanges(before, after).nodes.size).toBe(0);
+});
+
+test('records saved step text only when a changed step displays different instructions', () => {
+  const before = loadAgentFixture('original-scheduler');
+  const after = structuredClone(before);
+  after.nodes[0].task_messages = [{ role: 'developer', content: 'Welcome the caller by name.' }];
+  after.nodes[1].edges[0].description = 'Only after all required details are known.';
+  after.nodes.push({ ...structuredClone(after.nodes[2]), name: 'brand_new_step' });
+  const changes = proposalGraphChanges(before, after);
+  expect(changes.previousDescriptions.get(after.nodes[0].name)).toBe(nodeDescription(before.nodes[0]));
+  expect(changes.previousDescriptions.has(after.nodes[1].name)).toBe(false);
+  expect(changes.previousDescriptions.has('brand_new_step')).toBe(false);
 });

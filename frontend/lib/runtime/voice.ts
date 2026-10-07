@@ -2,9 +2,10 @@ import { z } from 'zod';
 import type { AgentConfig } from '@/lib/agent/schema';
 import { requestCallAnswer } from './call-api';
 
-export type TranscriptLine = { role: 'user' | 'assistant'; text: string; segment?: number };
+export type TranscriptLine = { role: 'user' | 'assistant'; text: string; segment?: number; node?: string };
 const eventSchema = z.object({ label: z.literal('rtvi-ai'), type: z.string(), data: z.unknown().optional() });
 const userText = z.object({ text: z.string(), final: z.boolean() });
+const nodeActive = z.object({ type: z.literal('node-active'), node: z.string() });
 const botText = z.object({
   text: z.string(),
   segment_id: z.number(),
@@ -19,6 +20,10 @@ export function createVoiceCall(
   callbacks: {
     connected: () => void;
     transcript: (line: TranscriptLine) => void;
+    /** The step the agent just moved to. The first step is implied by `connected`. */
+    node?: (name: string) => void;
+    /** Fires for every bot-output, including generated text that is not yet spoken. */
+    segmentStarted?: (segment: number) => void;
     failed: (message: string) => void;
   },
 ) {
@@ -75,7 +80,13 @@ export function createVoiceCall(
           if (peer && ['failed', 'closed'].includes(peer.connectionState))
             fail('Call disconnected. You can start a new call.');
         };
-        stream.getTracks().forEach(track => peer?.addTrack(track, stream!));
+        // An unplugged or revoked microphone ends its track without closing the peer connection.
+        stream.getTracks().forEach(track => {
+          track.addEventListener('ended', () =>
+            fail('Microphone disconnected. Check your input device and start a new call.'),
+          );
+          peer?.addTrack(track, stream!);
+        });
         channel = peer.createDataChannel('chat');
         channel.onopen = () => {
           if (stopped) return;
@@ -114,8 +125,13 @@ export function createVoiceCall(
             const text = userText.safeParse(message.data);
             if (text.success && text.data.final) callbacks.transcript({ role: 'user', text: text.data.text });
           }
+          if (message.type === 'server-message') {
+            const event = nodeActive.safeParse(message.data);
+            if (event.success) callbacks.node?.(event.data.node);
+          }
           if (message.type === 'bot-output') {
             const text = botText.safeParse(message.data);
+            if (text.success) callbacks.segmentStarted?.(text.data.segment_id);
             // 'new' contains generated text, including audio that may be interrupted
             // before playback. Progress is cumulative for this segment, not a new line.
             if (

@@ -1,0 +1,69 @@
+{
+  "id": "riverside-new-patient-friday-booked",
+  "agent_id": "riverside-family-clinic",
+  "title": "Friday booked for a new patient",
+  "duration_seconds": 96,
+  "outcome": "failed",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "collect_new_patient_insurance",
+    "offer_new_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, yeah, I'd like to book an appointment with Dr. Smith."
+    },
+    {
+      "role": "assistant",
+      "text": "Happy to help. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Dana Whitfield. Born June twelfth, nineteen eighty-eight."
+    },
+    {
+      "role": "assistant",
+      "text": "Thank you, Dana. Are you a new patient or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "New. I've never been there before."
+    },
+    {
+      "role": "assistant",
+      "text": "Welcome. What insurance provider do you have?"
+    },
+    {
+      "role": "user",
+      "text": "Blue Horizon."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks. Dr. Smith has Monday at 10 AM or Wednesday at 2 PM available."
+    },
+    {
+      "role": "user",
+      "text": "Hmm, I work Mondays and Wednesdays. Is there any chance of Friday?"
+    },
+    {
+      "role": "assistant",
+      "text": "Friday at 2 PM is open. Shall I book that for you?"
+    },
+    {
+      "role": "user",
+      "text": "Friday at two, then."
+    },
+    {
+      "role": "assistant",
+      "text": "You're booked for Friday at 2 PM. Thank you for calling, goodbye."
+    }
+  ],
+  "client_feedback": "Our front desk saw a new patient on Dr. Smith's Friday schedule. New patients are only supposed to be seen Monday or Wednesday."
+}

@@ -1,4 +1,4 @@
-shadcn/ui — stock Base Nova Button, Textarea, and Native Select; import paths point to local utilities.
+shadcn/ui — stock Base Nova Button and Textarea; import paths point to local utilities.
 Source: https://github.com/shadcn-ui/ui
 
 MIT License

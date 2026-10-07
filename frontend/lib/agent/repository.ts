@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { agentSchema, parseAgent } from './schema';
 import { applyAgentOperations, type AgentOperation } from './operations';
-import { loadAgentFixture, loadDemoContext } from '../fixtures';
+import { loadRiversideDemo } from '../fixtures';
 import { validateAgent } from '../runtime/validation';
 
 export const savedAgentSchema = z.object({
@@ -23,6 +23,8 @@ const documentSchema = z
       ctx.addIssue({ code: 'custom', message: 'Invalid saved agent selection or duplicate ID.' });
   });
 export type AgentDocument = z.output<typeof documentSchema>;
+/** The seeded agent that stands in for an existing deployed agent with recorded production calls. */
+export const DEPLOYED_ID = 'riverside-family-clinic';
 export const STORAGE_KEY = 'prosper.agents.v1';
 export interface AgentRepository {
   getAgent(id: string): Promise<SavedAgent>;
@@ -86,12 +88,8 @@ export class LocalAgentRepository implements AgentRepository {
     if (existing) return existing;
     const agents: SavedAgent[] = [
       { id: this.newId(), revision: 1, guidelines: '', agent: minimalAgent() },
-      {
-        id: 'clinic-scheduler',
-        revision: 1,
-        guidelines: loadDemoContext().guidelines[0].text,
-        agent: loadAgentFixture('clinic-scheduler'),
-      },
+      // The deployed demo agent; its production-call history is served by the mock platform API under this ID.
+      { id: DEPLOYED_ID, revision: 1, ...loadRiversideDemo() },
     ];
     await Promise.all(agents.map(record => this.validate(record.agent)));
     // Another initialization may have completed while validation was pending.

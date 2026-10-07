@@ -12,6 +12,9 @@ export function useCopilot(record: SavedAgent, selected: GraphReference | null) 
   const [closed, setClosed] = useState<Partial<Record<string, 'Dismissed' | 'Applied' | 'Superseded'>>>({});
   const [bases, setBases] = useState<Record<number, SavedAgent>>({});
   const [stopped, setStopped] = useState(false);
+  const [seconds, setSeconds] = useState<Record<string, number>>({});
+  const startedAt = useRef(0);
+  const [intent, setIntent] = useState<'chat' | 'review'>('chat');
   const lastRequest = useRef<{ text: string; intent: 'chat' | 'review' } | null>(null);
   useEffect(() => {
     lastRequest.current = null;
@@ -22,6 +25,11 @@ export function useCopilot(record: SavedAgent, selected: GraphReference | null) 
     onFinish: ({ message, isAbort, isError, isDisconnect }) => {
       if (!isAbort && !isError && !isDisconnect && request.current?.valid)
         setCompleted(current => [...current, message.id]);
+      if (!isAbort && !isError && !isDisconnect)
+        setSeconds(current => ({
+          ...current,
+          [message.id]: Math.round((Date.now() - startedAt.current) / 1000),
+        }));
     },
   });
   const { stop } = chat;
@@ -31,20 +39,30 @@ export function useCopilot(record: SavedAgent, selected: GraphReference | null) 
       void stop();
     };
   }, [record.id, record.revision, stop]);
-  const send = (text: string, intent: 'chat' | 'review' = 'chat') => {
-    if (chat.status === 'submitted' || chat.status === 'streaming') return;
+  // `send` and `retry` share the same bookkeeping; they differ only in how the SDK is asked to run.
+  const begin = (text: string, intent: 'chat' | 'review') => {
+    if (chat.status === 'submitted' || chat.status === 'streaming') return null;
     setClosed(current => ({
       ...Object.fromEntries(proposals.map(item => [item.proposal.id, 'Superseded' as const])),
       ...current,
     }));
     request.current = { revision: record.revision, valid: true };
+    startedAt.current = Date.now();
     setBases(current => ({ ...current, [record.revision]: structuredClone(record) }));
     setStopped(false);
     lastRequest.current = { text, intent };
-    void chat.sendMessage({ text }, { body: { snapshot: record, selected, intent } });
+    setIntent(intent);
+    return { body: { snapshot: record, selected, intent } };
   };
+  const send = (text: string, intent: 'chat' | 'review' = 'chat') => {
+    const options = begin(text, intent);
+    if (options) void chat.sendMessage({ text }, options);
+  };
+  // Retry reruns the failed turn in place. Sending the text again would leave it in the history twice.
   const retry = () => {
-    if (lastRequest.current) send(lastRequest.current.text, lastRequest.current.intent);
+    if (!lastRequest.current) return;
+    const options = begin(lastRequest.current.text, lastRequest.current.intent);
+    if (options) void chat.regenerate(options);
   };
   const proposals = chat.messages.flatMap(message =>
     message.parts.flatMap(part => {
@@ -91,6 +109,8 @@ export function useCopilot(record: SavedAgent, selected: GraphReference | null) 
   return {
     ...chat,
     busy,
+    seconds,
+    intent,
     stopped,
     send,
     retry,

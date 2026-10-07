@@ -5,19 +5,25 @@ import type { GraphReference } from '../agent/proposals';
 export type Evidence =
   { kind: 'call'; callId: string; turn: number } | { kind: 'graph'; reference: GraphReference };
 
-/** Parses the in-app link schemes Copilot is told to use: `call:ID#TURN`, `graph:NODE`, `graph:NODE/FUNCTION`. */
+/** Parses the in-app link schemes Copilot is told to use: `call:ID#TURN`, `graph:NODE`, `graph:NODE/FUNCTION`.
+ * Hrefs are model-authored: malformed percent-escapes are not references, and must not throw during render. */
 export function parseEvidenceHref(href: string): Evidence | null {
-  const call = /^call:([^#]+)#(\d+)$/.exec(href);
-  if (call) return { kind: 'call', callId: decodeURIComponent(call[1]), turn: Number(call[2]) };
-  const graph = /^graph:([^/]+)(?:\/(.+))?$/.exec(href);
-  if (!graph) return null;
-  const node = decodeURIComponent(graph[1]);
-  return {
-    kind: 'graph',
-    reference: graph[2]
-      ? { kind: 'transition', node, function: decodeURIComponent(graph[2]) }
-      : { kind: 'node', node },
-  };
+  try {
+    const call = /^call:([^#]+)#(\d+)$/.exec(href);
+    if (call) return { kind: 'call', callId: decodeURIComponent(call[1]), turn: Number(call[2]) };
+    const graph = /^graph:([^/]+)(?:\/(.+))?$/.exec(href);
+    if (!graph) return null;
+    const node = decodeURIComponent(graph[1]);
+    return {
+      kind: 'graph',
+      reference: graph[2]
+        ? { kind: 'transition', node, function: decodeURIComponent(graph[2]) }
+        : { kind: 'node', node },
+    };
+  } catch (error) {
+    if (error instanceof URIError) return null;
+    throw error;
+  }
 }
 
 const readCall = z.object({ id: z.string(), transcript: z.array(z.object({ turn: z.number().int() })) });

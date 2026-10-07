@@ -5,7 +5,13 @@ import { loadAgentFixture } from '@/lib/fixtures';
 import type { SavedAgent } from '@/lib/agent/repository';
 import { useCopilot } from './use-copilot';
 
-const sdk = vi.hoisted(() => ({ sendMessage: vi.fn(), stop: vi.fn(), status: 'ready', messages: [] }));
+const sdk = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+  regenerate: vi.fn(),
+  stop: vi.fn(),
+  status: 'ready',
+  messages: [],
+}));
 vi.mock('@ai-sdk/react', () => ({ useChat: () => sdk }));
 afterEach(() => {
   cleanup();
@@ -27,21 +33,23 @@ test('retry repeats the original review text and intent using the current saved 
   const saved = { ...record, revision: 2, guidelines: 'Collect name and DOB.' };
   rerender({ snapshot: saved });
   act(() => result.current.retry());
-  expect(sdk.sendMessage).toHaveBeenLastCalledWith(
-    { text: 'Review these guidelines exactly.' },
-    { body: { snapshot: saved, selected: null, intent: 'review' } },
-  );
+  // The failed turn is rerun in place: the user's message is not sent (and stored) a second time.
+  expect(sdk.sendMessage).toHaveBeenCalledTimes(1);
+  expect(sdk.regenerate).toHaveBeenCalledExactlyOnceWith({
+    body: { snapshot: saved, selected: null, intent: 'review' },
+  });
 });
 
 test('retry does nothing before a request or while generation is busy', () => {
   const { result, rerender } = renderHook(() => useCopilot(record, null));
   act(() => result.current.retry());
-  expect(sdk.sendMessage).not.toHaveBeenCalled();
+  expect(sdk.regenerate).not.toHaveBeenCalled();
   act(() => result.current.send('Improve the greeting.'));
   sdk.status = 'streaming';
   rerender();
   act(() => result.current.retry());
   expect(sdk.sendMessage).toHaveBeenCalledTimes(1);
+  expect(sdk.regenerate).not.toHaveBeenCalled();
 });
 
 test('switching agent identity clears the retry request', () => {
@@ -51,5 +59,5 @@ test('switching agent identity clears the retry request', () => {
   act(() => result.current.send('Review this agent.', 'review'));
   rerender({ snapshot: { ...record, id: 'another-agent' } });
   act(() => result.current.retry());
-  expect(sdk.sendMessage).toHaveBeenCalledTimes(1);
+  expect(sdk.regenerate).not.toHaveBeenCalled();
 });

@@ -21,8 +21,8 @@
     },
     {
       "name": "offer_times",
-      "task_messages": [{"role": "developer", "content": "Offer Dr. Smith's available appointments: Monday at 10 AM or Friday at 2 PM."}],
-      "edges": [{"function": "select_time", "description": "Record the selected slot.", "target": "confirm", "properties": {"slot": {"type": "string"}}, "required": ["slot"]}]
+      "task_messages": [{"role": "developer", "content": "Offer only Dr. Smith's available appointments: Monday at 10 AM or Friday at 2 PM. The caller must choose one of them; if they ask for another time, explain and offer these two again."}],
+      "edges": [{"function": "select_time", "description": "Record the selected slot.", "target": "confirm", "properties": {"slot": {"type": "string", "enum": ["Monday at 10 AM", "Friday at 2 PM"]}}, "required": ["slot"]}]
     },
     {
       "name": "confirm",

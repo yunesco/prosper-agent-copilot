@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { ChatPresentation } from './ChatPresentation';
 
@@ -73,20 +73,31 @@ test('renders safe Markdown without remote images and handles clipboard failure'
   );
 });
 
-test('tool-only assistant messages do not create empty conversation turns', () => {
+test('a tool-only turn shows its work block and no empty reply', () => {
   render(
     <ChatPresentation
-      messages={[{ id: 'tool', role: 'assistant', text: '' }]}
-      activities={[{ id: 'read', label: 'Read saved agent', status: 'pending', detail: 'Reading context' }]}
+      messages={[
+        {
+          id: 'tool',
+          role: 'assistant',
+          text: '',
+          work: {
+            running: true,
+            label: 'Reading your agent…',
+            steps: [{ id: 'read', label: 'Read saved agent', status: 'pending', detail: '' }],
+          },
+        },
+      ]}
       status="streaming"
       onSend={vi.fn()}
       onStop={vi.fn()}
       onRetry={vi.fn()}
     />,
   );
-  expect(screen.queryByRole('article')).not.toBeInTheDocument();
-  // The drawer header summarises progress; the step row inside is collapsed.
-  expect(screen.getAllByText('In progress')[0]).toBeVisible();
+  expect(screen.getByRole('article')).toHaveTextContent('Reading your agent…');
+  expect(screen.getByRole('timer')).toBeVisible();
+  // Open while it runs, so the steps are visible without a click, and the only place progress is shown.
+  expect(screen.getByText('Read saved agent')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled();
 });
 
@@ -105,14 +116,27 @@ test('save errors remain visible without offering an unrelated generation retry'
   expect(screen.queryByRole('button', { name: 'Retry response' })).not.toBeInTheDocument();
 });
 
-test('collapsed activity exposes failures and response tables are keyboard accessible', () => {
+test('a failed step opens by itself with its reason, and response tables are keyboard accessible', () => {
   render(
     <ChatPresentation
       messages={[
-        { id: 'text', role: 'assistant', text: '| Field | Value |\n| --- | --- |\n| Name | Aleksandra |' },
-      ]}
-      activities={[
-        { id: 'validate', label: 'Validate proposal', status: 'failed', detail: 'Validation unavailable' },
+        {
+          id: 'text',
+          role: 'assistant',
+          text: '| Field | Value |\n| --- | --- |\n| Name | Aleksandra |',
+          work: {
+            running: false,
+            seconds: 4,
+            steps: [
+              {
+                id: 'validate',
+                label: 'Validate proposal',
+                status: 'failed',
+                detail: 'Validation unavailable',
+              },
+            ],
+          },
+        },
       ]}
       status="complete"
       onSend={vi.fn()}
@@ -120,7 +144,8 @@ test('collapsed activity exposes failures and response tables are keyboard acces
       onRetry={vi.fn()}
     />,
   );
-  expect(screen.getByText('1 failed')).toBeVisible();
+  expect(screen.getByText('Validation unavailable')).toBeVisible();
+  expect(screen.getByText('Failed')).toBeVisible();
   expect(screen.getByRole('region', { name: 'Response table' })).toHaveAttribute('tabindex', '0');
 });
 
@@ -138,16 +163,18 @@ test.each([false, true])('retry clears restored text, but preserves user edits: 
   expect(input).toHaveValue(edited ? 'My next request' : '');
 });
 
-test('interrupted activity has no spinner or completed indicator', () => {
+test('an interrupted turn has no spinner or completed indicator', () => {
   const { container } = render(
     <ChatPresentation
-      messages={[]}
-      activities={[
+      messages={[
         {
-          id: 'patch',
-          label: 'Validate proposal',
-          status: 'interrupted',
-          detail: 'Tool interrupted before completion.',
+          id: 'a',
+          role: 'assistant',
+          text: '',
+          work: {
+            running: false,
+            steps: [{ id: 'patch', label: 'Validate proposal', status: 'interrupted', detail: '' }],
+          },
         },
       ]}
       status="stopped"
@@ -156,18 +183,25 @@ test('interrupted activity has no spinner or completed indicator', () => {
       onRetry={vi.fn()}
     />,
   );
-  expect(screen.getByText('1 interrupted')).toBeVisible();
+  expect(screen.getByRole('button', { name: /Interrupted/ })).toBeVisible();
   expect(container.querySelector('.animate-spin')).toBeNull();
   expect(screen.queryByLabelText('Completed')).not.toBeInTheDocument();
 });
 
-test('activity steps expand to their result and failures open by default', () => {
+test('a finished turn collapses to how long it took, and opens on request', () => {
   render(
     <ChatPresentation
-      messages={[]}
-      activities={[
-        { id: 'read', label: 'Read saved agent', status: 'completed', detail: 'Tool finished.' },
-        { id: 'patch', label: 'Validate proposal', status: 'failed', detail: 'No path to an end step.' },
+      messages={[
+        {
+          id: 'a',
+          role: 'assistant',
+          text: 'Done.',
+          work: {
+            running: false,
+            seconds: 42,
+            steps: [{ id: 'read', label: 'Read saved agent', status: 'completed', detail: '' }],
+          },
+        },
       ]}
       status="complete"
       onSend={vi.fn()}
@@ -175,9 +209,43 @@ test('activity steps expand to their result and failures open by default', () =>
       onRetry={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByText('Activity (2)'));
-  expect(screen.getByText('No path to an end step.')).toBeVisible();
-  expect(screen.getByText('Tool finished.')).not.toBeVisible();
-  fireEvent.click(screen.getByText('Read saved agent'));
-  expect(screen.getByText('Tool finished.')).toBeVisible();
+  const toggle = screen.getByRole('button', { name: /Worked for 42s/ });
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByText('Read saved agent')).not.toBeVisible();
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText('Read saved agent')).toBeVisible();
+});
+
+test('before the first reply, the work block says what is happening with a ticking timer, once', () => {
+  vi.useFakeTimers();
+  try {
+    const props = {
+      messages: [{ id: 'u', role: 'user' as const, text: 'Build it' }],
+      onSend: vi.fn(),
+      onStop: vi.fn(),
+      onRetry: vi.fn(),
+    };
+    const { rerender } = render(
+      <ChatPresentation {...props} status="pending" progress="Writing the graph… 3 steps" />,
+    );
+    expect(screen.getByRole('article', { name: 'Copilot response' })).toHaveTextContent(
+      'Writing the graph… 3 steps',
+    );
+    expect(screen.getByRole('timer')).toHaveTextContent('0:00');
+    act(() => {
+      vi.advanceTimersByTime(65_000);
+    });
+    expect(screen.getByRole('timer')).toHaveTextContent('1:05');
+    // Never a second visible copy: the live region for screen readers is the only other mention.
+    expect(
+      screen.getAllByText(/Writing the graph/).filter(element => !element.closest('.sr-only')),
+    ).toHaveLength(1);
+    rerender(<ChatPresentation {...props} status="streaming" />);
+    expect(screen.getByRole('article', { name: 'Copilot response' })).toHaveTextContent('Thinking…');
+    rerender(<ChatPresentation {...props} status="complete" />);
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
 });

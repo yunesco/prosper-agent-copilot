@@ -16,7 +16,7 @@ async function mockVoice(page: Page, microphone: 'allow' | 'deny' | 'pending' = 
         value: async () => {
           if (microphone === 'deny') throw new DOMException('denied', 'NotAllowedError');
           if (microphone === 'pending') await new Promise(resolve => setTimeout(resolve, 700));
-          return { getTracks: () => [{ stop: () => stopped++ }] };
+          return { getTracks: () => [{ stop: () => stopped++, addEventListener: () => {} }] };
         },
       });
       class Peer extends EventTarget {
@@ -125,6 +125,16 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Test Call', exact: true }).click();
     await page.getByRole('button', { name: 'Start call', exact: true }).click();
     await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
+    // The saved graph stays visible and follows the agent's live transitions.
+    const collect = page.getByRole('button', { name: 'Inspect collect_details', exact: true });
+    await expect(collect).not.toHaveAttribute('aria-current', 'step');
+    await page.evaluate(() =>
+      (window as unknown as { emitVoice: (message: unknown) => void }).emitVoice({
+        type: 'server-message',
+        data: { type: 'node-active', node: 'collect_details' },
+      }),
+    );
+    await expect(collect).toHaveAttribute('aria-current', 'step');
     await page.screenshot({ path: info.outputPath(`call-${width}.png`) });
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(page.getByRole('log')).toContainText('I need an appointment.');
@@ -149,7 +159,7 @@ for (const width of [1440, 390]) {
     await openDetails(page);
     await goal.fill('An unsaved draft must not reach voice.');
     await page.getByRole('button', { name: 'Test Call', exact: true }).click();
-    if (width < 768) await page.getByRole('button', { name: 'Call', exact: true }).click();
+    if (width < 768) await page.getByRole('button', { name: 'Graph', exact: true }).click();
     await page.getByRole('button', { name: 'Start call', exact: true }).click();
     await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
     await expect(page.getByText('Saved agent original-scheduler · Revision 2')).toBeVisible();
@@ -286,7 +296,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Jump to latest' }).click();
     await expect.poll(bottomGap).toBeLessThan(2);
     if (width < 768) {
-      await page.getByRole('button', { name: 'Call', exact: true }).click();
+      await page.getByRole('button', { name: 'Graph', exact: true }).click();
       await emit('user', fridayCall.transcript[1].text);
       await page.getByRole('button', { name: 'Details', exact: true }).click();
       await expect.poll(bottomGap).toBeLessThan(2);
@@ -316,7 +326,7 @@ test('switching saved agents stops active calls, clears context and releases tra
   await page.getByLabel('Saved agent', { exact: true }).click();
   await page
     .getByRole('group', { name: 'Agents' })
-    .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+    .getByRole('button', { name: /^Riverside Family Clinic/ })
     .click();
   await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute(
     'aria-current',
@@ -326,10 +336,10 @@ test('switching saved agents stops active calls, clears context and releases tra
   await page.getByRole('button', { name: 'Test Call', exact: true }).click();
   await expect(page.getByRole('log')).not.toContainText('I need an appointment.');
   await page.getByRole('button', { name: 'Start call', exact: true }).click();
-  await expect(page.getByText('Saved agent clinic-scheduler · Revision 1')).toBeVisible();
+  await expect(page.getByText('Saved agent riverside-family-clinic · Revision 1')).toBeVisible();
   await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
   expect(agentSchema.parse(agents[0]).initial_node).toBe('start');
-  expect(agentSchema.parse(agents[1]).initial_node).toBe('collect_details');
+  expect(agentSchema.parse(agents[1]).name).toBe('Riverside Family Clinic');
   // Stay in the same document: a hard navigation resets the injected track counter.
   await page.getByRole('button', { name: 'Builder', exact: true }).click();
   await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(2);

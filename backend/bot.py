@@ -97,6 +97,12 @@ async def run_bot(
         idle_timeout_secs=runner_args.pipeline_idle_timeout_secs,
     )
 
+    # Tell the client which step is active; the first step is implied by bot-ready.
+    async def announce_node(name: str) -> None:
+        await worker.rtvi.send_server_message({"type": "node-active", "node": name})
+
+    builder.on_node = announce_node
+
     flow_manager = FlowManager(
         llm=llm,
         context_aggregator=context_aggregator,

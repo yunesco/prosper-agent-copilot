@@ -1,24 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronRight,
-  Copy,
-  LoaderCircle,
-  Square,
-  TriangleAlert,
-} from 'lucide-react';
-import { ActivityDrawer, type ChatActivity } from './ActivityDrawer';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Copy, Square, TriangleAlert } from 'lucide-react';
+import { WorkBlock, type ChatWork } from './WorkBlock';
 import { MarkdownContent } from './MarkdownContent';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/textarea';
 import { focusRing } from '@/components/ui/focus';
 
-export type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string };
-export type { ChatActivity } from './ActivityDrawer';
+export type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string; work?: ChatWork };
+export type { ChatActivity, ChatWork } from './WorkBlock';
 export type ChatEmptyState = {
   title: string;
   body: string;
@@ -60,7 +51,6 @@ function MessageCopy({ text }: { text: string }) {
 /** Presentation and input only. Transport, messages and tool state belong to AI SDK. */
 export function ChatPresentation({
   messages,
-  activities = [],
   status,
   onSend,
   onStop,
@@ -69,6 +59,7 @@ export function ChatPresentation({
   children,
   revealKey,
   resolveLink,
+  progress,
   empty = {
     title: 'Start with your guidelines',
     body: 'Describe the conversation you want to build.',
@@ -76,12 +67,13 @@ export function ChatPresentation({
   },
 }: {
   resolveLink?: ComponentProps<typeof MarkdownContent>['resolveLink'];
+  /** What the assistant is doing right now; shown in the turn's work block, never in a second place. */
+  progress?: string;
   empty?: ChatEmptyState;
   revealKey?: string;
   children?: ReactNode;
   errorMessage?: string;
   messages: ChatMessage[];
-  activities?: ChatActivity[];
   status: ChatStatus;
   onSend: (text: string) => void;
   onStop: () => void;
@@ -114,7 +106,7 @@ export function ChatPresentation({
       follow.current = region.scrollHeight - region.scrollTop - region.clientHeight < 48;
       setAtBottom(follow.current);
     } else region.scrollTop = region.scrollHeight;
-  }, [messages, activities, status, children, revealKey]);
+  }, [messages, status, children, revealKey]);
   const send = () => {
     if (!draft.trim() || busy) return;
     restoredDraft.current = false;
@@ -180,7 +172,7 @@ export function ChatPresentation({
         )}
         <div className="space-y-6">
           {messages
-            .filter(message => message.text.trim())
+            .filter(message => message.text.trim() || message.work)
             .map(message => (
               <article
                 key={message.id}
@@ -192,15 +184,26 @@ export function ChatPresentation({
                 <h3 className="mb-2 text-xs font-medium text-text-muted">
                   {message.role === 'user' ? 'You' : 'Copilot'}
                 </h3>
-                <MarkdownContent resolveLink={message.role === 'assistant' ? resolveLink : undefined}>
-                  {message.text}
-                </MarkdownContent>
-                {message.role === 'assistant' && !busy && <MessageCopy text={message.text} />}
+                {message.work && <WorkBlock work={message.work} />}
+                {message.text.trim() && (
+                  <MarkdownContent resolveLink={message.role === 'assistant' ? resolveLink : undefined}>
+                    {message.text}
+                  </MarkdownContent>
+                )}
+                {message.role === 'assistant' && message.text.trim() && !busy && (
+                  <MessageCopy text={message.text} />
+                )}
               </article>
             ))}
+          {/* Before the first reply exists, the same block says what is happening. */}
+          {busy && messages.at(-1)?.role !== 'assistant' && (
+            <article aria-label="Copilot response" className="min-w-0">
+              <h3 className="mb-2 text-xs font-medium text-text-muted">Copilot</h3>
+              <WorkBlock work={{ steps: [], running: true, label: progress }} />
+            </article>
+          )}
         </div>
         {children}
-        <ActivityDrawer activities={activities} />
       </div>
       {!atBottom && (
         <div className="flex justify-center border-t border-ui-border py-2">
@@ -224,11 +227,12 @@ export function ChatPresentation({
             {errorMessage}
           </p>
         )}
+        {/* While working, the turn's own block shows progress; this line is only for what needs a decision. */}
         <div
           className={
-            status === 'idle' || status === 'complete'
-              ? 'sr-only'
-              : 'mb-3 flex flex-wrap items-center justify-between gap-2'
+            status === 'error' || status === 'stopped'
+              ? 'mb-3 flex flex-wrap items-center justify-between gap-2'
+              : 'sr-only'
           }
         >
           <p
@@ -236,14 +240,8 @@ export function ChatPresentation({
             aria-live="polite"
             className={status === 'error' ? 'text-sm text-error-text' : 'text-xs text-text-muted'}
           >
-            {busy && (
-              <LoaderCircle
-                aria-hidden="true"
-                className="mr-1.5 inline size-3.5 animate-spin motion-reduce:animate-none"
-              />
-            )}
             {status === 'error' && <TriangleAlert aria-hidden="true" className="mr-1.5 inline size-4" />}
-            {statusLabel}
+            {busy && progress ? progress : statusLabel}
           </p>
           {(status === 'error' || status === 'stopped') && (
             <Button variant="outline" size="sm" onClick={retry}>

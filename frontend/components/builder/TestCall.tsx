@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, LoaderCircle, MessageSquare, Phone, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { focusRing } from '@/components/ui/focus';
+import { stepTitle } from '@/lib/agent/graph';
 import type { SavedAgent } from '@/lib/agent/repository';
 import type { useTestCall } from './use-test-call';
 
@@ -26,50 +27,50 @@ export function TestCallControls({
     error: 'Call could not continue',
   };
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-7 px-6 py-12 text-center">
-      <div className="flex size-20 items-center justify-center rounded-full bg-surface text-base-content">
-        {call.status === 'connecting' ? (
-          <LoaderCircle className="size-7 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-4">
+      <div className="pointer-events-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-ui-border bg-surface-raised p-3 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface text-base-content">
+            {call.status === 'connecting' ? (
+              <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            ) : (
+              <Phone className="size-4" aria-hidden="true" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p role="status" className="text-sm font-medium">
+              {labels[call.status]}
+            </p>
+            <p className="truncate text-xs text-text-muted">
+              Saved agent {identity.id} · Revision {identity.revision}
+              {dirty && ' · Unsaved drafts are excluded from Test Call.'}
+            </p>
+          </div>
+        </div>
+        {call.active ? (
+          <Button
+            variant="destructive"
+            className="h-9 rounded-lg px-4 motion-reduce:transform-none motion-reduce:transition-none"
+            onClick={call.stop}
+          >
+            <PhoneOff aria-hidden="true" />
+            {call.status === 'connecting' ? 'Cancel call' : 'End call'}
+          </Button>
         ) : (
-          <Phone className="size-7" aria-hidden="true" />
+          <Button
+            className="h-9 rounded-lg px-4 motion-reduce:transform-none motion-reduce:transition-none"
+            onClick={call.start}
+          >
+            <Phone aria-hidden="true" />
+            Start call
+          </Button>
+        )}
+        {call.error && (
+          <p role="alert" className="w-full text-sm leading-6 text-destructive [overflow-wrap:anywhere]">
+            {call.error}
+          </p>
         )}
       </div>
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">Test your agent</h2>
-        <p className="max-w-sm text-sm leading-6 text-text-muted">
-          Talk to your saved agent and follow the conversation in the transcript.
-        </p>
-        {dirty && <p className="text-sm text-text-muted">Unsaved drafts are excluded from Test Call.</p>}
-        <p className="max-w-sm text-xs leading-5 text-text-muted [overflow-wrap:anywhere]">
-          Saved agent {identity.id} · Revision {identity.revision}
-        </p>
-        <p role="status" className="text-sm text-text-muted">
-          {labels[call.status]}
-        </p>
-      </div>
-      {call.error && (
-        <p role="alert" className="max-w-sm text-sm leading-6 text-destructive [overflow-wrap:anywhere]">
-          {call.error}
-        </p>
-      )}
-      {call.active ? (
-        <Button
-          variant="destructive"
-          className="h-10 rounded-lg px-5 motion-reduce:transform-none motion-reduce:transition-none"
-          onClick={call.stop}
-        >
-          <PhoneOff aria-hidden="true" />
-          {call.status === 'connecting' ? 'Cancel call' : 'End call'}
-        </Button>
-      ) : (
-        <Button
-          className="h-10 rounded-lg px-5 motion-reduce:transform-none motion-reduce:transition-none"
-          onClick={call.start}
-        >
-          <Phone aria-hidden="true" />
-          Start call
-        </Button>
-      )}
     </div>
   );
 }
@@ -134,6 +135,11 @@ export function CallTranscript({ call }: { call: Call }) {
             >
               <p className="px-1 text-xs font-medium text-text-muted">
                 {line.role === 'user' ? 'You' : 'Agent'}
+                {line.role === 'assistant' && line.node && (
+                  <span className="ml-2 rounded-full border border-ui-border px-2 py-0.5 font-normal">
+                    {stepTitle(line.node)}
+                  </span>
+                )}
               </p>
               <p
                 dir="auto"

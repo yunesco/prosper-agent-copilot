@@ -19,9 +19,9 @@ coding assistant in a pull-request flow:
   candidate, and the Python `AgentBuilder` validates it (broken references, unreachable
   steps, no path to an end, compile failures). Invalid proposals cannot be applied.
 - **You review a real diff.** The candidate renders on the canvas with New/Updated labels,
-  with a before/after list underneath. Validation, exact configuration checks, and the
-  model's own explanation are shown separately, and "conversation checks: not run" is
-  stated plainly because a valid graph is not a good call.
+  with grouped global and step changes in chat and readable inline before/after diffs.
+  The model’s explanation is collapsed separately. The card states “Flow is valid · Not
+  tested on a call yet” because a valid graph is not proof of a good call.
 - **Apply is a revision-guarded save.** It re-checks the agent ID and revision and your
   manual draft, then saves exactly the reviewed candidate. A stale proposal cannot apply.
 - **Diagnosis is grounded in evidence.** Copilot reads call transcripts through
@@ -43,7 +43,7 @@ and the guardrails. Start with `npm run dev` and open <http://localhost:3000>.
 | Voice (Pipecat, WebRTC, ElevenLabs, OpenAI) | Real, supplied stack unchanged |
 | Agent validation and compilation | Real, Python `AgentBuilder`, shared by manual edits and Copilot |
 | Copilot (tools, proposals, review) | Real, OpenAI via the AI SDK, server-side keys |
-| Production calls | **Mocked.** Seven synthetic calls behind a mock platform API (`/api/platform/…`) |
+| Production calls | **Mocked.** Twelve synthetic calls for the deployed agent behind a mock platform API (`/api/platform/…`) |
 | Scheduling availability | **Simulated** in instructions, no provider integration |
 | Persistence | Browser `localStorage` behind an `AgentRepository` with revision checks |
 | Auth, teams, database, real call ingestion, background monitoring, analytics | Deliberately not built: none of it changes the two bottlenecks |
@@ -55,12 +55,14 @@ its handlers.
 
 ## Evidence
 
-`make eval-copilot` runs the real Copilot and the real Python validator on synthetic data
-and scores observed tool calls, not prose. On 2026-10-06 with `gpt-5.5` all nine scenarios
-passed: rename, targeted insurance clarification, grounded guideline review, combined
-review changes, two SOP creations, Friday diagnosis and repair (reads the call, cites turns
-3–5, patches only `offer_times`), unflagged-call discovery, and a clean call that must *not*
-be flagged. Voice behavior is not covered by these evals; see [TASKS.md](TASKS.md).
+`make eval-copilot` is a small live smoke set: it runs the real Copilot and the real Python validator on
+synthetic data and scores observed tool calls, not prose. It is not the gate. Model output varies,
+so scenarios that passed and failed on identical code were removed, and `make verify` (deterministic)
+is what must stay green. Latest run (2026-10-07, `gpt-5.5`, Responses API): all 11 scenarios passed. Scenarios: rename, targeted insurance clarification, grounded guideline
+review, vague one-liner interview, SOP creation, Friday diagnosis and repair, a repair that leaves
+unrelated steps alone, unflagged-call discovery, a clean call that must *not* be flagged, and a
+hostile instruction inside a pasted transcript that must not be obeyed. Voice behavior is not
+covered; see [TASKS.md](TASKS.md).
 
 Conversation quality has deterministic checks too: `conversationQualityIssues()` flags a
 transition that can fire before the step has collected anything, or that re-asks known data, and
@@ -86,7 +88,7 @@ npm run dev
 ```
 
 This starts Next.js on 3000, the Python voice runtime on 7860, and the validation service
-on 7861. Allow microphone access for Test Call; **Ctrl+C** stops everything. Keys stay
+on 7861. Allow microphone access for Test Call (it shows the saved graph with the active step highlighted); **Ctrl+C** stops everything. Keys stay
 server-side, never in `NEXT_PUBLIC_*`, fixtures, logs, or commits.
 
 ## Code map

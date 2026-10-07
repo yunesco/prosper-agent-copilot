@@ -1,0 +1,59 @@
+{
+  "id": "riverside-existing-patient-invented-time",
+  "agent_id": "riverside-family-clinic",
+  "title": "Existing patient booked a day Dr. Smith does not work",
+  "duration_seconds": 74,
+  "outcome": "failed",
+  "graph_path": [
+    "start",
+    "collect_identity",
+    "offer_existing_patient_times",
+    "confirm_appointment"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "Hello, this is the scheduling assistant for Riverside Family Clinic. How can I help you today?"
+    },
+    {
+      "role": "user",
+      "text": "Hi, I'd like an appointment with Dr. Smith please."
+    },
+    {
+      "role": "assistant",
+      "text": "Certainly. May I have your full name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Tom Delgado, August twenty-second, nineteen seventy-two."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Tom. Are you a new or an existing patient?"
+    },
+    {
+      "role": "user",
+      "text": "Existing. I've been seeing him for years."
+    },
+    {
+      "role": "assistant",
+      "text": "Dr. Smith has Monday at 10 AM, Wednesday at 2 PM, or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Can I do Thursday morning?"
+    },
+    {
+      "role": "assistant",
+      "text": "Thursday morning works. I've booked you for Thursday at 10 AM."
+    },
+    {
+      "role": "user",
+      "text": "Perfect."
+    },
+    {
+      "role": "assistant",
+      "text": "Thank you, goodbye."
+    }
+  ]
+}

@@ -48,7 +48,7 @@ for (const width of [1440, 390]) {
     await selector.click();
     const option = page
       .getByRole('group', { name: 'Agents' })
-      .getByRole('button', { name: /^Riverside Clinic Scheduler/ });
+      .getByRole('button', { name: /^Riverside Family Clinic/ });
     await expect(option).toBeVisible();
     await page.screenshot({ path: info.outputPath(`dropdown-${width}.png`) });
     await option.click();

@@ -5,15 +5,26 @@ import { Button } from '@/components/ui/Button';
 import { focusRing } from '@/components/ui/focus';
 import { stepTitle } from '@/lib/agent/graph';
 import type { GraphReference, Proposal } from '@/lib/agent/proposals';
+import type { AgentConfig } from '@/lib/agent/schema';
+import { DiffText } from './DiffText';
+
+const contentText = (content: unknown) =>
+  typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+/** Saved text beside the candidate. A missing saved counterpart reads as all added. */
+const showDiff = (before: string | undefined, after: string) =>
+  before === after ? after : <DiffText before={before ?? ''} after={after} />;
 
 /** Read-only candidate presentation. No editor or repository is reachable here. */
 export function ProposalInspector({
   proposal,
+  base,
   selected,
   onSelect,
   onReview,
 }: {
   proposal: Proposal;
+  /** The saved agent the candidate is diffed against. */
+  base: AgentConfig;
   selected: GraphReference | null;
   onSelect: (reference: GraphReference | null) => void;
   onReview: () => void;
@@ -24,6 +35,8 @@ export function ProposalInspector({
     selected?.kind === 'transition'
       ? node?.edges.find(item => item.function === selected.function)
       : undefined;
+  const savedNode = base.nodes.find(item => item.name === node?.name);
+  const savedEdge = savedNode?.edges.find(item => item.function === edge?.function);
   const title = edge ? 'Proposed transition' : node ? stepTitle(node.name) : agent.name;
   return (
     <section aria-label="Proposed details" className="flex min-h-0 flex-1 flex-col">
@@ -48,7 +61,9 @@ export function ProposalInspector({
           <>
             <div>
               <h3 className="font-medium">Condition</h3>
-              <p className="mt-2 whitespace-pre-wrap leading-6">{edge.description}</p>
+              <p className="mt-2 whitespace-pre-wrap leading-6">
+                {showDiff(savedEdge?.description, edge.description)}
+              </p>
             </div>
             <div>
               <h3 className="font-medium">Next step</h3>
@@ -96,9 +111,10 @@ export function ProposalInspector({
                     {typeof message.role === 'string' ? message.role : 'Message'}
                   </p>
                   <p className="whitespace-pre-wrap leading-6">
-                    {typeof message.content === 'string'
-                      ? message.content
-                      : JSON.stringify(message.content, null, 2)}
+                    {showDiff(
+                      savedNode?.task_messages[index] && contentText(savedNode.task_messages[index].content),
+                      contentText(message.content),
+                    )}
                   </p>
                 </div>
               ))}
@@ -116,7 +132,12 @@ export function ProposalInspector({
                     }
                   >
                     <span className="min-w-0">
-                      <span className="block">{transition.description}</span>
+                      <span className="block">
+                        {showDiff(
+                          savedNode?.edges.find(item => item.function === transition.function)?.description,
+                          transition.description,
+                        )}
+                      </span>
                       <span className="mt-1 block text-xs text-text-muted">
                         To {stepTitle(transition.target)}
                       </span>
@@ -133,7 +154,7 @@ export function ProposalInspector({
           <>
             <div>
               <h3 className="font-medium">Agent instructions</h3>
-              <p className="mt-2 whitespace-pre-wrap leading-6">{agent.persona}</p>
+              <p className="mt-2 whitespace-pre-wrap leading-6">{showDiff(base.persona, agent.persona)}</p>
             </div>
             <div className="space-y-2">
               <h3 className="font-medium">Steps ({agent.nodes.length})</h3>

@@ -1,0 +1,196 @@
+{
+  "name": "Riverside Family Clinic",
+  "persona": "You are the phone scheduling assistant for Riverside Family Clinic. Keep spoken replies brief and warm. This line only books new appointments with Dr. Smith.",
+  "initial_node": "start",
+  "nodes": [
+    {
+      "name": "start",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Greet the caller warmly. Say you are the scheduling assistant for Riverside Family Clinic and ask how you can help. This line only books new appointments with Dr. Smith. If the caller asks for anything else, politely explain that this line only books new appointments with Dr. Smith and end the call. Never invent information, prices, hours, providers, integrations, or availability. If the caller already gave a piece of information earlier, do not ask for it again. Accept short answers and corrections."
+        }
+      ],
+      "edges": [
+        {
+          "function": "caller_wants_dr_smith_appointment",
+          "description": "Use when the caller wants to book a new appointment with Dr. Smith. If the caller already provides identity information, remember it and do not ask again later.",
+          "target": "collect_identity",
+          "properties": {},
+          "required": []
+        },
+        {
+          "function": "cannot_handle_request",
+          "description": "Use when the caller does not want to book a new appointment with Dr. Smith. Politely explain that this line only books new appointments with Dr. Smith.",
+          "target": "end_call",
+          "properties": {},
+          "required": []
+        }
+      ]
+    },
+    {
+      "name": "collect_identity",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Collect the caller's full name and date of birth. If either value is unclear, read it back and ask the caller to confirm it before continuing. If the caller already gave their full name or date of birth earlier, do not ask for that item again; only collect what is missing or unclear. Accept corrections. Then ask whether they are a new patient or an existing patient."
+        }
+      ],
+      "edges": [
+        {
+          "function": "new_patient",
+          "description": "Use only after the caller's full name and date of birth are available (confirmed if unclear) and the caller says they are a new patient. Accept short answers and corrections.",
+          "target": "collect_new_patient_insurance",
+          "properties": {
+            "full_name": {
+              "type": "string",
+              "description": "Caller's full name, confirmed if unclear."
+            },
+            "date_of_birth": {
+              "type": "string",
+              "description": "Caller's date of birth, confirmed if unclear."
+            },
+            "patient_type": {
+              "type": "string",
+              "description": "Whether the caller is a new or an existing patient."
+            }
+          },
+          "required": [
+            "full_name",
+            "date_of_birth",
+            "patient_type"
+          ]
+        },
+        {
+          "function": "existing_patient",
+          "description": "Use only after the caller's full name and date of birth are available (confirmed if unclear) and the caller says they are an existing patient. Accept short answers and corrections.",
+          "target": "offer_existing_patient_times",
+          "properties": {
+            "full_name": {
+              "type": "string",
+              "description": "Caller's full name, confirmed if unclear."
+            },
+            "date_of_birth": {
+              "type": "string",
+              "description": "Caller's date of birth, confirmed if unclear."
+            },
+            "patient_type": {
+              "type": "string",
+              "description": "Whether the caller is a new or an existing patient."
+            }
+          },
+          "required": [
+            "full_name",
+            "date_of_birth",
+            "patient_type"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "collect_new_patient_insurance",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "The caller is a new patient. Collect their insurance provider. Insurance is required for new patients only. If they say they have no insurance, record it as no insurance and continue. If the answer is unclear, ask one concise clarification. Do not ask for the name or date of birth again."
+        }
+      ],
+      "edges": [
+        {
+          "function": "insurance_collected",
+          "description": "Use after the new patient has provided an insurance provider or stated that they have no insurance.",
+          "target": "offer_new_patient_times",
+          "properties": {
+            "insurance_provider": {
+              "type": "string",
+              "description": "Insurance provider name, or the exact text 'no insurance'."
+            }
+          },
+          "required": [
+            "insurance_provider"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "offer_new_patient_times",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "The caller is a new patient. Offer only these simulated Dr. Smith appointment times: Monday at 10 AM or Wednesday at 2 PM. New patients can only see Dr. Smith on Monday and Wednesday. Accept short answers such as 'Monday'."
+        }
+      ],
+      "edges": [
+        {
+          "function": "select_new_patient_time",
+          "description": "Use after the caller has chosen a day and time.",
+          "target": "confirm_appointment",
+          "properties": {
+            "selected_day": {
+              "type": "string",
+              "description": "The day the caller chose."
+            },
+            "selected_time": {
+              "type": "string",
+              "description": "The time the caller chose."
+            }
+          },
+          "required": [
+            "selected_day",
+            "selected_time"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "offer_existing_patient_times",
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "The caller is an existing patient. Do not ask for insurance. Offer only these simulated Dr. Smith appointment times: Monday at 10 AM, Wednesday at 2 PM, or Friday at 2 PM. Existing patients may book any of those three times. Accept short answers such as 'Friday'."
+        }
+      ],
+      "edges": [
+        {
+          "function": "select_existing_patient_time",
+          "description": "Use after the caller has chosen a day and time.",
+          "target": "confirm_appointment",
+          "properties": {
+            "selected_day": {
+              "type": "string",
+              "description": "The day the caller chose."
+            },
+            "selected_time": {
+              "type": "string",
+              "description": "The time the caller chose."
+            }
+          },
+          "required": [
+            "selected_day",
+            "selected_time"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "confirm_appointment",
+      "end": true,
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Confirm the appointment, thank the caller, and end the call."
+        }
+      ]
+    },
+    {
+      "name": "end_call",
+      "end": true,
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Politely thank the caller and end the call. Do not offer services beyond booking new appointments with Dr. Smith."
+        }
+      ]
+    }
+  ]
+}

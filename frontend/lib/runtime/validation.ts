@@ -11,6 +11,9 @@ export class AgentValidationError extends Error {
   }
 }
 
+/** The validator could not give a verdict (down, unreadable, failing). Rewriting the proposal cannot help. */
+export class ValidationUnavailableError extends Error {}
+
 export async function validateAgent(
   agent: AgentConfig,
   options: { url?: string; fetcher?: typeof fetch } = {},
@@ -24,10 +27,12 @@ export async function validateAgent(
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new Error('Validation service unavailable. Your changes were not saved.');
+    throw new ValidationUnavailableError('Validation service unavailable. Your changes were not saved.');
   }
   const result = validationResult.safeParse(await response.json().catch(() => null));
-  if (!result.success) throw new Error('Invalid validation response. Your changes were not saved.');
+  if (!result.success)
+    throw new ValidationUnavailableError('Invalid validation response. Your changes were not saved.');
   if (!result.data.valid) throw new AgentValidationError(result.data.errors ?? [result.data.error]);
-  if (!response.ok) throw new Error('Validation service failed. Your changes were not saved.');
+  if (!response.ok)
+    throw new ValidationUnavailableError('Validation service failed. Your changes were not saved.');
 }

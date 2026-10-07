@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { Handle, NodeToolbar, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { Flag, MessageCircle, PhoneOff, Plus, Trash2 } from 'lucide-react';
+import { Flag, MessageCircle, PhoneOff, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { DiffText } from './DiffText';
 import { stepTitle, type StepNode as StepNodeType } from '@/lib/agent/graph';
 import { cn } from '@/lib/utils';
 
@@ -28,14 +29,21 @@ export function StepNode({ id, data, selected }: NodeProps<StepNodeType>) {
       className={cn(
         'group relative w-72 rounded-xl border bg-surface-raised transition-colors duration-150 motion-reduce:transition-none',
         data.connecting && 'hover:ring-2 hover:ring-accent hover:bg-accent-soft',
-        data.proposalChange
-          ? 'border-proposal bg-proposal-soft'
-          : selected
-            ? 'border-foreground'
-            : 'border-ui-border hover:border-text-subtle',
+        data.active
+          ? 'border-dashed border-accent bg-accent-soft ring-4 ring-accent/20'
+          : data.proposalChange
+            ? 'border-proposal bg-proposal-soft'
+            : selected
+              ? 'border-foreground'
+              : 'border-ui-border hover:border-text-subtle',
         data.proposalChange && selected && 'outline-2 outline-offset-2 outline-proposal',
       )}
     >
+      {data.active && (
+        <div className="absolute -top-3 right-4 rounded-full bg-foreground px-2.5 py-0.5 text-xs font-medium text-background">
+          Live
+        </div>
+      )}
       {data.initial && (
         <div className="absolute -top-10 left-4 flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ui-border bg-surface-raised px-2.5 py-1 text-xs font-medium text-text-muted">
           <Flag aria-hidden="true" className="size-3" />
@@ -57,7 +65,8 @@ export function StepNode({ id, data, selected }: NodeProps<StepNodeType>) {
       ))}
       <div className="p-4">
         {data.proposalChange && (
-          <p className="mb-2 text-xs font-medium text-proposal">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-proposal">
+            <Sparkles aria-hidden="true" className="size-3.5" />
             Proposed · {data.proposalChange === 'added' ? 'New' : 'Updated'}
           </p>
         )}
@@ -69,9 +78,16 @@ export function StepNode({ id, data, selected }: NodeProps<StepNodeType>) {
         </div>
         <p
           title={data.description}
-          className="mt-1.5 line-clamp-2 text-xs leading-5 text-text-muted [overflow-wrap:anywhere]"
+          className={cn(
+            'mt-1.5 text-xs leading-5 text-text-muted [overflow-wrap:anywhere]',
+            data.previousDescription === undefined ? 'line-clamp-2' : 'line-clamp-6',
+          )}
         >
-          {data.description}
+          {data.previousDescription === undefined ? (
+            data.description
+          ) : (
+            <DiffText before={data.previousDescription} after={data.description} />
+          )}
         </p>
       </div>
       {data.terminal && (

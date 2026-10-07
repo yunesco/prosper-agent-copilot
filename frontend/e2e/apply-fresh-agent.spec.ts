@@ -99,5 +99,9 @@ test('applying a proposal with guidelines fills Client guidelines', async ({ pag
   await page.getByLabel('Message Copilot').press('Enter');
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
   await page.getByRole('tab', { name: 'Details', exact: true }).click();
-  await expect(page.getByText('Handle every call: greet, triage, book.', { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole('form', { name: 'Agent settings', exact: true })
+      .getByText('Handle every call: greet, triage, book.', { exact: true }),
+  ).toBeVisible();
 });

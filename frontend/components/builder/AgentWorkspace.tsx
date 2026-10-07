@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { XYPosition } from '@xyflow/react';
 import { PaneWorkspace } from '@/components/panes/PaneWorkspace';
 import { connectStepOperations, createStepOperations } from '@/lib/agent/authoring';
-import { stepTitle } from '@/lib/agent/graph';
+import { revealedAgent, stepTitle } from '@/lib/agent/graph';
 import type { AgentOperation } from '@/lib/agent/operations';
 import { proposalGraphChanges } from '@/lib/agent/proposal-graph';
 import { candidateDiff, commitProposal, type GraphReference, type Proposal } from '@/lib/agent/proposals';
@@ -66,6 +66,10 @@ export function AgentWorkspace({
   const [pane, setPane] = useState<ContextPane>('copilot');
   const audioRef = useRef<HTMLAudioElement>(null);
   const call = useTestCall(record, audioRef);
+  const callAgent = useMemo(
+    () => revealedAgent(record.agent, call.visitedNodeIds),
+    [record.agent, call.visitedNodeIds],
+  );
   // `current` is the saved record commits are checked against; `active` is false once this agent is switched away.
   const current = useRef(record);
   const active = useRef(true);
@@ -298,7 +302,7 @@ export function AgentWorkspace({
       <audio ref={audioRef} autoPlay />
       <PaneWorkspace
         workspaceTitle={null}
-        workspaceLabel={mode === 'call' ? 'Call' : 'Graph'}
+        workspaceLabel="Graph"
         contextTitle={
           mode === 'builder' ? (
             <ContextTabs pane={pane} onChange={setPane} />
@@ -395,7 +399,21 @@ export function AgentWorkspace({
                 </div>
               </div>
             </div>
-            {mode === 'call' && <TestCallControls call={call} saved={record} dirty={editor.dirty} />}
+            {mode === 'call' && (
+              <div className="relative h-full">
+                {/* Test Call runs the saved agent, so show the saved graph, not the draft. */}
+                <AgentGraph
+                  key={`${record.id}:${record.revision}`}
+                  readOnly
+                  agent={callAgent}
+                  activeNodeId={call.activeNodeId}
+                  selectedNodeId={null}
+                  onSelect={() => {}}
+                  onSelectTransition={() => {}}
+                />
+                <TestCallControls call={call} saved={record} dirty={editor.dirty} />
+              </div>
+            )}
           </>
         )}
         context={showWorkspace => (
@@ -410,11 +428,39 @@ export function AgentWorkspace({
                 {preview.previewing && availableProposal ? (
                   <ProposalInspector
                     proposal={availableProposal}
+                    base={record.agent}
                     selected={preview.reference}
                     onSelect={preview.select}
                     onReview={() => setPane('copilot')}
                   />
-                ) : evidence.call ? (
+                ) : (
+                  <AgentInspector
+                    agentSections={
+                      <AgentBehavior
+                        review={copilot.review}
+                        revision={record.revision}
+                        hasGuidelines={!!record.guidelines.trim()}
+                        busy={copilot.busy}
+                        onReview={() => askCopilot(REVIEW_BEHAVIOR_PROMPT, 'review')}
+                      />
+                    }
+                    editor={editor}
+                    onSave={save}
+                    agent={agent}
+                    selectedNodeId={selectedNodeId}
+                    onSelect={selectNode}
+                    selectedTransitionFunction={selectedTransitionFunction}
+                    onRenameTransition={setSelectedTransitionFunction}
+                  />
+                )}
+              </div>
+              <div
+                id="calls-panel"
+                role="tabpanel"
+                aria-labelledby="calls-tab"
+                className={pane === 'calls' ? 'flex min-h-0 flex-1 flex-col overflow-y-auto' : 'hidden'}
+              >
+                {evidence.call ? (
                   <CallDetails
                     call={evidence.call}
                     record={record}
@@ -428,31 +474,11 @@ export function AgentWorkspace({
                     onInvestigate={() => askCopilot(investigateCallPrompt(evidence.call!))}
                   />
                 ) : (
-                  <AgentInspector
-                    agentSections={
-                      <>
-                        <AgentBehavior
-                          review={copilot.review}
-                          revision={record.revision}
-                          hasGuidelines={!!record.guidelines.trim()}
-                          busy={copilot.busy}
-                          onReview={() => askCopilot(REVIEW_BEHAVIOR_PROMPT, 'review')}
-                        />
-                        <RecentCalls
-                          record={record}
-                          busy={copilot.busy}
-                          onOpen={evidence.open}
-                          onReview={() => askCopilot(REVIEW_CALLS_PROMPT)}
-                        />
-                      </>
-                    }
-                    editor={editor}
-                    onSave={save}
-                    agent={agent}
-                    selectedNodeId={selectedNodeId}
-                    onSelect={selectNode}
-                    selectedTransitionFunction={selectedTransitionFunction}
-                    onRenameTransition={setSelectedTransitionFunction}
+                  <RecentCalls
+                    record={record}
+                    busy={copilot.busy}
+                    onOpen={evidence.open}
+                    onReview={() => askCopilot(REVIEW_CALLS_PROMPT)}
                   />
                 )}
               </div>
@@ -470,7 +496,7 @@ export function AgentWorkspace({
                   applying={applying}
                   error={applyError || evidence.error}
                   onOpenCall={async (callId, turn) => {
-                    if (await evidence.openCited(callId, turn)) setPane('details');
+                    if (await evidence.openCited(callId, turn)) setPane('calls');
                   }}
                   onApply={(proposal, base) => void apply(proposal, base)}
                   onFocus={focusReference}

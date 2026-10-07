@@ -1,4 +1,4 @@
-import { openDetails } from './seed';
+import { openCalls } from './seed';
 import { expect, test, type Page } from '@playwright/test';
 import { STORAGE_KEY, type SavedAgent } from '../lib/agent/repository';
 import { loadAgentFixture, loadDemoContext } from '../lib/fixtures';
@@ -66,15 +66,14 @@ for (const width of [1440, 390]) {
       });
     });
     await page.goto('/');
-    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    await openDetails(page);
+    await openCalls(page);
     await page.getByRole('button', { name: /Reported Friday booking issue/ }).click();
     await page.getByRole('button', { name: 'Investigate with Copilot' }).click();
     await expect(page.getByRole('article', { name: 'Copilot response' })).toContainText('offered Friday');
     expect(prompt).toContain('new-patient-friday');
 
-    // The tool call is in the drawer; the citation to a turn Copilot never read is not a link.
-    await page.getByText('Activity (1)').click();
+    // The tool call is in the turn's work block (collapsed once done); a citation to a turn never read is not a link.
+    await page.getByRole('button', { name: /^Worked/ }).click();
     await expect(page.getByText('Read call transcript')).toBeVisible();
     await expect(page.getByRole('button', { name: 'turn 9' })).toHaveCount(0);
     await expect(page.getByText('turn 9 (unverified)')).toBeVisible();

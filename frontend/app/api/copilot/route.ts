@@ -16,7 +16,11 @@ export async function POST(request: Request) {
     );
   return createUIMessageStreamResponse({
     stream: createUIMessageStream<CopilotMessage>({
-      onError: () => 'Copilot could not complete this request. Retry; your saved agent is unchanged.',
+      onError: error => {
+        // The client gets a safe message; the cause stays in the server log (never the request body or keys).
+        console.error('Copilot request failed:', error instanceof Error ? error.message : String(error));
+        return 'Copilot could not complete this request. Retry; your saved agent is unchanged.';
+      },
       execute: async ({ writer }) => {
         if (input.intent === 'review') {
           writer.write({ type: 'start' });
@@ -28,7 +32,8 @@ export async function POST(request: Request) {
           writer.write({ type: 'finish' });
         } else {
           const result = await startCopilot(input, { signal: request.signal });
-          writer.merge(toUIMessageStream({ stream: result.stream }));
+          // Reasoning stays server-side: the UI shows real phases, not model-written thinking.
+          writer.merge(toUIMessageStream({ stream: result.stream, sendReasoning: false }));
         }
       },
     }),

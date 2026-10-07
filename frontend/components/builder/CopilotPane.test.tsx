@@ -11,14 +11,16 @@ import { CopilotPane } from './CopilotPane';
 import { useCopilot } from './use-copilot';
 
 vi.mock('@/components/chat/ChatPresentation', () => ({
-  ChatPresentation: ({ activities, children }: ComponentProps<typeof ChatPresentation>) => (
+  ChatPresentation: ({ messages, children }: ComponentProps<typeof ChatPresentation>) => (
     <>
       <ul>
-        {activities?.map(activity => (
-          <li key={activity.id}>
-            {activity.label}: {activity.status} — {activity.detail}
-          </li>
-        ))}
+        {messages
+          .flatMap(message => message.work?.steps ?? [])
+          .map(activity => (
+            <li key={activity.id}>
+              {activity.label}: {activity.status} — {activity.detail}
+            </li>
+          ))}
       </ul>
       {children}
     </>

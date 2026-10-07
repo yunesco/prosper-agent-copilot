@@ -51,11 +51,24 @@ export function RecentCalls({
     }
   };
   return (
-    <section aria-label="Recent calls" className="min-w-0 space-y-3 border-t border-ui-border pt-5">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">Recent calls</h3>
+    <section aria-label="Recent calls" className="min-w-0 space-y-4 px-5 py-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-base font-semibold tracking-tight">
+          Recent calls
+          {current && 'calls' in current && (
+            <span className="ml-2 text-sm font-normal tabular-nums text-text-muted">
+              {current.calls.length}
+            </span>
+          )}
+        </h3>
         <span className="text-xs text-text-muted">Mock platform data</span>
       </div>
+      {onReview && current && 'calls' in current && current.calls.length > 0 && (
+        <Button type="button" variant="outline" className="w-full gap-2" disabled={busy} onClick={onReview}>
+          <Sparkles aria-hidden="true" className="size-4" />
+          Review recent calls with Copilot
+        </Button>
+      )}
       {!current ? (
         <p role="status" className="py-2 text-sm leading-6 text-text-muted">
           Loading calls…
@@ -65,7 +78,7 @@ export function RecentCalls({
           {current.error}
         </p>
       ) : current.calls.length ? (
-        <div className="divide-y divide-ui-border">
+        <div className="-mx-2 divide-y divide-ui-border">
           {current.calls.map(call => {
             const failed = call.outcome === 'failed';
             const Icon = failed ? CircleAlert : Phone;
@@ -75,7 +88,7 @@ export function RecentCalls({
                 type="button"
                 variant="ghost"
                 disabled={opening !== null}
-                className="h-auto w-full justify-start gap-3 whitespace-normal rounded-lg px-2 py-3.5 text-left"
+                className="h-auto w-full justify-start gap-3 whitespace-normal rounded-lg px-2 py-3.5 text-left hover:bg-surface"
                 onClick={() => void open(call.id)}
               >
                 <span
@@ -101,7 +114,7 @@ export function RecentCalls({
                     )}
                   </span>
                 </span>
-                <ChevronRight aria-hidden="true" className="size-4 text-text-muted" />
+                <ChevronRight aria-hidden="true" className="size-4 shrink-0 self-center text-text-subtle" />
               </Button>
             );
           })}
@@ -113,12 +126,6 @@ export function RecentCalls({
         <p role="alert" className="text-sm text-error-text">
           {openError}
         </p>
-      )}
-      {onReview && current && 'calls' in current && current.calls.length > 0 && (
-        <Button type="button" variant="outline" className="w-full gap-2" disabled={busy} onClick={onReview}>
-          <Sparkles aria-hidden="true" className="size-4" />
-          Review recent calls with Copilot
-        </Button>
       )}
     </section>
   );
@@ -168,7 +175,7 @@ export function CallDetails({
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" />
-          Back to agent details
+          Back to recent calls
         </Button>
       </div>
       <header className="space-y-3 px-5 pb-5 pt-3">
