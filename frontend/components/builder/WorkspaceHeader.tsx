@@ -1,11 +1,12 @@
 import type { RefObject } from 'react';
 import { AudioLines, GitBranch, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SavedAgent } from '@/lib/agent/repository';
+import { AgentSwitcher } from './AgentSwitcher';
 
-const agentLabel = (id: string) =>
-  id === 'clinic-scheduler' ? 'Mocked existing deployed agent' : 'New / generated agent';
+/** Sentinel agent ID for the "create a new agent" switch; never a saved agent ID. */
+export const NEW_AGENT = '__new-agent__';
+
 const modeClass =
   'h-9 rounded-lg px-3 aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent-text';
 
@@ -16,6 +17,10 @@ export function WorkspaceHeader({
   mode,
   triggerRef,
   onSelectAgent,
+  renameLockedReason,
+  onCreateAgent,
+  onRenameAgent,
+  onDeleteAgent,
   onMode,
 }: {
   agentName: string;
@@ -24,6 +29,10 @@ export function WorkspaceHeader({
   mode: 'builder' | 'call';
   triggerRef: RefObject<HTMLButtonElement | null>;
   onSelectAgent: (id: string) => void;
+  renameLockedReason: string | null;
+  onCreateAgent: (name: string) => void;
+  onRenameAgent: (id: string, name: string) => Promise<void>;
+  onDeleteAgent: (id: string) => void;
   onMode: (mode: 'builder' | 'call') => void;
 }) {
   return (
@@ -34,22 +43,18 @@ export function WorkspaceHeader({
           {agentName}
         </h1>
       </div>
-      <Select value={currentId} onValueChange={value => value && onSelectAgent(value)}>
-        <SelectTrigger
-          ref={triggerRef}
-          aria-label="Saved agent"
-          className="order-3 col-span-2 w-full sm:order-none sm:col-span-1"
-        >
-          <SelectValue>{agentLabel(currentId)}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {records.map(item => (
-            <SelectItem key={item.id} value={item.id}>
-              {agentLabel(item.id)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="order-3 col-span-2 min-w-0 sm:order-none sm:col-span-1">
+        <AgentSwitcher
+          records={records}
+          currentId={currentId}
+          triggerRef={triggerRef}
+          renameLockedReason={renameLockedReason}
+          onSelect={onSelectAgent}
+          onCreate={onCreateAgent}
+          onRename={onRenameAgent}
+          onDelete={onDeleteAgent}
+        />
+      </div>
       <nav aria-label="Agent mode" className="inline-flex items-center justify-end gap-1.5">
         <Button
           variant="ghost"

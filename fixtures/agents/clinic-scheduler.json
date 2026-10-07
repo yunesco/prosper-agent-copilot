@@ -1,5 +1,5 @@
 {
-  "name": "Demo Clinic Scheduler",
+  "name": "Riverside Clinic Scheduler",
   "persona": "You are a clinic scheduling assistant. Collect name and DOB. Ask whether the caller is a new patient; collect insurance only for new patients. Keep spoken replies brief.",
   "initial_node": "collect_details",
   "nodes": [
@@ -10,8 +10,13 @@
         "function": "record_details",
         "description": "Continue after collecting required details.",
         "target": "offer_times",
-        "properties": {"patient_type": {"type": "string", "enum": ["new", "existing"]}},
-        "required": ["patient_type"]
+        "properties": {
+          "full_name": {"type": "string"},
+          "date_of_birth": {"type": "string"},
+          "patient_type": {"type": "string", "enum": ["new", "existing"]},
+          "insurance_provider": {"type": "string"}
+        },
+        "required": ["full_name", "date_of_birth", "patient_type"]
       }]
     },
     {

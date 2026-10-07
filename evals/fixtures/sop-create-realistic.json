@@ -10,6 +10,7 @@
     "min_added_nodes": 3,
     "requires_branch": true,
     "candidate_mentions": ["insurance", "Monday", "Wednesday", "Friday"],
+    "conversation_quality": true,
     "requires_approval": true
   }
 }

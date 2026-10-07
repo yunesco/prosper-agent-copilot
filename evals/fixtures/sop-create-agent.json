@@ -7,6 +7,7 @@
   "expected": {
     "tools_in_order": ["get_agent", "propose_agent_patch"],
     "added_nodes": ["collect_insurance", "offer_times", "confirm"],
+    "conversation_quality": true,
     "requires_approval": true
   }
 }

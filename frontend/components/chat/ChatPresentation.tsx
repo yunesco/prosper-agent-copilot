@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, Check, Copy, LoaderCircle, Square, TriangleAlert } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronRight,
+  Copy,
+  LoaderCircle,
+  Square,
+  TriangleAlert,
+} from 'lucide-react';
 import { ActivityDrawer, type ChatActivity } from './ActivityDrawer';
 import { MarkdownContent } from './MarkdownContent';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +19,11 @@ import { focusRing } from '@/components/ui/focus';
 
 export type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string };
 export type { ChatActivity } from './ActivityDrawer';
+export type ChatEmptyState = {
+  title: string;
+  body: string;
+  suggestions: { label: string; prompt: string }[];
+};
 export type ChatStatus = 'idle' | 'pending' | 'streaming' | 'stopped' | 'error' | 'complete';
 
 function MessageCopy({ text }: { text: string }) {
@@ -55,8 +69,14 @@ export function ChatPresentation({
   children,
   revealKey,
   resolveLink,
+  empty = {
+    title: 'Start with your guidelines',
+    body: 'Describe the conversation you want to build.',
+    suggestions: [],
+  },
 }: {
   resolveLink?: ComponentProps<typeof MarkdownContent>['resolveLink'];
+  empty?: ChatEmptyState;
   revealKey?: string;
   children?: ReactNode;
   errorMessage?: string;
@@ -133,12 +153,29 @@ export function ChatPresentation({
         }}
       >
         {messages.length === 0 && !busy && !errorMessage && (
-          <div className="py-6">
-            <h2 className="text-base font-medium">Start with your guidelines</h2>
-            <p className="mt-2 text-sm leading-6 text-text-muted">
-              Describe the conversation you want to build. Suggestions will be available for review before
-              they change the agent.
+          <div className="px-1 py-8">
+            <h2 className="text-balance text-xl font-semibold leading-7 tracking-[-0.015em]">
+              {empty.title}
+            </h2>
+            <p className="mt-2 max-w-[44ch] text-pretty text-[15px] leading-6 text-text-muted">
+              {empty.body}
             </p>
+            {empty.suggestions.length > 0 && (
+              <ul className="mt-6 space-y-2">
+                {empty.suggestions.map(item => (
+                  <li key={item.label}>
+                    <Button
+                      variant="outline"
+                      className="h-11 w-full justify-between rounded-xl px-4 text-[15px] font-medium transition-transform duration-100 active:scale-[0.98] motion-reduce:transition-none"
+                      onClick={() => onSend(item.prompt)}
+                    >
+                      {item.label}
+                      <ChevronRight aria-hidden="true" className="size-4 text-text-muted" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
         <div className="space-y-6">

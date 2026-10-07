@@ -1,15 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { openDetails } from './seed';
 
 for (const width of [1440, 390])
   test(`historical call review remains readable at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/');
     await page.getByLabel('Saved agent', { exact: true }).click();
-    await page.getByRole('option', { name: 'Mocked existing deployed agent' }).click();
+    await page
+      .getByRole('group', { name: 'Agents' })
+      .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+      .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     const calls = page.getByRole('region', { name: 'Recent calls', exact: true });
     await calls.scrollIntoViewIfNeeded();
-    await expect(calls.getByRole('button', { name: /turns/ })).toHaveCount(5);
+    await expect(calls.getByRole('button', { name: /turns/ })).toHaveCount(7);
     await expect(calls.getByRole('button', { name: 'Review recent calls with Copilot' })).toBeVisible();
     await page.screenshot({ path: info.outputPath(`calls-${width}.png`) });
     await calls.getByRole('button', { name: /Reported Friday booking issue/ }).click();

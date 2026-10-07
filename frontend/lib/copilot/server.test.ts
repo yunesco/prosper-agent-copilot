@@ -47,7 +47,7 @@ test('tools read only captured saved context; review has no patch capability; er
     valid: true,
     proposal: { baseRevision: 3, candidate: { name: 'Corrected' } },
   });
-  expect(snapshot.agent.name).toBe('Demo Clinic Scheduler');
+  expect(snapshot.agent.name).toBe('Riverside Clinic Scheduler');
 });
 test('call tools expose only the active agent’s calls with numbered turns and fail closed otherwise', async () => {
   const deployed = { ...snapshot, id: 'clinic-scheduler' };

@@ -5,6 +5,7 @@ import { agentFixtures, loadAgentFixture, type AgentFixtureId } from '../lib/fix
 import { behaviorReviewSchema, candidateDiff, proposalSchema } from '../lib/agent/proposals';
 import type { AgentConfig } from '../lib/agent/schema';
 import { minimalAgent } from '../lib/agent/repository';
+import { conversationQualityIssues } from '../lib/agent/conversation-quality';
 
 const toolName = z.enum(['get_agent', 'propose_agent_patch', 'get_call', 'get_calls']);
 export const evalFixtureSchema = z
@@ -12,6 +13,10 @@ export const evalFixtureSchema = z
     id: z.string().min(1),
     agent_id: z.union([z.enum(Object.keys(agentFixtures) as AgentFixtureId[]), z.literal('new-agent')]),
     prompt: z.string().min(1),
+    // Earlier conversation turns, for scenarios that start mid-conversation.
+    history: z
+      .array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().min(1) }).strict())
+      .optional(),
     // Repo-relative text appended to the prompt, e.g. a pasted SOP.
     prompt_file: z.string().min(1).optional(),
     intent: z.enum(['chat', 'review']).optional(),
@@ -26,7 +31,13 @@ export const evalFixtureSchema = z
         patch_touches: z.array(z.string()).min(1).optional(),
         min_added_nodes: z.number().int().positive().optional(),
         requires_branch: z.literal(true).optional(),
+        // The candidate must not let the call advance before information exists, or re-ask it.
+        conversation_quality: z.literal(true).optional(),
+        // The reply must ask at least this many questions (counted as question marks).
+        answer_min_questions: z.number().int().positive().optional(),
         candidate_mentions: z.array(z.string().min(1)).min(1).optional(),
+        // The proposal must carry client guidelines containing these words.
+        guidelines_mention: z.array(z.string().min(1)).min(1).optional(),
         // Calls Copilot must actually read, and transcript turns the answer must cite.
         must_read_calls: z.array(z.string()).min(1).optional(),
         answer_cites: z
@@ -58,6 +69,7 @@ export const evalTraceSchema = z
         .strict(),
     ),
     proposed_operations: z.array(agentOperationSchema),
+    proposed_guidelines: z.string().optional(),
     answer: z.string().optional(),
     applied: z.boolean(),
     review: behaviorReviewSchema.optional(),
@@ -89,6 +101,7 @@ export type EvalTrace = z.infer<typeof evalTraceSchema>;
 // The adapter must execute the real Copilot and capture its actions, not invent a trace.
 export type EvalAdapter = (input: {
   prompt: string;
+  history?: EvalFixture['history'];
   agentId?: string;
   agent: AgentConfig;
   intent?: 'chat' | 'review';
@@ -126,6 +139,9 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
   if (fixture.intent === 'review' && (!trace.review?.behaviors.length || trace.proposed_operations.length))
     failures.push('Review must provide grounded findings without a patch.');
   failures.push(...evidenceFailures(fixture, trace));
+  for (const word of fixture.expected.guidelines_mention ?? [])
+    if (!trace.proposed_guidelines?.toLowerCase().includes(word.toLowerCase()))
+      failures.push(`Proposal guidelines never mention "${word}".`);
   const expectation = fixture.expected;
   if (
     expectation.changed_nodes ||
@@ -133,6 +149,7 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
     expectation.patch_touches ||
     expectation.min_added_nodes ||
     expectation.requires_branch ||
+    expectation.conversation_quality ||
     expectation.candidate_mentions
   ) {
     const base = loadEvalAgent(fixture.agent_id);
@@ -162,6 +179,7 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
         !candidate.nodes.some(node => new Set(node.edges.map(edge => edge.target)).size > 1)
       )
         failures.push('Candidate has no branching step.');
+      if (expectation.conversation_quality) failures.push(...conversationQualityIssues(candidate));
       if (expectation.candidate_mentions) {
         const text = candidate.nodes
           .flatMap(node => [JSON.stringify(node.task_messages), ...node.edges.map(edge => edge.description)])
@@ -226,6 +244,11 @@ function evidenceFailures(fixture: EvalFixture, trace: EvalTrace): string[] {
     )
       readTurns.set(String(output.id), output.transcript.length);
   }
+  const questions = (trace.answer?.match(/\?/g) ?? []).length;
+  if (fixture.expected.answer_min_questions && questions < fixture.expected.answer_min_questions)
+    failures.push(
+      `Expected at least ${fixture.expected.answer_min_questions} questions, found ${questions}.`,
+    );
   for (const id of fixture.expected.must_read_calls ?? [])
     if (!readTurns.has(id)) failures.push(`Never read call transcript: ${id}`);
   const cited = [...(trace.answer ?? '').matchAll(citation)].map(match => ({

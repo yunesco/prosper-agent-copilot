@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { XYPosition } from '@xyflow/react';
 import { Button } from '@/components/ui/Button';
-import { LocalAgentRepository, type AgentDocument } from '@/lib/agent/repository';
+import { commitAgent, LocalAgentRepository, minimalAgent, type AgentDocument } from '@/lib/agent/repository';
 import { AgentWorkspace } from './AgentWorkspace';
 
 /** Opens the local saved-agent document and hands the selected agent to its workspace. */
@@ -67,6 +67,28 @@ export function BuilderShell() {
               selectedId: id,
               agents: current.agents.map(item => (item.id === id ? record : item)),
             },
+        );
+      }}
+      onDelete={id => setDocument(repository.deleteAgent(id))}
+      onRename={async (id, name) => {
+        const base = document.agents.find(item => item.id === id)!;
+        const saved = await commitAgent(
+          repository,
+          base,
+          [{ type: 'update_agent', changes: { name } }],
+          base.guidelines,
+          () => {},
+        );
+        setDocument(
+          current =>
+            current && { ...current, agents: current.agents.map(item => (item.id === id ? saved : item)) },
+        );
+      }}
+      onCreate={async name => {
+        const record = await repository.createAgent({ agent: minimalAgent(name), guidelines: '' });
+        repository.selectAgent(record.id);
+        setDocument(
+          current => current && { ...current, selectedId: record.id, agents: [...current.agents, record] },
         );
       }}
       onSaved={record =>

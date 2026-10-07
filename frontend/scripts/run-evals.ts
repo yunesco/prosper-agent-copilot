@@ -48,6 +48,7 @@ export async function runEvals(mode: Mode, root = repoRoot, adapterPath?: string
               prompt: fixture.prompt_file
                 ? `${fixture.prompt}\n\n${await readFile(resolve(root, fixture.prompt_file), 'utf8')}`
                 : fixture.prompt,
+              history: fixture.history,
               agentId: fixture.agent_id,
               agent: loadEvalAgent(fixture.agent_id),
               guidelines:

@@ -47,9 +47,9 @@ const same = (a: unknown, b: unknown): boolean => {
   );
 };
 
-export function minimalAgent() {
+export function minimalAgent(name = 'Untitled agent') {
   return parseAgent({
-    name: 'New clinic agent',
+    name,
     initial_node: 'start',
     nodes: [{ name: 'start', end: true, task_messages: [{ role: 'system', content: 'Say goodbye.' }] }],
   });
@@ -111,6 +111,18 @@ export class LocalAgentRepository implements AgentRepository {
     if (!doc.agents.some(agent => agent.id === id)) throw new Error('Saved agent not found.');
     this.write({ ...doc, selectedId: id });
     return doc.agents.find(agent => agent.id === id)!;
+  }
+  /** Removes an agent; the neighbouring agent becomes selected when the open one is deleted. */
+  deleteAgent(id: string): AgentDocument {
+    const doc = this.required();
+    const index = doc.agents.findIndex(agent => agent.id === id);
+    if (index < 0) throw new Error('Saved agent not found.');
+    if (doc.agents.length === 1) throw new Error('The last agent cannot be deleted.');
+    const agents = doc.agents.filter(agent => agent.id !== id);
+    const selectedId = doc.selectedId === id ? agents[Math.max(0, index - 1)].id : doc.selectedId;
+    const next = { ...doc, selectedId, agents };
+    this.write(next);
+    return next;
   }
   async createAgent(input: Candidate) {
     const candidate = candidateSchema.parse(input);

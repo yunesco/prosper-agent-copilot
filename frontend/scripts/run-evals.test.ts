@@ -55,7 +55,7 @@ test('captures adapter errors and subsequent tool evidence without giving it exp
   await writeFile(
     join(root, 'adapter.mjs'),
     `export async function run(input) {
-    if (Object.keys(input).sort().join(',') !== 'agent,agentId,guidelines,prompt') throw new Error('Leaked scoring criteria');
+    if (Object.keys(input).sort().join(',') !== 'agent,agentId,guidelines,history,prompt') throw new Error('Leaked scoring criteria');
     if (input.prompt === 'Fail') throw new Error('Provider unavailable');
     return ${JSON.stringify(response)};
   }`,

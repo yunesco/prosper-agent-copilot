@@ -1,4 +1,4 @@
-import { seedOriginal } from './seed';
+import { seedOriginal, openDetails } from './seed';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -13,6 +13,7 @@ for (const width of [1440, 390]) {
       .getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true })
       .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     const row = page.getByRole('button', { name: 'Slot Choice Required', exact: true });
     await expect(row).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`slot-summary-${width}.png`) });
@@ -25,6 +26,7 @@ for (const width of [1440, 390]) {
       .getByRole('button', { name: 'Inspect transition: Record the slot the caller picks.', exact: true })
       .click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByLabel('Option 1', { exact: true })).toHaveValue('Monday 9 AM');
     await page.screenshot({ path: testInfo.outputPath(`slot-editor-${width}.png`) });
     await page.getByRole('button', { name: 'Cancel field', exact: true }).click();

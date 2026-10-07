@@ -1,4 +1,4 @@
-import { seedOriginal } from './seed';
+import { seedOriginal, openDetails } from './seed';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -40,6 +40,7 @@ for (const width of [1440, 390]) {
     await expect(card).not.toHaveAttribute('style', moved!);
     await page.screenshot({ path: testInfo.outputPath(`connected-${width}.png`) });
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByLabel('Target node', { exact: true })).toContainText('Confirm');
     await page.getByLabel('Transition condition', { exact: true }).fill('The caller wants to finish early.');
     await page.getByRole('button', { name: 'Add information', exact: true }).click();
@@ -61,6 +62,7 @@ for (const width of [1440, 390]) {
     expect(Math.abs(own.x - other.x)).toBeGreaterThan(20);
     await drag(page, endpoint, card);
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByLabel('Target node', { exact: true })).toContainText('Offer times');
     await expect(page.getByLabel('Transition condition', { exact: true })).toHaveValue(
       'The caller wants to finish early.',
@@ -91,6 +93,7 @@ for (const width of [1440, 390]) {
       page.getByRole('button', { name: 'Inspect collect_details', exact: true }),
     );
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByLabel('Function name')).toHaveValue('go_to_confirm');
     await expect(page.getByLabel('Transition condition', { exact: true })).toHaveValue(
       'The caller wants to finish early.',
@@ -106,6 +109,7 @@ for (const width of [1440, 390]) {
     await drag(page, endpoint, { x: 40, y: 500 });
     await expect(page.getByRole('form', { name: 'Add step', exact: true })).toHaveCount(0);
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
   });
 
@@ -135,6 +139,7 @@ for (const width of [1440, 390]) {
     const sourceBox = await page.getByRole('button', { name: 'Inspect greeting', exact: true }).boundingBox();
     expect(box!.y).toBeGreaterThan(sourceBox!.y + sourceBox!.height);
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
   });
@@ -172,6 +177,7 @@ test('connect and reconnect directly on handles without React Flow selector erro
     'aria-label',
     'Edge from offer_times to confirm',
   );
+  await openDetails(page);
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Changes saved');
   expect(errors).toEqual([]);

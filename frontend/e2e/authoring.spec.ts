@@ -1,10 +1,11 @@
-import { revealAgentFields } from './seed';
+import { revealAgentFields, openDetails } from './seed';
 import { seedOriginal } from './seed';
 import { expect, test } from '@playwright/test';
 
 test('create, connect and repair a multi-step agent in one draft', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Inspect start', exact: true }).click();
+  await openDetails(page);
   await page.getByLabel('Message 1 instructions').fill('Welcome to the clinic.');
   await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
   await page.getByLabel('Agent name', { exact: true }).fill('Manual clinic');
@@ -111,6 +112,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Message 1 instructions')).toHaveValue(
       'Thank the caller for booking and say goodbye.',
     );
+    await openDetails(page);
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByRole('status')).toHaveText('Changes saved');
     await page.getByRole('button', { name: 'Agent overview', exact: true }).click();
@@ -159,6 +161,7 @@ for (const width of [1440, 390]) {
     await expect(node).toHaveAttribute('aria-pressed', 'true');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(page.getByLabel('Role instructions')).not.toBeVisible();
+    await openDetails(page);
     await page.getByText('Role instructions', { exact: false }).filter({ hasText: 'Inherited' }).click();
     await expect(page.getByLabel('Role instructions')).toBeVisible();
   });

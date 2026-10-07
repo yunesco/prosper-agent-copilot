@@ -1,4 +1,4 @@
-import { seedOriginal } from './seed';
+import { seedOriginal, openDetails } from './seed';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -11,6 +11,7 @@ for (const width of [1440, 390]) {
     await page.goto('/');
     await page.getByRole('button', { name: 'Inspect collect_details', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     const goal = page.getByRole('textbox', { name: 'Message 1 instructions' });
     await expect(page.getByRole('button', { name: 'Edit instructions' })).toHaveCount(0);
     await expect(page.getByText('Advanced details')).toHaveCount(0);

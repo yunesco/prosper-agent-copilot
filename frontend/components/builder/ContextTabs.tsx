@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/Button';
 
 export type ContextPane = 'details' | 'copilot';
-const tabs: ContextPane[] = ['details', 'copilot'];
+const tabs: ContextPane[] = ['copilot', 'details'];
 const label = { details: 'Details', copilot: 'Copilot' };
 
 /** Details | Copilot tablist with arrow-key navigation. */
@@ -29,14 +29,13 @@ export function ContextTabs({
           onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
+            const at = tabs.indexOf(tab);
             const next =
               event.key === 'Home'
-                ? 'details'
+                ? tabs[0]
                 : event.key === 'End'
-                  ? 'copilot'
-                  : tab === 'details'
-                    ? 'copilot'
-                    : 'details';
+                  ? tabs[tabs.length - 1]
+                  : tabs[(at + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
             onChange(next);
             document.getElementById(`${next}-tab`)?.focus();
           }}

@@ -25,7 +25,7 @@ import { useCopilot } from './use-copilot';
 import { useNodeEdits } from './use-node-edits';
 import { useProposalPreview } from './use-proposal-preview';
 import { useTestCall } from './use-test-call';
-import { WorkspaceHeader } from './WorkspaceHeader';
+import { NEW_AGENT, WorkspaceHeader } from './WorkspaceHeader';
 
 type Geometry = Record<string, Record<string, XYPosition>>;
 
@@ -38,6 +38,9 @@ export function AgentWorkspace({
   repository,
   records,
   onSwitch,
+  onCreate,
+  onDelete,
+  onRename,
   onSaved,
   geometry,
   saveGeometry,
@@ -46,6 +49,9 @@ export function AgentWorkspace({
   repository: LocalAgentRepository;
   records: SavedAgent[];
   onSwitch: (id: string) => void;
+  onCreate: (name: string) => Promise<void>;
+  onDelete: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<void>;
   onSaved: (record: SavedAgent) => void;
   geometry: Geometry;
   saveGeometry: (id: string, positions: Record<string, XYPosition>) => void;
@@ -57,7 +63,7 @@ export function AgentWorkspace({
   const [record, setRecord] = useState(initial);
   const agent = record.agent;
   const [mode, setMode] = useState<'builder' | 'call'>('builder');
-  const [pane, setPane] = useState<ContextPane>('details');
+  const [pane, setPane] = useState<ContextPane>('copilot');
   const audioRef = useRef<HTMLAudioElement>(null);
   const call = useTestCall(record, audioRef);
   // `current` is the saved record commits are checked against; `active` is false once this agent is switched away.
@@ -196,9 +202,11 @@ export function AgentWorkspace({
   const [switchError, setSwitchError] = useState('');
   const agentTrigger = useRef<HTMLButtonElement>(null);
   const keepEditing = useRef<HTMLButtonElement>(null);
-  const switchAgent = (id: string) => {
+  const newName = useRef('');
+  const switchAgent = async (id: string) => {
     try {
-      onSwitch(id);
+      if (id === NEW_AGENT) await onCreate(newName.current);
+      else onSwitch(id);
       active.current = false;
       editor.cancel();
       call.stop();
@@ -212,7 +220,7 @@ export function AgentWorkspace({
     if (editor.dirty || editor.pending) {
       switchIntent.current += 1;
       setSwitchTarget(id);
-    } else switchAgent(id);
+    } else void switchAgent(id);
   };
   const keepEditingAgent = () => {
     switchIntent.current += 1;
@@ -239,6 +247,29 @@ export function AgentWorkspace({
         mode={mode}
         triggerRef={agentTrigger}
         onSelectAgent={selectAgent}
+        renameLockedReason={
+          editor.dirty || editor.pending ? 'Save or cancel your edits before renaming this agent.' : null
+        }
+        onCreateAgent={name => {
+          newName.current = name;
+          selectAgent(NEW_AGENT);
+        }}
+        onRenameAgent={async (id, name) => {
+          const operations: AgentOperation[] = [{ type: 'update_agent', changes: { name } }];
+          if (id === current.current.id) await save(operations);
+          else await onRename(id, name);
+        }}
+        onDeleteAgent={id => {
+          try {
+            onDelete(id);
+            if (id === current.current.id) {
+              active.current = false;
+              call.stop();
+            }
+          } catch (error) {
+            setSwitchError(error instanceof Error ? error.message : 'Could not delete the agent.');
+          }
+        }}
         onMode={next => {
           if (next === 'builder' && mode === 'call' && call.active) call.stop();
           setMode(next);
@@ -259,9 +290,9 @@ export function AgentWorkspace({
         onSave={async () => {
           const intent = switchIntent.current;
           if (switchTarget && (await editor.save()) && intent === switchIntent.current)
-            switchAgent(switchTarget);
+            await switchAgent(switchTarget);
         }}
-        onDiscard={() => switchTarget && switchAgent(switchTarget)}
+        onDiscard={() => switchTarget && void switchAgent(switchTarget)}
         onKeepEditing={keepEditingAgent}
       />
       <audio ref={audioRef} autoPlay />

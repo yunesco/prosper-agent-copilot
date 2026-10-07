@@ -7,6 +7,8 @@ import successfulCall from '../../fixtures/calls/new-patient-monday.json' with {
 import existingCall from '../../fixtures/calls/existing-patient-booking.json' with { type: 'json' };
 import wednesdayCall from '../../fixtures/calls/new-patient-wednesday.json' with { type: 'json' };
 import existingInsuranceCall from '../../fixtures/calls/existing-patient-insurance.json' with { type: 'json' };
+import volunteersCall from '../../fixtures/calls/existing-patient-volunteers-insurance.json' with { type: 'json' };
+import noInsuranceCall from '../../fixtures/calls/new-patient-no-insurance.json' with { type: 'json' };
 import flaggedIssue from '../../fixtures/issues/friday-restriction.json' with { type: 'json' };
 import { parseAgent } from './agent/schema';
 import { callSchema } from './platform/schema';
@@ -29,9 +31,15 @@ export function loadAgentFixture(id: AgentFixtureId) {
 export function loadDemoContext() {
   return {
     guidelines: [guidelineSchema.parse(guidelines)],
-    calls: [failedCall, successfulCall, existingCall, wednesdayCall, existingInsuranceCall].map(call =>
-      callSchema.parse(call),
-    ),
+    calls: [
+      failedCall,
+      successfulCall,
+      existingCall,
+      wednesdayCall,
+      existingInsuranceCall,
+      volunteersCall,
+      noInsuranceCall,
+    ].map(call => callSchema.parse(call)),
     issues: [issueSchema.parse(flaggedIssue)],
   };
 }

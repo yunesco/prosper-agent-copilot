@@ -1,4 +1,4 @@
-import { seedOriginal } from './seed';
+import { seedOriginal, openDetails } from './seed';
 import { expect, test, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }, info) => {
@@ -135,6 +135,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Builder', exact: true }).click();
     await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(1);
     const goal = page.getByRole('textbox', { name: 'Message 1 instructions' });
+    await openDetails(page);
     await goal.fill('Say: This is the edited call. Then collect name and DOB.');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Changes saved', { exact: true })).toBeVisible();
@@ -145,6 +146,7 @@ for (const width of [1440, 390]) {
     });
     await page.getByRole('button', { name: 'Inspect collect_details', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await goal.fill('An unsaved draft must not reach voice.');
     await page.getByRole('button', { name: 'Test Call', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Call', exact: true }).click();
@@ -312,7 +314,10 @@ test('switching saved agents stops active calls, clears context and releases tra
   await page.getByRole('button', { name: 'Start call', exact: true }).click();
   await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
   await page.getByLabel('Saved agent', { exact: true }).click();
-  await page.getByRole('option', { name: 'Mocked existing deployed agent', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Agents' })
+    .getByRole('button', { name: /^Riverside Clinic Scheduler/ })
+    .click();
   await expect(page.getByRole('button', { name: 'Builder', exact: true })).toHaveAttribute(
     'aria-current',
     'page',

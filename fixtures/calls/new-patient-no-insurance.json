@@ -1,0 +1,42 @@
+{
+  "id": "new-patient-no-insurance",
+  "agent_id": "clinic-scheduler",
+  "title": "New patient without insurance",
+  "duration_seconds": 78,
+  "outcome": "successful",
+  "graph_path": [
+    "collect_details",
+    "offer_times",
+    "confirm"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "May I have your name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Riley Example, September 9, 1995. I'm a new patient."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Riley. Do you have insurance? If so, who is your provider?"
+    },
+    {
+      "role": "user",
+      "text": "No, I'm paying myself."
+    },
+    {
+      "role": "assistant",
+      "text": "No problem, I'll note that. Dr. Smith is available Monday at 10 AM or Wednesday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Monday works."
+    },
+    {
+      "role": "assistant",
+      "text": "You're booked for Monday at 10 AM. Goodbye."
+    }
+  ]
+}

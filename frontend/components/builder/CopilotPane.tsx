@@ -5,6 +5,7 @@ import { referenceExists, type GraphReference, type Proposal } from '@/lib/agent
 import type { SavedAgent } from '@/lib/agent/repository';
 import type { Copilot } from './use-copilot';
 import { copilotActivities } from './copilot-activity';
+import { copilotEmptyState } from './copilot-prompts';
 import { BehaviorReviewCard } from './BehaviorReviewCard';
 import { EvidenceChip } from './EvidenceChip';
 import { GraphLink } from './GraphLink';
@@ -57,24 +58,26 @@ export function CopilotPane({
   const activity = copilotActivities(copilot.messages, copilot.busy && !copilot.stopped && !copilot.error);
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="max-h-1/4 shrink-0 space-y-1 overflow-y-auto border-b border-ui-border px-5 py-3 text-xs text-text-muted">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span>Saved revision {record.revision}</span>
-          <span aria-hidden="true">·</span>
-          {selected ? (
-            <GraphLink record={record} reference={selected} onFocus={onFocus} />
-          ) : (
-            <span>Whole agent</span>
-          )}
+      <div className="max-h-1/4 shrink-0 overflow-y-auto border-b border-ui-border px-5 py-3">
+        <div className="flex items-baseline justify-between gap-4">
+          <div className="min-w-0 text-sm font-medium">
+            {selected ? (
+              <GraphLink record={record} reference={selected} onFocus={onFocus} />
+            ) : (
+              <span>Whole agent</span>
+            )}
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-text-muted">Saved · rev {record.revision}</span>
         </div>
         {dirty && (
-          <p className="leading-5">
+          <p className="mt-1 text-xs leading-5 text-text-muted">
             Copilot uses saved changes. Save or cancel your draft in Details before Apply.
           </p>
         )}
       </div>
       <ChatPresentation
         resolveLink={resolveLink}
+        empty={copilotEmptyState(record.agent, record.guidelines, selected)}
         revealKey={copilot.reviews.length ? `${record.id}:${copilot.reviews.length}` : undefined}
         messages={copilot.messages
           .filter(message => message.role !== 'system')

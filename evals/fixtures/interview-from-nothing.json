@@ -1,0 +1,13 @@
+{
+  "id": "interview-from-nothing",
+  "agent_id": "new-agent",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "I run a car repair shop and want a voice agent to answer our calls.",
+  "expected": {
+    "tools_in_order": ["get_agent"],
+    "operations": [],
+    "answer_min_questions": 2,
+    "requires_approval": true
+  }
+}

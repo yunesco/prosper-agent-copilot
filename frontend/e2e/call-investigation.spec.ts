@@ -1,3 +1,4 @@
+import { openDetails } from './seed';
 import { expect, test, type Page } from '@playwright/test';
 import { STORAGE_KEY, type SavedAgent } from '../lib/agent/repository';
 import { loadAgentFixture, loadDemoContext } from '../lib/fixtures';
@@ -66,6 +67,7 @@ for (const width of [1440, 390]) {
     });
     await page.goto('/');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await page.getByRole('button', { name: /Reported Friday booking issue/ }).click();
     await page.getByRole('button', { name: 'Investigate with Copilot' }).click();
     await expect(page.getByRole('article', { name: 'Copilot response' })).toContainText('offered Friday');

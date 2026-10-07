@@ -1,0 +1,34 @@
+{
+  "id": "existing-patient-volunteers-insurance",
+  "agent_id": "clinic-scheduler",
+  "title": "Existing patient mentions new insurance",
+  "duration_seconds": 66,
+  "outcome": "successful",
+  "graph_path": [
+    "collect_details",
+    "offer_times",
+    "confirm"
+  ],
+  "transcript": [
+    {
+      "role": "assistant",
+      "text": "May I have your name and date of birth?"
+    },
+    {
+      "role": "user",
+      "text": "Sam Example, November 2, 1981. I'm an existing patient, and just so you know, my insurance changed to Demo Insurance."
+    },
+    {
+      "role": "assistant",
+      "text": "Thanks, Sam, I'll note that. Dr. Smith is available Monday at 10 AM, Wednesday at 2 PM or Friday at 2 PM."
+    },
+    {
+      "role": "user",
+      "text": "Wednesday at 2 works."
+    },
+    {
+      "role": "assistant",
+      "text": "You're booked for Wednesday at 2 PM. Goodbye."
+    }
+  ]
+}

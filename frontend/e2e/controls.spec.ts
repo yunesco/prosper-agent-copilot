@@ -1,6 +1,5 @@
-import { revealAgentFields } from './seed';
 import { expect, test } from '@playwright/test';
-import { seedOriginal } from './seed';
+import { openDetails, revealAgentFields, seedOriginal } from './seed';
 
 test('dropdown Escape preserves drafts; keyboard selection updates the routing draft', async ({ page }) => {
   await seedOriginal(page);
@@ -11,6 +10,7 @@ test('dropdown Escape preserves drafts; keyboard selection updates the routing d
       exact: true,
     })
     .click();
+  await openDetails(page);
   const condition = page.getByLabel('Transition condition', { exact: true });
   await condition.fill('Keep this unsaved condition');
   const target = page.getByRole('combobox', { name: 'Target node' });
@@ -40,12 +40,15 @@ for (const width of [1440, 390]) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await revealAgentFields(page);
     const guidelines = page.getByLabel('Client guidelines');
     await guidelines.fill('Keep my work');
-    const selector = page.getByRole('combobox', { name: 'Saved agent' });
+    const selector = page.getByLabel('Saved agent', { exact: true });
     await selector.click();
-    const option = page.getByRole('option', { name: 'Mocked existing deployed agent' });
+    const option = page
+      .getByRole('group', { name: 'Agents' })
+      .getByRole('button', { name: /^Riverside Clinic Scheduler/ });
     await expect(option).toBeVisible();
     await page.screenshot({ path: info.outputPath(`dropdown-${width}.png`) });
     await option.click();
@@ -59,6 +62,6 @@ for (const width of [1440, 390]) {
     await expect(dialog).toBeHidden();
     await expect(selector).toBeFocused();
     await expect(guidelines).toHaveValue('Keep my work');
-    await expect(selector).toHaveText('New / generated agent');
+    await expect(selector).toHaveText('Untitled agent');
   });
 }

@@ -43,7 +43,7 @@ test('proposal preserves native payloads, has exact derived diff, and generation
   expect(candidateDiff(base.agent, proposal.candidate)).toEqual([
     { label: 'name', before: base.agent.name, after: 'New name', reference: undefined },
   ]);
-  expect(base.agent.name).toBe('Demo Clinic Scheduler');
+  expect(base.agent.name).toBe('Riverside Clinic Scheduler');
 });
 test('exact reviewed candidate saves once and duplicate or concurrent commit fails', async () => {
   const proposal = await constructProposal(base, patch, async () => {});
@@ -56,6 +56,46 @@ test('exact reviewed candidate saves once and duplicate or concurrent commit fai
   expect(write).toHaveBeenCalledTimes(1);
   expect(exact((await repository.getAgent(base.id)).agent)).toBe(exact(proposal.candidate));
   expect((await repository.getAgent(base.id)).revision).toBe(2);
+});
+test('guidelines in a proposal are diffed and saved with the reviewed candidate', async () => {
+  const empty = { ...base, guidelines: '' };
+  const proposal = await constructProposal(
+    empty,
+    { ...patch, guidelines: 'Greet, then book.' },
+    async () => {},
+  );
+  expect(
+    candidateDiff(empty.agent, proposal.candidate, { before: '', after: proposal.guidelines })[0],
+  ).toMatchObject({
+    label: 'guidelines',
+    before: '',
+    after: 'Greet, then book.',
+  });
+  const { repository } = repo();
+  await repository.saveAgent(base.id, { agent: base.agent, guidelines: '' }, 1, () => {});
+  const saved = await commitProposal(
+    repository,
+    { ...empty, revision: 2 },
+    { ...proposal, baseRevision: 2 },
+    () => {},
+  );
+  expect(saved.guidelines).toBe('Greet, then book.');
+  expect(saved.revision).toBe(3);
+});
+test('a guidelines-only proposal is not a no-op, and omitted guidelines keep the saved text', async () => {
+  const noOps = { ...patch, operations: [{ type: 'update_agent', changes: { name: base.agent.name } }] };
+  await expect(constructProposal(base, noOps, async () => {})).rejects.toThrow('no configuration changes');
+  await expect(
+    constructProposal(base, { ...noOps, guidelines: 'New text' }, async () => {}),
+  ).resolves.toMatchObject({ guidelines: 'New text' });
+  const { repository } = repo();
+  const kept = await commitProposal(
+    repository,
+    base,
+    await constructProposal(base, patch, async () => {}),
+    () => {},
+  );
+  expect(kept.guidelines).toBe(base.guidelines);
 });
 for (const reason of ['dirty draft', 'agent switched', 'guidelines changed'])
   test(`rechecks ${reason} after validation; no save`, async () => {

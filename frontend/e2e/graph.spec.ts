@@ -1,4 +1,4 @@
-import { seedOriginal } from './seed';
+import { seedOriginal, openDetails } from './seed';
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
@@ -20,6 +20,7 @@ for (const width of [1440, 390]) {
     });
     await transition.click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByRole('heading', { name: 'Transition', exact: true })).toBeVisible();
     await page.getByText('Function details', { exact: true }).click();
     await expect(page.getByLabel('Function name', { exact: true })).toHaveValue('record_details');
@@ -35,6 +36,7 @@ for (const width of [1440, 390]) {
     const viewport = page.locator('.react-flow__viewport');
     const transform = await viewport.getAttribute('style');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByRole('textbox', { name: 'Message 1 instructions' })).toHaveValue(
       /Collect the caller's full name/,
     );
@@ -64,6 +66,7 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`graph-${width}.png`) });
     await page.getByRole('button', { name: 'Inspect confirm', exact: true }).press('Escape');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByRole('textbox', { name: 'Agent name', exact: true })).toHaveValue(
       'Prosper Scheduler',
     );

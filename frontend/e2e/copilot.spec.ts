@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openDetails } from './seed';
 import { constructProposal } from '../lib/agent/proposals';
 import { loadAgentFixture, loadDemoContext } from '../lib/fixtures';
 import { STORAGE_KEY, type SavedAgent } from '../lib/agent/repository';
@@ -60,6 +61,7 @@ test('retry repeats a failed behavior review and preserves a newly typed draft',
     });
   });
   await page.goto('/');
+  await openDetails(page);
   await page.getByRole('button', { name: 'Review behavior', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Retry response' })).toBeVisible();
   await page.getByLabel('Message Copilot').fill('Keep this next question');
@@ -77,7 +79,10 @@ async function seed(page: Page) {
     raw: JSON.stringify({
       version: 1,
       selectedId: base.id,
-      agents: [base, { ...base, id: 'new-agent', guidelines: '' }],
+      agents: [
+        base,
+        { ...base, id: 'new-agent', guidelines: '', agent: { ...base.agent, name: 'Untitled agent' } },
+      ],
     }),
   });
 }
@@ -118,6 +123,7 @@ for (const width of [1440, 390])
     const proposal = await mockProposal(page);
     await page.goto('/');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await page.screenshot({ path: info.outputPath(`details-${width}.png`) });
     await send(page);
     await page.getByText('View changes', { exact: true }).click();
@@ -145,6 +151,7 @@ for (const width of [1440, 390])
     await expect(page.getByText(/clinic-scheduler · Revision 2/)).toBeVisible();
     await page.getByRole('button', { name: 'Builder', exact: true }).click();
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await expect(page.getByLabel('Message Copilot')).toHaveValue('Keep this draft');
   });
 test('draft blocking, cancel and Dismiss', async ({ page }) => {
@@ -168,13 +175,18 @@ test('draft blocking, cancel and Dismiss', async ({ page }) => {
 test('recent call ownership, transcript retained during graph navigation', async ({ page }) => {
   await seed(page);
   await page.goto('/');
+  await openDetails(page);
   await page.getByRole('button', { name: /Reported Friday booking issue/ }).click();
   await expect(page.getByText('Transcript', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'offer_times', exact: true }).click();
   await expect(page.getByText('Transcript', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to agent details' }).click();
   await page.getByLabel('Saved agent', { exact: true }).click();
-  await page.getByRole('option', { name: 'New / generated agent' }).click();
+  await page
+    .getByRole('group', { name: 'Agents' })
+    .getByRole('button', { name: /^Untitled agent/ })
+    .click();
+  await openDetails(page);
   await expect(page.getByText('No recent calls for this agent.')).toBeVisible();
 });
 
@@ -332,6 +344,7 @@ for (const width of [1440, 390])
     });
     await page.goto('/');
     if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
+    await openDetails(page);
     await page.getByRole('button', { name: 'Review behavior', exact: true }).click();
     const bulk = page.getByRole('button', { name: 'Propose all changes', exact: true });
     await expect(bulk).toBeEnabled();

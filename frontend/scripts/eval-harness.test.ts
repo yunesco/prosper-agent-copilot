@@ -100,6 +100,57 @@ test('fresh-agent creation scores added steps and requires an exact validated ca
   expect(evaluate(creation, mismatched)).toContain('Missing Python-valid proposal matching the candidate.');
 });
 
+test('conversation_quality fails a generated candidate that can advance before collecting anything', async () => {
+  const creation = evalFixtureSchema.parse({
+    ...creationData,
+    expected: { ...creationData.expected, conversation_quality: true },
+  });
+  const base = { id: 'eval-agent', revision: 1, guidelines: '', agent: loadEvalAgent(creation.agent_id) };
+  const operations = [
+    ...creation.expected.added_nodes!.map(name => ({
+      type: 'add_node' as const,
+      value: nodeSchema.parse({ name, end: true }),
+    })),
+    {
+      type: 'update_node' as const,
+      node: 'start',
+      changes: { task_messages: [{ role: 'developer', content: 'Collect the caller name.' }] },
+    },
+    {
+      type: 'add_edge' as const,
+      node: 'start',
+      value: {
+        function: 'next',
+        description: 'Continue.',
+        target: 'offer_times',
+        properties: {},
+        required: [],
+      },
+    },
+  ];
+  const proposal = await constructProposal(
+    base,
+    { agentId: base.id, baseRevision: 1, outcome: 'Create', explanation: 'SOP', behavior: 'x', operations },
+    async () => {},
+  );
+  const trace = {
+    applied: false,
+    proposed_operations: proposal.operations,
+    tool_calls: [
+      { toolCallId: 'read', toolName: 'get_agent', input: {}, result: { type: 'tool-result', output: base } },
+      {
+        toolCallId: 'create',
+        toolName: 'propose_agent_patch',
+        input: {},
+        result: { type: 'tool-result', output: { valid: true, proposal } },
+      },
+    ],
+  };
+  expect(evaluate(creation, trace)).toEqual([
+    expect.stringContaining('Step start: transition next can fire without collecting'),
+  ]);
+});
+
 import diagnosisData from '../../evals/fixtures/friday-diagnosis.json';
 import discoveryData from '../../evals/fixtures/discover-unflagged.json';
 import { callSchema } from '../lib/platform/schema';

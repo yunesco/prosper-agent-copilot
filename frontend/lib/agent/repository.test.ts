@@ -157,3 +157,19 @@ test('create validates, assigns identity and revision, and does not change selec
   expect(record.revision).toBe(1);
   expect(JSON.parse(storage.getItem()!).selectedId).toBe(initial.selectedId);
 });
+
+test('deleteAgent removes an agent, selects its neighbour, and keeps the last one', async () => {
+  let n = 0;
+  const store = new Map<string, string>();
+  const repo = new LocalAgentRepository(
+    () => ({ getItem: key => store.get(key) ?? null, setItem: (key, value) => void store.set(key, value) }),
+    async () => {},
+    () => `id-${++n}`,
+  );
+  const initial = await repo.initialize();
+  const [first, second] = initial.agents;
+  expect(repo.deleteAgent(first.id)).toMatchObject({ selectedId: second.id, agents: [{ id: second.id }] });
+  expect(() => repo.deleteAgent(second.id)).toThrow('last agent');
+  expect(() => repo.deleteAgent('missing')).toThrow('not found');
+  expect((await repo.getAgent(second.id)).id).toBe(second.id);
+});

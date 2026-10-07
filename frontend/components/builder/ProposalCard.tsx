@@ -48,7 +48,12 @@ export function ProposalCard({
   onTest: () => void;
   onPreview?: (proposal: Proposal, reference?: GraphReference) => void;
 }) {
-  const changes = base ? candidateDiff(base.agent, proposal.candidate) : [];
+  const changes = base
+    ? candidateDiff(base.agent, proposal.candidate, {
+        before: base.guidelines,
+        after: proposal.guidelines,
+      })
+    : [];
   const ready = state === 'Ready to apply';
   const historical =
     !ready &&

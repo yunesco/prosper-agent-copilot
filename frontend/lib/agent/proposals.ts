@@ -68,6 +68,7 @@ export const patchInputSchema = z
     outcome: z.string().min(1),
     explanation: z.string().min(1),
     behavior: z.string().min(1),
+    guidelines: z.string().min(1).optional(),
     operations: z.array(agentOperationSchema).min(1).max(60),
   })
   .strict();
@@ -83,11 +84,16 @@ export const exact = (value: unknown): string =>
       ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)))
       : item,
   );
-export function candidateDiff(before: AgentConfig, after: AgentConfig) {
+export function candidateDiff(
+  before: AgentConfig,
+  after: AgentConfig,
+  guidelines?: { before: string; after?: string },
+) {
   const changes: { label: string; before: unknown; after: unknown; reference?: GraphReference }[] = [];
   const add = (label: string, a: unknown, b: unknown, reference?: GraphReference) => {
     if (exact(a) !== exact(b)) changes.push({ label, before: a ?? null, after: b ?? null, reference });
   };
+  if (guidelines?.after !== undefined) add('guidelines', guidelines.before, guidelines.after);
   for (const key of ['name', 'persona', 'initial_node', 'voice_id', 'model'] as const)
     add(key, before[key], after[key]);
   for (const name of new Set([...before.nodes, ...after.nodes].map(node => node.name))) {
@@ -130,7 +136,7 @@ export async function constructProposal(
   if (input.agentId !== base.id || input.baseRevision !== base.revision)
     throw new Error('Stale proposal context. Read the current saved agent.');
   const candidate = applyAgentOperations(base.agent, input.operations);
-  if (!candidateDiff(base.agent, candidate).length)
+  if (!candidateDiff(base.agent, candidate, { before: base.guidelines, after: input.guidelines }).length)
     throw new Error('Proposal makes no configuration changes.');
   await validate(candidate);
   return proposalSchema.parse({ ...input, candidate, id: crypto.randomUUID(), validation: { valid: true } });
@@ -146,5 +152,11 @@ export async function commitProposal(
     throw new Error('Proposal is out of date. Request a fresh proposal.');
   if (exact(applyAgentOperations(base.agent, proposal.operations)) !== exact(proposal.candidate))
     throw new Error('Reviewed candidate does not match the operations. Request a fresh proposal.');
-  return commitAgent(repository, base, proposal.operations, base.guidelines, assertActive);
+  return commitAgent(
+    repository,
+    base,
+    proposal.operations,
+    proposal.guidelines ?? base.guidelines,
+    assertActive,
+  );
 }

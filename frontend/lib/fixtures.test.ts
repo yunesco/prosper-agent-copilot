@@ -55,7 +55,7 @@ test('historical calls stay isolated and preserve the reported failure', async (
   const { callsForAgent } = await import('./fixtures');
   expect(callsForAgent('generated-agent')).toEqual([]);
   const calls = callsForAgent('clinic-scheduler');
-  expect(calls).toHaveLength(5);
+  expect(calls).toHaveLength(7);
   expect(
     calls.find(call => call.id === 'new-patient-monday')?.transcript.some(turn => /Friday/.test(turn.text)),
   ).toBe(false);
@@ -72,6 +72,12 @@ test('historical calls stay isolated and preserve the reported failure', async (
   expect(unflagged.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
     true,
   );
+  // Decoys that look like violations but comply: detection must not accuse them.
+  const volunteered = calls.find(call => call.id === 'existing-patient-volunteers-insurance')!;
+  expect(volunteered.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
+    false,
+  );
+  expect(calls.find(call => call.id === 'new-patient-no-insurance')!.client_feedback).toBeUndefined();
   const before = JSON.stringify(calls);
   const agent = loadAgentFixture('clinic-scheduler');
   agent.nodes[1].task_messages = [{ role: 'developer', content: 'Repaired local draft' }];

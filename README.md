@@ -30,25 +30,11 @@ coding assistant in a pull-request flow:
   `get_call` result that really contains that turn. Anything else is shown as
   *unverified*, so the model cannot invent evidence.
 
-## Demo script (about 4 minutes)
+## Demo script
 
-Start: `npm run dev`, open <http://localhost:3000>.
-
-**A. Guidelines to agent.** On *New / generated agent*, open Copilot, paste
-[`fixtures/demo-sop.md`](fixtures/demo-sop.md), and ask it to build the agent. Preview
-the blue-labelled workflow on the canvas, **Apply**, tweak a step by hand, **Save**,
-then **Test Call** (real voice, runs the saved agent).
-
-**B. Repair from a complaint.** Switch to *Mocked existing deployed agent*. In Details →
-Recent calls open *Reported Friday booking issue* and press **Investigate with Copilot**.
-It reads the transcript, cites the turn where Friday is offered to a new patient, links
-the responsible step (`offer_times`), and proposes the smallest fix. Preview, **Apply**,
-**Test Call** the repaired revision. The historical transcript stays unchanged.
-
-**C. Detection.** Press **Review recent calls with Copilot**. Nobody flagged
-*Existing-patient Monday booking*, but the agent asked an existing patient for
-insurance, against the guidelines. Copilot reads every call, flags that one with cited
-turns, does not accuse the clean calls, and offers the same repair flow.
+[DEMO.md](DEMO.md) maps each demo to the brief's requirements, with the exact calls to make and what
+to expect: SOP to agent, the live Friday failure and its repair, detection of an unreported issue,
+and the guardrails. Start with `npm run dev` and open <http://localhost:3000>.
 
 ## What is real, mocked, and left out
 
@@ -57,7 +43,7 @@ turns, does not accuse the clean calls, and offers the same repair flow.
 | Voice (Pipecat, WebRTC, ElevenLabs, OpenAI) | Real, supplied stack unchanged |
 | Agent validation and compilation | Real, Python `AgentBuilder`, shared by manual edits and Copilot |
 | Copilot (tools, proposals, review) | Real, OpenAI via the AI SDK, server-side keys |
-| Production calls | **Mocked.** Five synthetic calls behind a mock platform API (`/api/platform/…`) |
+| Production calls | **Mocked.** Seven synthetic calls behind a mock platform API (`/api/platform/…`) |
 | Scheduling availability | **Simulated** in instructions, no provider integration |
 | Persistence | Browser `localStorage` behind an `AgentRepository` with revision checks |
 | Auth, teams, database, real call ingestion, background monitoring, analytics | Deliberately not built: none of it changes the two bottlenecks |
@@ -75,6 +61,12 @@ passed: rename, targeted insurance clarification, grounded guideline review, com
 review changes, two SOP creations, Friday diagnosis and repair (reads the call, cites turns
 3–5, patches only `offer_times`), unflagged-call discovery, and a clean call that must *not*
 be flagged. Voice behavior is not covered by these evals; see [TASKS.md](TASKS.md).
+
+Conversation quality has deterministic checks too: `conversationQualityIssues()` flags a
+transition that can fire before the step has collected anything, or that re-asks known data, and
+the SOP-creation evals score it. A test also pins the Copilot instructions on short answers,
+corrections and early information. Fixing it found a real defect: the deployed scheduler's intake
+transition only required `patient_type`, so it could advance without a name or date of birth.
 
 ## Setup
 

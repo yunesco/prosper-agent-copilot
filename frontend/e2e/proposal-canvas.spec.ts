@@ -1,3 +1,4 @@
+import { openDetails } from './seed';
 import { expect, test, type Page } from '@playwright/test';
 import { constructProposal, type Proposal } from '../lib/agent/proposals';
 import type { AgentOperation } from '../lib/agent/operations';
@@ -163,6 +164,7 @@ test('incremental preview marks only affected elements, preserves the draft, and
   await seed(page);
   await mockProposal(page, existing, incremental);
   await page.goto('/');
+  await openDetails(page);
   await page.getByLabel('Agent name', { exact: true }).fill('Keep this manual draft');
   const before = await storage(page);
   await send(page);

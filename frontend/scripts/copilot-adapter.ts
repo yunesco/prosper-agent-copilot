@@ -5,6 +5,7 @@ import type { EvalAdapter, EvalTrace } from './eval-harness';
 /** Capture actual SDK calls/results; never derive evidence from model prose. */
 export const run: EvalAdapter = async ({
   prompt,
+  history = [],
   agentId = 'eval-agent',
   agent,
   intent = 'chat',
@@ -14,7 +15,14 @@ export const run: EvalAdapter = async ({
   const input = await parseCopilotRequest({
     snapshot: { id: agentId, revision: 1, agent, guidelines },
     intent,
-    messages: [{ id: 'user', role: 'user', parts: [{ type: 'text', text: prompt }] }],
+    messages: [
+      ...history.map((turn, index) => ({
+        id: `history-${index}`,
+        role: turn.role,
+        parts: [{ type: 'text', text: turn.text }],
+      })),
+      { id: 'user', role: 'user', parts: [{ type: 'text', text: prompt }] },
+    ],
   });
   const trace: EvalTrace = { tool_calls: [], proposed_operations: [], applied: false };
   let steps;
@@ -57,7 +65,9 @@ export const run: EvalAdapter = async ({
             },
       });
       if (output && typeof output.output === 'object' && output.output && 'proposal' in output.output) {
-        trace.proposed_operations = proposalSchema.parse(output.output.proposal).operations;
+        const proposal = proposalSchema.parse(output.output.proposal);
+        trace.proposed_operations = proposal.operations;
+        trace.proposed_guidelines = proposal.guidelines;
       }
     }
   return { model: { provider: 'openai', id: process.env.COPILOT_MODEL || 'gpt-5.5', settings: {} }, trace };
