@@ -34,6 +34,8 @@ export const evalFixtureSchema = z
         // The candidate must not let the call advance before information exists, or re-ask it.
         conversation_quality: z.literal(true).optional(),
         requires_enum: z.literal(true).optional(),
+        // Availability and booking must go through tools: a step must be given check_availability and book_appointment.
+        uses_scheduling_tools: z.literal(true).optional(),
         // The reply must ask at least this many questions (counted as question marks).
         answer_min_questions: z.number().int().positive().optional(),
         candidate_mentions: z.array(z.string().min(1)).min(1).optional(),
@@ -152,6 +154,7 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
     expectation.requires_branch ||
     expectation.conversation_quality ||
     expectation.requires_enum ||
+    expectation.uses_scheduling_tools ||
     expectation.candidate_mentions
   ) {
     const base = loadEvalAgent(fixture.agent_id);
@@ -193,6 +196,13 @@ export function evaluate(fixture: EvalFixture, rawTrace: unknown): string[] {
         )
       )
         failures.push('Candidate constrains no closed-set value with an enum.');
+      if (
+        expectation.uses_scheduling_tools &&
+        !candidate.nodes.some(
+          node => node.tools?.includes('check_availability') && node.tools.includes('book_appointment'),
+        )
+      )
+        failures.push('No step uses check_availability and book_appointment; times must come from tools.');
       if (expectation.candidate_mentions) {
         const text = candidate.nodes
           .flatMap(node => [JSON.stringify(node.task_messages), ...node.edges.map(edge => edge.description)])

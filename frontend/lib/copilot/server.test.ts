@@ -71,12 +71,21 @@ test('proposals report quality warnings for free-text restricted choices, dead e
     type: 'update_node',
     node: 'offer_times',
     changes: {
-      task_messages: [
-        { role: 'developer', content: 'Offer only Monday at 10 AM. The caller must choose one.' },
-      ],
+      task_messages: [{ role: 'developer', content: 'Offer only Monday. The caller must choose one.' }],
     },
   };
-  const sound = await propose([restrict]);
+  const sound = await propose([
+    restrict,
+    {
+      type: 'update_edge',
+      node: 'offer_times',
+      function: 'select_time',
+      changes: {
+        properties: { slot: { type: 'string', enum: ['Monday'] } },
+        required: ['slot'],
+      },
+    },
+  ]);
   expect(sound).toMatchObject({ valid: true, quality_warnings: [] });
   const freeText = await propose([
     restrict,

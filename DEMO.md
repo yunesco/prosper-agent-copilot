@@ -1,6 +1,6 @@
 # Demo plan
 
-How to show the app so each requirement in [brief.md](brief.md) is visibly met. The brief asks
+How to show the app so each requirement in the challenge brief is visibly met. The brief asks
 for a minimal UI to create an agent and place a test call, and a Copilot that automates two
 manual workflows: **initial implementation** and **production iteration, including detecting
 the issues**. Reviewers weigh the Copilot most, then problem resolution, scoping, product
@@ -91,21 +91,27 @@ own SOP, and I approve the fix."
 
 ## Demo 4: investigate and repair
 
-**Purpose.** The second workflow: from a complaint to a verified fix.
+**Purpose.** The second workflow: from a complaint to a verified fix, on an agent whose times come from tools.
 
-1. In **Details > Recent calls** open **Friday booked for a new patient**. Show the numbered
-   transcript and the linked graph steps. Click **Investigate with Copilot**.
+1. In **Details > Recent calls** open **Slot taken during booking, agent confirms anyway**. Show the
+   numbered transcript and the linked graph steps. Click **Investigate with Copilot**.
 2. Show the answer: it read the call, cites turns (click one, it opens the transcript at that
-   turn), and names `offer_new_patient_times` as the cause. Point out that a citation only renders as a
-   link if the Copilot actually read that turn.
-3. Show the proposal: one step changed, nothing else. Preview, then **Apply**.
-4. Test Call as a new patient and ask for Friday, then book Monday or Wednesday.
+   turn), and names `offer_existing_patient_times` as the cause. The step books through
+   `book_appointment` but never says what to do when the booking fails, so the agent confirmed anyway. A citation
+   only renders as a link if the Copilot actually read that turn.
+3. Show the proposal: one step changed, nothing else, and no clock time written into it. Preview, then **Apply**.
+4. Test Call as an existing patient and book a slot. Call again and ask for the same slot: it is gone, the
+   API refuses it, and the agent now apologises and offers the next slots instead of confirming.
+
+The client-reported call, **Friday booked for a new patient**, takes the same path: the transcript shows a
+Friday quoted with no tool result behind it. Its fix tightens `offer_new_patient_times` so only returned slots
+are offered. The API already refuses Friday for new patients on its own, so the rule is enforced twice.
 
 **Expect:** the transcript shows `check_availability` and `book_appointment` lines. The mock scheduling
-API, not the prompt, enforces that a new patient has Monday and Wednesday only. Call again: the slot you booked is gone.
+API, not the prompt, enforces that a new patient has Monday and Wednesday only and that a slot cannot be booked twice.
 
 **Say:** "Cited cause, smallest patch, I approved it, and the same call now passes. The old
-transcript stays as it was; we do not rewrite history."
+transcript stays as it was; we do not rewrite history. Times come from the tool, so the prompt never goes stale."
 
 ## Demo 5: detection, the part of the brief people overlook
 
@@ -147,6 +153,8 @@ assume, then a full proposal, with a summary saved as the agent's guidelines.
   changes**: a model review with verbatim guideline excerpts, turned into one atomic proposal.
 - **Evals.** Show the green `make eval-copilot` result: it scores tool calls and cited turns,
   including the clean call that must not be flagged.
+- **No hardcoded availability.** Ask the Copilot to add "offer Monday at 10 AM or Wednesday at 2 PM" to a step.
+  The proposal carries a quality warning that times must come from `check_availability`.
 
 ## Demo 8: manual edit
 

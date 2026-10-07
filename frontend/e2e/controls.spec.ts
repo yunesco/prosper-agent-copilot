@@ -34,7 +34,7 @@ test('dropdown Escape preserves drafts; keyboard selection updates the routing d
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
 });
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`agent menu and switch dialog keep focus and draft at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });

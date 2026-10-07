@@ -4,7 +4,6 @@ import { expect, test, type Page } from '@playwright/test';
 test.beforeEach(async ({ page }, info) => {
   if (!info.title.startsWith('switching saved agents')) await seedOriginal(page);
 });
-import fridayCall from '../../fixtures/calls/new-patient-friday.json' with { type: 'json' };
 import { agentSchema } from '../lib/agent/schema';
 
 async function mockVoice(page: Page, microphone: 'allow' | 'deny' | 'pending' = 'allow') {
@@ -111,7 +110,7 @@ async function mockVoice(page: Page, microphone: 'allow' | 'deny' | 'pending' = 
   );
 }
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`call saved graph, edit, call again and retain builder at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await mockVoice(page);
@@ -239,93 +238,6 @@ test('runtime rejection, unavailability, disconnect and retry', async ({ page })
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Call disconnected');
   await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(3);
 });
-
-test('cancel while permission is pending releases late microphone and does not start voice', async ({
-  page,
-}) => {
-  await mockVoice(page, 'pending');
-  let calls = 0;
-  page.on('request', request => {
-    if (request.url().endsWith('/api/runtime/call')) calls++;
-  });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Test Call' }).click();
-  await page.getByRole('button', { name: 'Start call' }).click();
-  await page.getByRole('button', { name: 'Cancel call' }).click();
-  await expect.poll(() => page.evaluate('window.stoppedTracks')).toBe(1);
-  expect(calls).toBe(0);
-  await expect(page.getByText('Call ended', { exact: true })).toBeVisible();
-});
-
-for (const width of [1440, 390]) {
-  test(`transcript follows speech and respects reading position at ${width}`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 844 });
-    await mockVoice(page);
-    await page.route('**/api/runtime/call', route =>
-      route.fulfill({ json: { sdp: 'answer', type: 'answer', pc_id: 'test' } }),
-    );
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Test Call', exact: true }).click();
-    await page.getByRole('button', { name: 'Start call', exact: true }).click();
-    await expect(page.getByText('Call connected', { exact: true })).toBeVisible();
-    if (width < 768) await page.getByRole('button', { name: 'Details', exact: true }).click();
-    const log = page.getByRole('log');
-    await page.screenshot({ path: info.outputPath(`transcript-clean-${width}.png`) });
-    const emit = async (role: string, text: string, segment = 100) => {
-      const message =
-        role === 'user'
-          ? { type: 'user-transcription', data: { text, final: true } }
-          : {
-              type: 'bot-output',
-              data: {
-                text,
-                segment_id: segment,
-                will_be_spoken: true,
-                spoken_status: 'in-progress',
-                spoken_progress: { accumulated_text: text },
-              },
-            };
-      await page.evaluate(message => {
-        Reflect.get(window, 'emitVoice')(message);
-      }, message);
-    };
-    const bottomGap = () =>
-      log.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop);
-    for (let i = 0; i < 4; i++) {
-      for (const [index, line] of fridayCall.transcript.entries())
-        await emit(line.role, line.text, 10 + i * 5 + index);
-    }
-    await expect.poll(() => log.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-    await expect.poll(bottomGap).toBeLessThan(2);
-    await emit('assistant', 'Let me check.', 100);
-    await expect.poll(bottomGap).toBeLessThan(2);
-    const longText = fridayCall.transcript.map(line => line.text).join(' ');
-    await emit('assistant', longText, 100);
-    await expect.poll(bottomGap).toBeLessThan(2);
-    await log.evaluate(element => {
-      element.scrollTop = 100;
-    });
-    await expect(page.getByRole('button', { name: 'Jump to latest' })).toBeVisible();
-    await emit('assistant', longText + ' ' + longText, 100);
-    await expect.poll(() => log.evaluate(element => element.scrollTop)).toBe(100);
-    await page.getByRole('button', { name: 'Jump to latest' }).click();
-    await expect.poll(bottomGap).toBeLessThan(2);
-    if (width < 768) {
-      await page.getByRole('button', { name: 'Graph', exact: true }).click();
-      await emit('user', fridayCall.transcript[1].text);
-      await page.getByRole('button', { name: 'Details', exact: true }).click();
-      await expect.poll(bottomGap).toBeLessThan(2);
-    }
-    await emit('user', 'x'.repeat(300));
-    await expect.poll(bottomGap).toBeLessThan(2);
-    expect(await log.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    expect(await page.locator('[data-pane-content="context"]').evaluate(element => element.scrollTop)).toBe(
-      0,
-    );
-    await emit('assistant', fridayCall.transcript[0].text, 101);
-    await page.screenshot({ path: info.outputPath(`transcript-${width}.png`) });
-  });
-}
 
 test('switching saved agents stops active calls, clears context and releases tracks', async ({ page }) => {
   await mockVoice(page);

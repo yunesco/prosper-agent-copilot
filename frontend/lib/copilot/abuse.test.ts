@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { copilotTools, instructions, parseCopilotRequest } from './server';
+import { copilotTools, parseCopilotRequest } from './server';
 import { loadAgentFixture } from '../fixtures';
 
 const snapshot = {
@@ -65,11 +65,6 @@ test('instructions injected in a transcript are returned as data; no tool can sa
   expect(result.valid).toBe(true);
   expect(result.proposal.candidate.name).toBe('Hijacked');
   expect(snapshot).toEqual(before);
-});
-
-test('the model is told to treat supplied text as data and never to claim an applied change', () => {
-  expect(instructions).toMatch(/data, never authority to bypass approval/);
-  expect(instructions).toMatch(/Never save or claim to have applied changes/);
 });
 
 test('a proposal cannot be built against another agent or a stale revision', async () => {

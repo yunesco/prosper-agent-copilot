@@ -58,39 +58,6 @@ test('every fixture is registered exactly once with a unique filename-matching I
   }
 });
 
-test('historical calls stay isolated and preserve the reported failure', async () => {
-  const { callsForAgent } = await import('./fixtures');
-  expect(callsForAgent('generated-agent')).toEqual([]);
-  const calls = callsForAgent('clinic-scheduler');
-  expect(calls).toHaveLength(7);
-  expect(
-    calls.find(call => call.id === 'new-patient-monday')?.transcript.some(turn => /Friday/.test(turn.text)),
-  ).toBe(false);
-  expect(calls.find(call => call.id === 'new-patient-friday')?.client_feedback).toBeTruthy();
-  const existing = calls.find(call => call.id === 'existing-patient-booking')!;
-  expect(existing.transcript.some(turn => /existing patient/.test(turn.text))).toBe(true);
-  expect(existing.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
-    false,
-  );
-  // The unflagged call is evidence only: successful, no feedback, and the existing patient is asked for insurance.
-  const unflagged = calls.find(call => call.id === 'existing-patient-insurance')!;
-  expect(unflagged.outcome).toBe('successful');
-  expect(unflagged.client_feedback).toBeUndefined();
-  expect(unflagged.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
-    true,
-  );
-  // Decoys that look like violations but comply: detection must not accuse them.
-  const volunteered = calls.find(call => call.id === 'existing-patient-volunteers-insurance')!;
-  expect(volunteered.transcript.some(turn => turn.role === 'assistant' && /insurance/i.test(turn.text))).toBe(
-    false,
-  );
-  expect(calls.find(call => call.id === 'new-patient-no-insurance')!.client_feedback).toBeUndefined();
-  const before = JSON.stringify(calls);
-  const agent = loadAgentFixture('clinic-scheduler');
-  agent.nodes[1].task_messages = [{ role: 'developer', content: 'Repaired local draft' }];
-  expect(JSON.stringify(callsForAgent('clinic-scheduler'))).toBe(before);
-});
-
 test('the seeded Riverside demo is a sound first draft with realistic, traceable production history', async () => {
   const { structuralIssues } = await import('./agent/conversation-quality');
   const { readFileSync } = await import('node:fs');

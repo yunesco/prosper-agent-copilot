@@ -23,6 +23,11 @@ that **act through tools, not through data pasted into prompts**.
 - The Copilot knows the catalog. For something no tool covers it builds what the tools allow, says
   what is missing, and uses `transfer_to_human`. It never invents a tool.
 - Where it would plug in: `mock_api.py` is the only file that pretends to be an EHR or payer.
+- Nothing in the graph is hardcoded. No instruction, persona or enum carries a clock time: a proposal that
+  writes one gets a quality warning (`hardcodedTimeIssues`), the seeded Riverside agent and the minimal test
+  fixture both use the tools, and the create-from-SOP eval fails a candidate that books without
+  `check_availability` and `book_appointment`. Days of the week stay in the text only as policy (which patient
+  type may book which day); the API enforces the same policy independently.
 
 ## What the demo proves
 
@@ -35,8 +40,9 @@ In the order you would watch it:
    planted and listed here, so the result is reproducible, not cherry-picked.
 3. **Every fix gets a card.** Fix requests force the Copilot to end in a proposal; if it cannot, the
    UI says why and offers Retry instead of leaving prose.
-4. **Detect from calls.** Without being told, it finds two unreported failures (chest pain while the
-   agent kept booking; a taken slot the agent confirmed anyway) with verified turn citations, and leaves clean calls alone.
+4. **Detect from calls.** Without being told, it finds the five failures nobody reported (chest pain while the
+   agent kept booking; a taken slot the agent confirmed anyway; a Friday offered to a new patient; a time that was
+   never offered; a day Dr. Smith does not work) with verified turn citations, and leaves the clean calls alone.
 5. **Repair a flagged issue** with the smallest patch.
 6. **Test Call is real.** Tool calls show in the transcript (`book_appointment → confirmed A101`),
    the booked slot disappears on the next call, and a new patient asking for Friday is refused by the API.
@@ -254,10 +260,14 @@ spent the time on the Copilot.
 
 ## Honest limits
 
-- The Copilot's quality is measured by evals that score observed tool calls and cited
-  turns on synthetic data. They do not measure voice quality.
 - Persistence is per browser; two tabs writing the same agent is not coordinated.
 - Tool results come from a canned, in-memory mock. They are realistic in shape (computed slots, 409s,
   plan-specific copays) but are not a real EHR, and tool calls were exercised by unit tests and
   live Copilot runs, not by a recorded voice call in this repo.
+- The 14 production calls are text written by hand and show what the agent said, not the tool calls behind it
+  (their times come from the days before availability was computed). Reading them is what the Copilot is
+  tested on; they are not a replay of the current revision.
+- The voice stack is the supplied one. In a noisy room, manual-commit STT can stall when background noise keeps
+  the VAD open and no transcript is committed; the fix (noise suppression, ElevenLabs VAD commit, a re-prompt on
+  empty turns) is a voice-pipeline change I left out. Demo in a quiet room with headphones.
 - Fix requests are forced to propose; a vague free-text chat message is still allowed to answer in prose.

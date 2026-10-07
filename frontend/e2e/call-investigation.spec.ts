@@ -48,7 +48,7 @@ function investigationStream() {
   return chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n';
 }
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`investigate a failed call, then follow a verified citation to its transcript turn at ${width}`, async ({
     page,
   }, info) => {

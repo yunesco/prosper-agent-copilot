@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { loadAgentFixture } from '@/lib/fixtures';
 import { instructions } from '@/lib/copilot/server';
-import { conversationQualityIssues, sizeIssues } from './conversation-quality';
+import { conversationQualityIssues, hardcodedTimeIssues, sizeIssues } from './conversation-quality';
 import { applyAgentOperations } from './operations';
 import { parseAgent, type AgentConfig } from './schema';
 
@@ -36,7 +36,7 @@ test('flags a field that is required again downstream', () => {
       node: 'offer_times',
       function: 'select_time',
       changes: {
-        properties: { slot: { type: 'string', enum: ['Monday at 10 AM'] }, full_name: { type: 'string' } },
+        properties: { slot: { type: 'string', enum: ['Monday'] }, full_name: { type: 'string' } },
         required: ['slot', 'full_name'],
       },
     },
@@ -104,7 +104,7 @@ test('flags a restricted choice that is collected as free text, and accepts an e
           task_messages: [
             {
               role: 'developer',
-              content: 'Offer only Monday at 10 AM or Friday at 2 PM. The caller must choose one.',
+              content: 'Offer only Monday or Friday. The caller must choose one.',
             },
           ],
         },
@@ -119,9 +119,7 @@ test('flags a restricted choice that is collected as free text, and accepts an e
   expect(conversationQualityIssues(restricted({ type: 'string' }))).toEqual([
     expect.stringContaining('offer_times: select_time collects slot as free text'),
   ]);
-  expect(
-    conversationQualityIssues(restricted({ type: 'string', enum: ['Monday at 10 AM', 'Friday at 2 PM'] })),
-  ).toEqual([]);
+  expect(conversationQualityIssues(restricted({ type: 'string', enum: ['Monday', 'Friday'] }))).toEqual([]);
 });
 
 test('flags a step that is a dead end and a loop that can never end the call', () => {
@@ -228,4 +226,40 @@ test('a graph that is bigger than a phone call needs is flagged, a lean one is n
   ]);
   expect(sizeIssues(long)).toEqual([expect.stringMatching(/The graph has 10 steps; most calls need 3 to 6/)]);
   expect(conversationQualityIssues(long).some(issue => issue.includes('10 steps'))).toBe(true);
+});
+
+test('warns when a clock time is written into the persona, a step or an enum instead of coming from a tool', () => {
+  const agent = loadAgentFixture('riverside-family-clinic');
+  expect(hardcodedTimeIssues(agent)).toEqual([]);
+  const withTime = applyAgentOperations(agent, [
+    {
+      type: 'update_node',
+      node: 'offer_new_patient_times',
+      changes: {
+        task_messages: [{ role: 'developer', content: 'Offer Monday at 10 AM or Wednesday at 2 PM.' }],
+      },
+    },
+  ]);
+  expect(conversationQualityIssues(withTime)).toEqual([
+    expect.stringContaining('offer_new_patient_times quotes a clock time'),
+  ]);
+  // The shipped demo agent is clean: a greeting that says "do not ask for it again" is not collecting.
+  expect(conversationQualityIssues(agent)).toEqual([]);
+  // Days are policy, not availability; "am"/"pm" inside other words and plain numbers are not times.
+  const policy = applyAgentOperations(agent, [
+    {
+      type: 'update_node',
+      node: 'offer_new_patient_times',
+      changes: {
+        task_messages: [
+          {
+            role: 'developer',
+            content:
+              'New patients may only book Monday or Wednesday; call 2 times if needed, then pamper them.',
+          },
+        ],
+      },
+    },
+  ]);
+  expect(hardcodedTimeIssues(policy)).toEqual([]);
 });

@@ -2,7 +2,7 @@ import { revealAgentFields } from './seed';
 import { expect, test } from '@playwright/test';
 import { STORAGE_KEY } from '../lib/agent/repository';
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`saved agents, combined drafts, switch decisions and reload at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');

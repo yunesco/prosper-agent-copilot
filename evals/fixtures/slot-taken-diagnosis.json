@@ -1,0 +1,36 @@
+{
+  "id": "slot-taken-diagnosis",
+  "agent_id": "riverside-family-clinic",
+  "intent": "chat",
+  "live_only": true,
+  "prompt": "Investigate call riverside-slot-taken-confirmed. Explain what happened and which step is responsible, citing the transcript. If the agent is at fault, propose the smallest fix. Appointment times and booking results come from the scheduling tools, so do not write times into the instructions.",
+  "expected": {
+    "tools_in_order": [
+      "get_agent",
+      "get_call",
+      "propose_agent_patch"
+    ],
+    "must_read_calls": [
+      "riverside-slot-taken-confirmed"
+    ],
+    "answer_cites": [
+      {
+        "call_id": "riverside-slot-taken-confirmed",
+        "turns": [
+          7,
+          9
+        ]
+      }
+    ],
+    "changed_nodes": [
+      "offer_existing_patient_times"
+    ],
+    "patch_touches": [
+      "offer_existing_patient_times"
+    ],
+    "candidate_mentions": [
+      "check_availability"
+    ],
+    "requires_approval": true
+  }
+}

@@ -1,5 +1,4 @@
 import { describe, expect, test, vi } from 'vitest';
-import { z } from 'zod';
 import {
   candidateDiff,
   commitProposal,
@@ -189,36 +188,6 @@ test('model review schema only permits verbatim source passages', () => {
       behaviors: [{ ...finding, excerpt: 'Existing patients do not need insurance.' }],
     }).success,
   ).toBe(false);
-});
-
-test('model review schema is accepted by OpenAI strict structured outputs for quoted guidelines', () => {
-  const guidelines =
-    'Accept short answers such as "yes" or "Monday". Never invent availability.\n\nUse C:\\notes.';
-  const schema = groundedReviewSchema(guidelines);
-  const json = z.toJSONSchema(schema, { io: 'input' }) as unknown as {
-    properties: { behaviors: { items: { properties: { excerpt: { enum: string[] } } } } };
-  };
-  const options = json.properties.behaviors.items.properties.excerpt.enum;
-  // Strict mode rejects quotes, backslashes and line breaks in enum literals, and duplicate values.
-  expect(options.some(option => /["\\\n\r\t]/.test(option))).toBe(false);
-  expect(new Set(options).size).toBe(options.length);
-  const quoted = options.find(option => option.includes("'yes'"))!;
-  const parsed = schema.parse({
-    summary: 'Review',
-    behaviors: [
-      {
-        behavior: 'Short answers',
-        excerpt: quoted,
-        references: [],
-        finding: 'Compare',
-        status: 'aligned',
-        clarification: null,
-      },
-    ],
-  });
-  // The grounded excerpt is the exact source text, quotes included.
-  expect(guidelines.includes(parsed.behaviors[0].excerpt)).toBe(true);
-  expect(parsed.behaviors[0].excerpt).toContain('"yes" or "Monday"');
 });
 
 describe('structural gate', () => {

@@ -63,7 +63,7 @@ app in Chromium with voice and model mocked.
 synthetic data. It scores the tools the model actually called, not its prose. Model output varies, so it
 is not a gate, and scenarios that passed and failed on identical code were removed rather than kept. It does not cover
 voice quality. Scenarios: rename, targeted insurance clarification, grounded guideline review, vague
-one-liner interview, SOP creation, Friday diagnosis and repair, a repair that leaves unrelated steps
+one-liner interview, SOP creation that must use the scheduling tools, Friday and slot-taken diagnosis and repair, a repair that leaves unrelated steps
 alone, unflagged-call discovery, a clean call that must *not* be flagged, and a hostile instruction
 inside a pasted transcript that must not be obeyed.
 

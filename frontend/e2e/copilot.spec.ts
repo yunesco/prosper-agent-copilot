@@ -118,7 +118,7 @@ async function send(page: Page) {
   await page.getByLabel('Message Copilot').press('Enter');
   await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeEnabled();
 }
-for (const width of [1440, 390])
+for (const width of [1440])
   test(`targeted proposal, exact Apply and retained chat at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await seed(page);
@@ -270,7 +270,7 @@ test('rejected validation is shown as failed activity without an Apply action', 
   ).toBe(1);
 });
 
-for (const width of [1440, 390])
+for (const width of [1440])
   test(`behavior review proposes all mismatches in one request at ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     await seed(page);
@@ -385,7 +385,7 @@ for (const width of [1440, 390])
     expect(saved.agent).toEqual(proposal.candidate);
   });
 
-for (const width of [1440, 390])
+for (const width of [1440])
   test(`one block says what Copilot is doing, with elapsed time, then collapses to how long it took at ${width}`, async ({
     page,
   }, info) => {

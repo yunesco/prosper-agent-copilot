@@ -5,28 +5,80 @@
   "nodes": [
     {
       "name": "collect_details",
-      "task_messages": [{"role": "developer", "content": "Collect name, DOB, patient type, and insurance when needed."}],
-      "edges": [{
-        "function": "record_details",
-        "description": "Continue after collecting required details.",
-        "target": "offer_times",
-        "properties": {
-          "full_name": {"type": "string"},
-          "date_of_birth": {"type": "string"},
-          "patient_type": {"type": "string", "enum": ["new", "existing"]},
-          "insurance_provider": {"type": "string"}
-        },
-        "required": ["full_name", "date_of_birth", "patient_type"]
-      }]
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Collect name, DOB, patient type, and insurance when needed."
+        }
+      ],
+      "edges": [
+        {
+          "function": "record_details",
+          "description": "Continue after collecting required details.",
+          "target": "offer_times",
+          "properties": {
+            "full_name": {
+              "type": "string"
+            },
+            "date_of_birth": {
+              "type": "string"
+            },
+            "patient_type": {
+              "type": "string",
+              "enum": [
+                "new",
+                "existing"
+              ]
+            },
+            "insurance_provider": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "full_name",
+            "date_of_birth",
+            "patient_type"
+          ]
+        }
+      ]
     },
     {
       "name": "offer_times",
-      "task_messages": [{"role": "developer", "content": "Offer only Dr. Smith's available appointments: Monday at 10 AM or Friday at 2 PM. The caller must choose one of them; if they ask for another time, explain and offer these two again."}],
-      "edges": [{"function": "select_time", "description": "Record the selected slot.", "target": "confirm", "properties": {"slot": {"type": "string", "enum": ["Monday at 10 AM", "Friday at 2 PM"]}}, "required": ["slot"]}]
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Call check_availability with the caller's patient_type and offer the first two slots it returns; never quote a time from memory. If the caller asks for another time, explain and offer the returned slots again. When they pick one, call book_appointment with that slot's slot_id, their full name and patient_type, then continue."
+        }
+      ],
+      "edges": [
+        {
+          "function": "select_time",
+          "description": "Record the selected slot.",
+          "target": "confirm",
+          "properties": {
+            "slot": {
+              "type": "string",
+              "description": "The day and time the caller chose, as returned by check_availability."
+            }
+          },
+          "required": [
+            "slot"
+          ]
+        }
+      ],
+      "tools": [
+        "check_availability",
+        "book_appointment"
+      ]
     },
     {
       "name": "confirm",
-      "task_messages": [{"role": "developer", "content": "Confirm the selected appointment, thank the caller, and say goodbye."}],
+      "task_messages": [
+        {
+          "role": "developer",
+          "content": "Confirm the selected appointment, thank the caller, and say goodbye."
+        }
+      ],
       "end": true
     }
   ]

@@ -3,14 +3,35 @@
   "agent_id": "clinic-scheduler",
   "intent": "chat",
   "live_only": true,
-  "prompt": "Investigate call new-patient-friday. Explain what happened and which step is responsible, citing the transcript. If the agent is at fault, propose the smallest fix.",
+  "prompt": "Investigate call new-patient-friday. Explain what happened and which step is responsible, citing the transcript. If the agent is at fault, propose the smallest fix. Appointment times come from the check_availability tool, so do not write times into the instructions.",
   "expected": {
-    "tools_in_order": ["get_agent", "get_call", "propose_agent_patch"],
-    "must_read_calls": ["new-patient-friday"],
-    "answer_cites": [{ "call_id": "new-patient-friday", "turns": [3, 4, 5] }],
-    "changed_nodes": ["offer_times"],
-    "patch_touches": ["offer_times"],
-    "candidate_mentions": ["Monday", "Wednesday"],
+    "tools_in_order": [
+      "get_agent",
+      "get_call",
+      "propose_agent_patch"
+    ],
+    "must_read_calls": [
+      "new-patient-friday"
+    ],
+    "answer_cites": [
+      {
+        "call_id": "new-patient-friday",
+        "turns": [
+          3,
+          4,
+          5
+        ]
+      }
+    ],
+    "changed_nodes": [
+      "offer_times"
+    ],
+    "patch_touches": [
+      "offer_times"
+    ],
+    "candidate_mentions": [
+      "check_availability"
+    ],
     "requires_approval": true
   }
 }

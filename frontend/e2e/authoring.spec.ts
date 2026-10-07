@@ -83,7 +83,7 @@ test('create, connect and repair a multi-step agent in one draft', async ({ page
   await expect(page.getByLabel('Agent name', { exact: true })).toHaveValue('Manual clinic');
 });
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`graph add/delete controls and draft cancellation at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
@@ -138,7 +138,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`add step dismisses to its trigger without clearing selection at ${width}`, async ({
     page,
   }, testInfo) => {

@@ -58,6 +58,8 @@ const riversideCalls = [
 ];
 
 // A small explicit registry avoids filesystem access in browser code and duplicated data.
+// `original-scheduler` is the starter's sample format and `clinic-scheduler` a minimal three-step agent that
+// uses the same tools; both exist for tests and evals and are never seeded into the app (only Riverside is).
 export const agentFixtures = {
   'original-scheduler': originalScheduler,
   'clinic-scheduler': clinicScheduler,

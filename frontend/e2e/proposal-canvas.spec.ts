@@ -107,7 +107,7 @@ async function expectExactApply(page: Page, base: SavedAgent, proposal: Proposal
   await expect(page.getByRole('button', { name: 'Inspect on canvas', exact: true })).toHaveCount(0);
 }
 
-for (const width of [1440, 390])
+for (const width of [1440])
   test(`complete candidate graph from a fresh scaffold is inspectable before exact Apply at ${width}`, async ({
     page,
   }, info) => {

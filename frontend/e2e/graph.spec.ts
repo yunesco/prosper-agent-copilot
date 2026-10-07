@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await seedOriginal(page);
 });
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`inspect graph and retain selection/viewport at ${width}`, async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));

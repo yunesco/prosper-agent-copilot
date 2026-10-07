@@ -2,8 +2,14 @@ import type { AgentConfig, AgentNode } from './schema';
 
 // Asking an open question ("ask how you can help") routes; asking *for* a value collects it.
 const collects = /\b(collect|capture|obtain|record|ask (for|the caller for|them for|whether))\b/i;
+// "Do not ask for it again" forbids collecting; it is not a collection instruction.
+const negatedCollect =
+  /\b(do not|don't|never|no need to|without)\s+(re-?)?(collect|capture|obtain|record|ask)\b[^.]*\.?/gi;
+const collectsData = (value: string) => collects.test(value.replace(negatedCollect, ' '));
 // Step text that limits what the caller may pick; the transition schema must enforce it with an enum.
 const restricts = /\b(offer only|must (choose|pick|select)|one of (the|these|those))\b/i;
+// A clock time written into the graph goes stale; availability must come from a tool at call time.
+const clockTime = /\b\d{1,2}(:\d{2})?\s?([ap]\.?m\.?)(?![a-z])/i;
 const text = (node: AgentNode) => node.task_messages.map(message => String(message.content ?? '')).join(' ');
 
 /**
@@ -66,8 +72,31 @@ export function sizeIssues(agent: AgentConfig): string[] {
   return issues;
 }
 
+/** Clock times typed into instructions, the persona or an enum are quoted from memory instead of looked up. */
+export function hardcodedTimeIssues(agent: AgentConfig): string[] {
+  const issues: string[] = [];
+  if (clockTime.test(agent.persona ?? ''))
+    issues.push(
+      'The persona quotes a clock time. Appointment times must come from check_availability, not from the prompt.',
+    );
+  for (const node of agent.nodes) {
+    const enums = node.edges.flatMap(edge =>
+      Object.values(edge.properties).flatMap(schema =>
+        schema && typeof schema === 'object' && !Array.isArray(schema) && Array.isArray(schema.enum)
+          ? schema.enum.map(String)
+          : [],
+      ),
+    );
+    if ([text(node), ...enums].some(value => clockTime.test(value)))
+      issues.push(
+        `Step ${node.name} quotes a clock time. Appointment times must come from check_availability at call time, or they go stale; keep only the rule (for example which days a patient type may book).`,
+      );
+  }
+  return issues;
+}
+
 export function conversationQualityIssues(agent: AgentConfig): string[] {
-  const issues: string[] = [...structuralIssues(agent), ...sizeIssues(agent)];
+  const issues: string[] = [...structuralIssues(agent), ...sizeIssues(agent), ...hardcodedTimeIssues(agent)];
   const byName = new Map(agent.nodes.map(node => [node.name, node]));
   const reaches = (from: string, to: string, seen = new Set<string>()): boolean => {
     if (from === to) return true;
@@ -81,7 +110,7 @@ export function conversationQualityIssues(agent: AgentConfig): string[] {
     reaches(edge.target, node.name) ||
     (!!byName.get(edge.target)?.end && node.edges.some(other => other.required.length > 0));
   for (const node of agent.nodes) {
-    if (!collects.test(text(node))) continue;
+    if (!collectsData(text(node))) continue;
     for (const edge of node.edges)
       if (!edge.required.length && !isEscape(node, edge))
         issues.push(

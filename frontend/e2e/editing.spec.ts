@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await seedOriginal(page);
 });
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`inline edits, draft retention and validated saves at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');

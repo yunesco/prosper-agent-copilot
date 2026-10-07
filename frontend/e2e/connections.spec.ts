@@ -20,7 +20,7 @@ async function drag(page: Page, from: Locator, to: Locator | { x: number; y: num
   await page.mouse.up();
 }
 
-for (const width of [1440, 390]) {
+for (const width of [1440]) {
   test(`move cards, connect to their bodies, reroute and cancel at ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');

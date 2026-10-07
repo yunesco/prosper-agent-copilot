@@ -74,7 +74,11 @@ test('fresh-agent creation scores added steps and requires an exact validated ca
       behavior: 'Scheduling',
       operations: creation.expected.added_nodes!.map(name => ({
         type: 'add_node',
-        value: nodeSchema.parse({ name, end: true }),
+        value: nodeSchema.parse({
+          name,
+          end: true,
+          ...(name === 'offer_times' ? { tools: ['check_availability', 'book_appointment'] } : {}),
+        }),
       })),
     },
     async () => {},
@@ -114,7 +118,11 @@ test('conversation_quality fails a generated candidate that can advance before c
   const operations = [
     ...creation.expected.added_nodes!.map(name => ({
       type: 'add_node' as const,
-      value: nodeSchema.parse({ name, end: true }),
+      value: nodeSchema.parse({
+        name,
+        end: true,
+        ...(name === 'offer_times' ? { tools: ['check_availability', 'book_appointment'] } : {}),
+      }),
     })),
     {
       type: 'update_node' as const,
@@ -181,8 +189,8 @@ test('diagnosis scoring needs a real transcript read, honest citations, and a pa
       agentId: base.id,
       baseRevision: 1,
       outcome: 'Restrict new patients',
-      explanation: 'Friday is not allowed for new patients.',
-      behavior: 'New patients only get Monday or Wednesday.',
+      explanation: 'Friday was quoted from memory instead of looked up.',
+      behavior: 'Only slots returned by the scheduling tool are offered.',
       operations: [
         {
           type: 'update_node',
@@ -192,7 +200,7 @@ test('diagnosis scoring needs a real transcript read, honest citations, and a pa
               {
                 role: 'developer',
                 content:
-                  'New patients: offer Monday at 10 AM or Wednesday at 2 PM only. Existing patients may also be offered Friday at 2 PM.',
+                  'Call check_availability with the patient type and offer only the slots it returns; if the caller asks for a day it does not return, explain and offer the returned slots again.',
               },
             ],
           },
@@ -292,4 +300,29 @@ test('repair scoring requires the cause to be fixed and every unrelated step to 
     'outside the requested nodes',
   );
   expect(evaluate(repair, trace([])).join()).toContain('made no change');
+});
+
+test('the scheduling-tools expectation fails a candidate that books without the tools', () => {
+  const fixture = evalFixtureSchema.parse({
+    id: 'tools',
+    agent_id: 'original-scheduler',
+    prompt: 'x',
+    expected: { tools_in_order: ['get_agent'], uses_scheduling_tools: true, requires_approval: true },
+  });
+  const trace = {
+    applied: false,
+    proposed_operations: [],
+    tool_calls: [
+      {
+        toolCallId: 'a',
+        toolName: 'get_agent' as const,
+        input: {},
+        result: { type: 'tool-result' as const, output: {} },
+      },
+    ],
+  };
+  expect(evaluate(fixture, trace).join()).toContain('No step uses check_availability and book_appointment');
+  expect(evaluate({ ...fixture, agent_id: 'riverside-family-clinic' }, trace).join()).not.toContain(
+    'No step uses check_availability',
+  );
 });

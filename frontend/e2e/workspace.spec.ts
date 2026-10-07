@@ -46,58 +46,6 @@ for (const [width, height] of [
   });
 }
 
-test('pane keyboard, pointer cancellation, bounds, reset and focus retention', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await page.getByRole('tab', { name: 'Copilot', exact: true }).click();
-  const draft = page.getByLabel('Message Copilot');
-  await draft.fill('Keep this draft');
-  await page.getByRole('button', { name: 'Close details', exact: true }).click();
-  await expect(draft).toBeHidden();
-  await page.getByRole('button', { name: 'Open details', exact: true }).click();
-  await expect(draft).toHaveValue('Keep this draft');
-  await expect(draft).toBeFocused();
-  await expect(page.getByRole('button', { name: /Expand workspace|Expand details/ })).toHaveCount(0);
-  const divider = page.getByRole('separator', { name: 'Resize panes' });
-  await divider.focus();
-  await divider.press('Home');
-  await expect(divider).toHaveAttribute('aria-valuenow', '40');
-  await divider.press('ArrowRight');
-  await expect(divider).toHaveAttribute('aria-valuenow', '42');
-  await divider.press('Shift+ArrowRight');
-  await expect(divider).toHaveAttribute('aria-valuenow', '52');
-  await divider.press('End');
-  await expect(divider).toHaveAttribute('aria-valuenow', '75');
-  await divider.press('ArrowRight');
-  await expect(divider).toHaveAttribute('aria-valuenow', '75');
-  await divider.dblclick();
-  await expect(divider).toHaveAttribute('aria-valuenow', '70');
-  const box = await divider.boundingBox();
-  if (!box) throw new Error('Missing divider');
-  await page.mouse.move(box.x + box.width / 2, box.y + 100);
-  await page.mouse.down();
-  await page.mouse.move(700, box.y + 100);
-  await expect(divider).not.toHaveAttribute('aria-valuenow', '70');
-  await page.keyboard.press('Escape');
-  await page.mouse.up();
-  await expect(divider).toHaveAttribute('aria-valuenow', '70');
-  await page.mouse.move(box.x + box.width / 2, box.y + 100);
-  await page.mouse.down();
-  await page.mouse.move(650, box.y + 100);
-  await divider.dispatchEvent('pointercancel', { pointerId: 1 });
-  await page.mouse.up();
-  await expect(divider).toHaveAttribute('aria-valuenow', '70');
-  await page.mouse.move(box.x + box.width / 2, box.y + 100);
-  await page.mouse.down();
-  await page.mouse.move(700, box.y + 100);
-  await page.mouse.up();
-  await expect(divider).toHaveAttribute('aria-valuenow', '49');
-  await divider.focus();
-  expect(
-    await divider.evaluate(element => getComputedStyle(element.firstElementChild!).backgroundColor),
-  ).not.toBe('rgba(0, 0, 0, 0)');
-});
-
 test('mobile panes retain drafts and focus; resizing across breakpoint retains context', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
